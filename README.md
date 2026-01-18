@@ -67,3 +67,8 @@ modal deploy comfyui.py
 - **GPU Snapshots**: Fast startup times using Modal's GPU snapshots.
 - **Model Caching**: Uses Modal Volumes to cache models across runs.
 - **Custom Node Management**: Integrated with `comfy-cli` for easy plugin installation.
+
+## Contributing
+
+Please feel free to contribute to make this project better.
+Performance improvements/optimizations are very welcome.
