@@ -106,7 +106,7 @@ vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True, version=2)
 
 # construct images and install deps/custom nodes
 image = (
-    modal.Image.debian_slim(python_version="3.11")
+    modal.Image.debian_slim(python_version="3.13")
     .add_local_python_source("models", "plugins", copy=True)
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"))
