@@ -145,9 +145,10 @@ app = modal.App(name="modal-comfyui", image=image)
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True},
 )
+port = 8188
 @modal.concurrent(max_inputs=10)
-@modal.web_server(8000, startup_timeout=60)
-def ui():
+@modal.web_server(port, startup_timeout=60)
+def comfyui():
     _ = subprocess.Popen(
-        "comfy launch --background -- --listen 0.0.0.0 --port 8000", shell=True
+        "comfy launch --background -- --listen 0.0.0.0 --port {port}", shell=True
     )
