@@ -150,5 +150,5 @@ port = 8188
 @modal.web_server(port, startup_timeout=60)
 def comfyui():
     _ = subprocess.Popen(
-        "comfy launch --background -- --listen 0.0.0.0 --port {port}", shell=True
+        f"comfy launch --background -- --listen 0.0.0.0 --port {port}", shell=True
     )
