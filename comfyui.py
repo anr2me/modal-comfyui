@@ -102,7 +102,7 @@ def download_all():
         download_external_model(model["url"], model["filename"], model["model_dir"])
 
 
-vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True)
+vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True, version=2)
 
 # construct images and install deps/custom nodes
 image = (
