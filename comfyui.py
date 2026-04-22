@@ -109,8 +109,10 @@ image = (
     modal.Image.debian_slim(python_version="3.13")
     .add_local_python_source("models", "plugins", copy=True)
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
-    .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"))
-    .run_commands("comfy --skip-prompt install --nvidia")
+    .run_commands("uv venv /cache/ComfyUI/.venv --seed --allow-existing", volumes={"/cache": vol})
+    .run_commands("source /cache/ComfyUI/.venv/bin/activate", volumes={"/cache": vol})
+    .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"), volumes={"/cache": vol})
+    .run_commands("comfy --skip-prompt install --nvidia", volumes={"/cache": vol})
     .run_commands("git lfs install")
     .add_local_file(
         str(Path(__file__).parent / "extra_model_paths.yaml"), 
@@ -130,14 +132,14 @@ workflow_file_path = Path(__file__).parent / "workflow_api.json"
 if workflow_file_path.exists():
     image = image.add_local_file(
         workflow_file_path, "/root/workflow_api.json", copy=True
-    ).run_commands("comfy node install-deps --workflow=/root/workflow_api.json")
+    ).run_commands("comfy node install-deps --workflow=/root/workflow_api.json", volumes={"/cache": vol})
 else:
     print(
         f"Warning: {workflow_file_path} not found. API endpoint might not work without a workflow."
     )
 
 if comfy_plugins:
-    image = image.run_commands("comfy node install " + " ".join(comfy_plugins))
+    image = image.run_commands("comfy node install " + " ".join(comfy_plugins), volumes={"/cache": vol})
 
 app = modal.App(name="modal-comfyui", image=image)
 
