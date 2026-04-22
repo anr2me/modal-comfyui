@@ -112,6 +112,11 @@ image = (
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"))
     .run_commands("comfy --skip-prompt install --nvidia")
     .run_commands("git lfs install")
+    .add_local_file(
+        str(Path(__file__).parent / "extra_model_paths.yaml"), 
+        "/root/comfy/ComfyUI/extra_model_paths.yaml", 
+        copy=True
+    ) 
 )
 
 # download models
