@@ -199,7 +199,7 @@ if comfy_plugins_ext:
             plugin_install = plugin_install.strip()
             # Strips trailing slashes, splits by slash, takes the last part, and removes '.git'
             folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
-            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && cd -", volumes={"/cache": vol})
+            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && cd -", volumes={"/cache": vol}).run_commands(f"ls {nodes_dir}/{folder_name}")
             if plugin_install.endswith(".py"):
                 image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install} && cd -", volumes={"/cache": vol})
             elif plugin_install.endswith(".toml"):
