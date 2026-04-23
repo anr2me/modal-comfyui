@@ -23,6 +23,8 @@ def get_comfyui_path() -> Path:
         # Example output: "Current workspace: /home/user/comfy/ComfyUI"
         if ":" in result:
             comfyui_path = Path(result.split(":", 1)[1].strip())
+            COMFYUI_ROOT = comfyui_path
+            COMFY_MODELS_ROOT = Path(COMFYUI_ROOT / "models")
             print(f"ComfyUI Path: {comfyui_path}")
         else:
             print("Path not found in output")
@@ -144,7 +146,7 @@ image = (
     modal.Image.debian_slim(python_version="3.13")
     .add_local_python_source("models", "plugins", copy=True)
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
-    .uv_pip_install("pip", "uv")
+    .uv_pip_install("--upgrade", "pip", "uv")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     #.run_commands("mkdir -p /cache/ComfyUI")
     .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
@@ -162,9 +164,6 @@ image = image.add_local_file(
         "/root/comfy/ComfyUI/extra_model_paths.yaml", 
         copy=True
 )
-#.run_commands("comfy set-default /cache/ComfyUI", volumes={"/cache": vol})
-#.run_commands("comfy --skip-prompt install --nvidia --cuda-version 13.0", volumes={"/cache": vol})
-#.run_commands("git lfs install")
 
 # download models
 image = image.env({"HF_HUB_ENABLE_HF_TRANSFER": "1"}).run_function(
@@ -190,15 +189,15 @@ if comfy_plugins_ext:
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
     for plugin in comfy_plugins_ext:
         #download_external_plugin(plugin["url"], plugin["branch"], plugin["install"])
-        image = image.run_commands(f"pushd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} plugin['url'] && popd", volumes={"/cache": vol})
+        image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']} && cd -", volumes={"/cache": vol})
         plugin_install = plugin['install']
         if plugin_install and plugin_install.strip():
             plugin_install = plugin_install.strip()
             # Strips trailing slashes, splits by slash, takes the last part, and removes '.git'
             folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
-            image = image.run_commands(f"pushd {nodes_dir}/{folder_name} && git pull && popd", volumes={"/cache": vol})
+            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && cd -", volumes={"/cache": vol})
             if plugin_install.endswith(".py"):
-                image = image.run_commands(f"pushd {nodes_dir}/{folder_name} && python {plugin_install} && popd", volumes={"/cache": vol})
+                image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install} && cd -", volumes={"/cache": vol})
             elif plugin_install.endswith(".toml"):
                 image = image.uv_sync(f"{nodes_dir}/{folder_name}/{plugin_install}", volumes={"/cache": vol}) # pip_install_from_pyproject
             else:
