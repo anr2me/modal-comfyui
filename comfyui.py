@@ -134,6 +134,10 @@ def download_external_plugin(url: str, branch: str, install: str):
 
 
 def download_all():
+    image = image.run_commands("comfy --skip-prompt --workspace /cache/ComfyUI install --nvidia --cuda-version 13.0 || true", volumes={"/cache": vol})
+    .run_commands("comfy --skip-prompt set-default /cache/ComfyUI", volumes={"/cache": vol})
+    .run_commands("git lfs install") # --skip-smudge
+
     for model in models:
         hf_download(model["repo_id"], model["filename"], model["model_dir"])
 
@@ -150,11 +154,7 @@ image = (
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
     .uv_pip_install("pip", "uv", "aiohttp", "comfyui-manager>=4.1b1", extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
-    #.run_commands("mkdir -p /cache/ComfyUI")
     .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
-    .run_commands("comfy --skip-prompt --workspace /cache/ComfyUI install --nvidia --cuda-version 13.0 || true", volumes={"/cache": vol})
-    .run_commands("comfy --skip-prompt set-default /cache/ComfyUI", volumes={"/cache": vol})
-    .run_commands("git lfs install") # --skip-smudge
     #.run_commands("git config --global core.fileMode false")
     #.run_commands("git config --global pull.rebase")
 )
@@ -173,7 +173,6 @@ image = image.add_local_file(
 image = image.env({"HF_HUB_ENABLE_HF_TRANSFER": "1"}).run_function(
     download_all, volumes={"/cache": vol}
 )
-
 
 # setup custom nodes
 workflow_file_path = Path(__file__).parent / "workflow_api.json"
