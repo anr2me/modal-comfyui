@@ -146,7 +146,7 @@ image = (
     modal.Image.debian_slim(python_version="3.13")
     .add_local_python_source("models", "plugins", copy=True)
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
-    .uv_pip_install("--upgrade", "pip", "uv")
+    .uv_pip_install("pip", "uv", extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     #.run_commands("mkdir -p /cache/ComfyUI")
     .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
