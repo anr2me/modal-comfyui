@@ -130,10 +130,11 @@ def download_external_plugin(url: str, branch: str, install: str):
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
     )
-    # TODO
+    # TODO (git pull, install dependencies)
 
 
 def download_all():
+    global image
     image = image.run_commands("comfy --skip-prompt --workspace /cache/ComfyUI install --nvidia --cuda-version 13.0 || true", volumes={"/cache": vol})
     .run_commands("comfy --skip-prompt set-default /cache/ComfyUI", volumes={"/cache": vol})
     .run_commands("git lfs install") # --skip-smudge
