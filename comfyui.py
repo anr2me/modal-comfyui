@@ -151,9 +151,11 @@ image = (
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     #.run_commands("mkdir -p /cache/ComfyUI")
     .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
-    .run_commands("comfy --skip-prompt --workspace /cache/ComfyUI install --nvidia --cuda-version 13.0 || true", volumes={"/cache": vol}) #  
+    .run_commands("comfy --skip-prompt --workspace /cache/ComfyUI install --nvidia --cuda-version 13.0 || true", volumes={"/cache": vol})
     .run_commands("comfy --skip-prompt set-default /cache/ComfyUI", volumes={"/cache": vol})
-    .run_commands("git lfs install")
+    .run_commands("git lfs install") # --skip-smudge
+    #.run_commands("git config --global core.fileMode false")
+    #.run_commands("git config --global pull.rebase")
 )
 
 # setup base directory
@@ -162,7 +164,7 @@ Path(base_dir).mkdir(parents=True, exist_ok=True)
 #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
 image = image.add_local_file(
         str(Path(__file__).parent / "extra_model_paths.yaml"), 
-        "/root/comfy/ComfyUI/extra_model_paths.yaml", 
+        str(COMFYUI_ROOT / "extra_model_paths.yaml"), 
         copy=True
 )
 
