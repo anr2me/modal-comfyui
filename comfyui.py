@@ -227,5 +227,5 @@ uiport = 8188
 @modal.web_server(uiport, startup_timeout=60)
 def comfyui():
     _ = subprocess.Popen(
-        f"comfy launch --background -- --listen 0.0.0.0 --port {uiport} --base-directory {base_dir}", shell=True
+        f"comfy launch --background -- --listen 0.0.0.0 --port {uiport} --base-directory /cache/ComfyUI", shell=True
     )
