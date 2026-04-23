@@ -109,20 +109,21 @@ image = (
     modal.Image.debian_slim(python_version="3.13")
     .add_local_python_source("models", "plugins", copy=True)
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
-    .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"), volumes={"/cache": vol})
-    .run_commands("comfy --skip-prompt install --nvidia", volumes={"/cache": vol})
-    .run_commands("git lfs install") 
+    .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) 
 )
 
 # setup base directory
 base_dir = "/cache/ComfyUI"
-#Path(base_dir).mkdir(parents=True, exist_ok=True)
-subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
+Path(base_dir).mkdir(parents=True, exist_ok=True)
+#subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
 image = image.add_local_file(
         str(Path(__file__).parent / "extra_model_paths.yaml"), 
         "/root/comfy/ComfyUI/extra_model_paths.yaml", 
         copy=True
 )
+.run_commands("comfy --set-default /cache/ComfyUI", volumes={"/cache": vol})
+.run_commands("comfy --skip-prompt install --nvidia", volumes={"/cache": vol})
+.run_commands("git lfs install")
 
 # download models
 image = image.env({"HF_HUB_ENABLE_HF_TRANSFER": "1"}).run_function(
