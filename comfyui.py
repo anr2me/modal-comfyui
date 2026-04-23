@@ -6,12 +6,30 @@ from pathlib import Path
 import modal
 
 from models import models, models_ext
-from plugins import comfy_plugins
+from plugins import comfy_plugins, comfy_plugins_ext
 
 root_dir = Path(__file__).parent
 
+COMFYUI_ROOT = Path("/root/comfy/ComfyUI")
 COMFY_MODELS_ROOT = Path("/root/comfy/ComfyUI/models")
 
+
+def get_comfyui_path() -> Path:
+    comfyui_path = COMFYUI_ROOT
+    try:
+        result = subprocess.check_output(["comfy", "which"], text=True)
+    
+        # 2. Extract path after ":"
+        # Example output: "Current workspace: /home/user/comfy/ComfyUI"
+        if ":" in result:
+            comfyui_path = Path(result.split(":", 1)[1].strip())
+            print(f"Extracted Path: {comfyui_path}")
+        else:
+            print("Path not found in output")
+    except FileNotFoundError:
+        print("comfy-cli is not installed or not in PATH")
+    
+    return comfyui_path
 
 def resolve_model_dir(model_dir: str) -> Path:
     """Resolve model_dir: absolute paths are used as-is, relative paths are
@@ -93,6 +111,23 @@ def download_external_model(url: str, filename: str, model_dir: str):
     target_path.symlink_to(cached_path)
     print(f"Linked {filename} to {target_path}")
 
+def download_external_plugin(url: str, branch: str, install: str):
+    import subprocess
+
+    _ = subprocess.run(
+            [
+                "git",
+                "clone",
+                "--recurse-submodules",
+                "--single-branch --branch",
+                branch,
+                url,
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+    )
+    # TODO
 
 def download_all():
     for model in models:
@@ -109,7 +144,7 @@ image = (
     modal.Image.debian_slim(python_version="3.13")
     .add_local_python_source("models", "plugins", copy=True)
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
-    .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) 
+    .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"), uv=True) 
 )
 
 # setup base directory
@@ -145,6 +180,24 @@ else:
 if comfy_plugins:
     image = image.run_commands("comfy node install " + " ".join(comfy_plugins), volumes={"/cache": vol})
 
+if comfy_plugins_ext:
+    nodes_dir = str(get_comfyui_path() / "custom_nodes")
+    for plugin in comfy_plugins_ext:
+        #download_external_plugin(plugin["url"], plugin["branch"], plugin["install"])
+        image = image.run_commands(f"pushd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} plugin['url'] && popd", volumes={"/cache": vol})
+        plugin_install = plugin['install']
+        if plugin_install and plugin_install.strip():
+            plugin_install = plugin_install.strip()
+            # Strips trailing slashes, splits by slash, takes the last part, and removes '.git'
+            folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
+            image = image.run_commands(f"pushd {nodes_dir}/{folder_name} && git pull && popd", volumes={"/cache": vol})
+            if plugin_install.endswith(".py"):
+                image = image.run_commands(f"pushd {nodes_dir}/{folder_name} && python {plugin_install} && popd", volumes={"/cache": vol})
+            elif plugin_install.endswith(".toml"):
+                image = image.uv_sync(f"{nodes_dir}/{folder_name}/{plugin_install}", volumes={"/cache": vol}) # pip_install_from_pyproject
+            else:
+                image = image.pip_install_from_requirements(f"{nodes_dir}/{folder_name}/{plugin_install}", volumes={"/cache": vol}, uv=True)
+                
 app = modal.App(name="modal-comfyui", image=image)
 
 uiport = 8188
