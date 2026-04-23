@@ -17,7 +17,7 @@ COMFY_MODELS_ROOT = Path(COMFYUI_ROOT / "models")
 def get_comfyui_path() -> Path:
     global COMFYUI_ROOT, COMFY_MODELS_ROOT
     comfyui_path = COMFYUI_ROOT
-    #return COMFYUI_ROOT
+    return COMFYUI_ROOT
     try:
         result = subprocess.check_output(["comfy", "which"], text=True)
         if ":" in result:
