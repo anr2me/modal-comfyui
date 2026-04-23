@@ -11,18 +11,14 @@ from plugins import comfy_plugins, comfy_plugins_ext
 root_dir = Path(__file__).parent
 
 COMFYUI_ROOT = Path("/root/comfy/ComfyUI")
-COMFY_MODELS_ROOT = Path("/root/comfy/ComfyUI/models")
+COMFY_MODELS_ROOT = Path(COMFYUI_ROOT / "models")
 
 
 def get_comfyui_path() -> Path:
-    global COMFYUI_ROOT
-    global COMFY_MODELS_ROOT
+    global COMFYUI_ROOT, COMFY_MODELS_ROOT
     comfyui_path = COMFYUI_ROOT
     try:
         result = subprocess.check_output(["comfy", "which"], text=True)
-    
-        # 2. Extract path after ":"
-        # Example output: "Current workspace: /home/user/comfy/ComfyUI"
         if ":" in result:
             comfyui_path = Path(result.split(":", 1)[1].strip())
             COMFYUI_ROOT = comfyui_path
@@ -34,6 +30,7 @@ def get_comfyui_path() -> Path:
         print("comfy-cli is not installed or not in PATH")
     
     return comfyui_path
+
 
 def resolve_model_dir(model_dir: str) -> Path:
     """Resolve model_dir: absolute paths are used as-is, relative paths are
@@ -115,6 +112,7 @@ def download_external_model(url: str, filename: str, model_dir: str):
     target_path.symlink_to(cached_path)
     print(f"Linked {filename} to {target_path}")
 
+
 def download_external_plugin(url: str, branch: str, install: str):
     import subprocess
 
@@ -132,6 +130,7 @@ def download_external_plugin(url: str, branch: str, install: str):
             stderr=subprocess.DEVNULL,
     )
     # TODO
+
 
 def download_all():
     for model in models:
@@ -189,6 +188,7 @@ if comfy_plugins:
 
 if comfy_plugins_ext:
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
+    Path(nodes_dir).mkdir(parents=True, exist_ok=True)
     for plugin in comfy_plugins_ext:
         #download_external_plugin(plugin["url"], plugin["branch"], plugin["install"])
         image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']} && cd -", volumes={"/cache": vol})
