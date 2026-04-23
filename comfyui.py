@@ -208,7 +208,7 @@ if comfy_plugins_ext:
                 image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_install}", extra_options="-r") #, uv=True # pip_install_from_requirements 
                 
 # install missing dependencies 
-image = image.uv_pip_install("matrix-nio","git+https://github.com/nunchaku-tech/nunchaku")
+image = image.uv_pip_install("matrix-nio","https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch2.11-cp313-cp313-linux_x86_64.whl")
 
 app = modal.App(name="modal-comfyui", image=image)
 
