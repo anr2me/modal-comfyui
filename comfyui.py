@@ -154,7 +154,7 @@ image = (
     #.run_commands("git config --global core.fileMode false")
     #.run_commands("git config --global pull.rebase")
     .run_commands("comfy --skip-prompt --workspace /cache/ComfyUI install --nvidia --cuda-version 13.0 || true", volumes={"/cache": vol})
-    .run_commands("comfy --skip-prompt --workspace /cache/ComfyUI set-default", volumes={"/cache": vol})
+    .run_commands("comfy --skip-prompt --workspace /cache/ComfyUI set-default /cache/ComfyUI", volumes={"/cache": vol})
     .run_commands("git lfs install") # --skip-smudge
 )
 
