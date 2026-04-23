@@ -157,7 +157,7 @@ image = image.add_local_file(
         "/root/comfy/ComfyUI/extra_model_paths.yaml", 
         copy=True
 )
-.run_commands("comfy --set-default /cache/ComfyUI", volumes={"/cache": vol})
+.run_commands("comfy --set-default /cache/ComfyUI")
 .run_commands("comfy --skip-prompt install --nvidia --cuda-version 13.0", volumes={"/cache": vol})
 .run_commands("git lfs install")
 
