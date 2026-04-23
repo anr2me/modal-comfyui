@@ -203,9 +203,9 @@ if comfy_plugins_ext:
             if plugin_install.endswith(".py"):
                 image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install} && cd -", volumes={"/cache": vol})
             elif plugin_install.endswith(".toml"):
-                image = image.uv_sync(f"{nodes_dir}/{folder_name}/{plugin_install}", volumes={"/cache": vol}) # pip_install_from_pyproject
+                image = image.pip_install_from_pyproject(f"{nodes_dir}/{folder_name}/{plugin_install}", volumes={"/cache": vol}) # uv_sync
             else:
-                image = image.pip_install_from_requirements(f"{nodes_dir}/{folder_name}/{plugin_install}") #, uv=True
+                image = image.run_commands(f"uv pip install -r {nodes_dir}/{folder_name}/{plugin_install}", volumes={"/cache": vol}) #, uv=True # pip_install_from_requirements 
                 
 # install missing dependencies 
 image = image.uv_pip_install("matrix-nio","git+https://github.com/nunchaku-tech/nunchaku")
