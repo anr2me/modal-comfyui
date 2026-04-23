@@ -134,6 +134,18 @@ def download_external_plugin(url: str, branch: str, install: str):
 
 
 def download_all():
+    global image
+    
+    # setup base directory
+    base_dir = "/cache/ComfyUI"
+    Path(base_dir).mkdir(parents=True, exist_ok=True)
+    #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
+    image = image.add_local_file(
+        str(Path(__file__).parent / "extra_model_paths.yaml"), 
+        str(COMFYUI_ROOT / "extra_model_paths.yaml"), 
+        copy=True
+    )
+
     for model in models:
         hf_download(model["repo_id"], model["filename"], model["model_dir"])
 
@@ -157,16 +169,6 @@ image = (
     .run_commands("comfy --skip-prompt install --restore --nvidia --cuda-version 13.0", volumes={"/cache": vol})
     #.run_commands("comfy --skip-prompt --workspace /cache/ComfyUI set-default /cache/ComfyUI", volumes={"/cache": vol})
     .run_commands("git lfs install") # --skip-smudge
-)
-
-# setup base directory
-#base_dir = "/cache/ComfyUI"
-#Path(base_dir).mkdir(parents=True, exist_ok=True)
-#subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
-image = image.add_local_file(
-        str(Path(__file__).parent / "extra_model_paths.yaml"), 
-        str(COMFYUI_ROOT / "extra_model_paths.yaml"), 
-        copy=True
 )
 
 # download models
