@@ -154,7 +154,7 @@ image = (
     #.run_commands("git config --global core.fileMode false")
     #.run_commands("git config --global pull.rebase")
     .run_commands("comfy --skip-prompt --workspace /cache/ComfyUI install --nvidia --cuda-version 13.0 || true", volumes={"/cache": vol})
-    .run_commands("comfy --skip-prompt set-default /cache/ComfyUI", volumes={"/cache": vol})
+    .run_commands("comfy --skip-prompt --workspace /cache/ComfyUI set-default", volumes={"/cache": vol})
     .run_commands("git lfs install") # --skip-smudge
 )
 
@@ -185,7 +185,7 @@ else:
     )
 
 if comfy_plugins:
-    image = image.run_commands("comfy --recent which").run_commands("comfy node install " + " ".join(comfy_plugins))
+    image = image.run_commands("cat ~/.config/comfy-cli/config.yaml && comfy --recent which").run_commands("comfy node install " + " ".join(comfy_plugins))
 
 if comfy_plugins_ext:
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
