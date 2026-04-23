@@ -145,7 +145,7 @@ image = (
     .add_local_python_source("models", "plugins", copy=True)
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
     .uv_pip_install("pip", "uv")
-    .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"), uv=True) 
+    .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # , uv=True 
 )
 
 # setup base directory
