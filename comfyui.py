@@ -17,7 +17,7 @@ COMFY_MODELS_ROOT = Path(COMFYUI_ROOT / "models")
 def get_comfyui_path() -> Path:
     global COMFYUI_ROOT, COMFY_MODELS_ROOT
     comfyui_path = COMFYUI_ROOT
-    return COMFYUI_ROOT
+    #return COMFYUI_ROOT
     try:
         result = subprocess.check_output(["comfy", "which"], text=True)
         if ":" in result:
@@ -170,7 +170,7 @@ image = image.add_local_file(
 
 # download models
 image = image.env({"HF_HUB_ENABLE_HF_TRANSFER": "1"}).run_function(
-    download_all#, volumes={"/cache": vol}
+    download_all, volumes={"/cache": vol}
 )
 
 # setup custom nodes
@@ -185,7 +185,7 @@ else:
     )
 
 if comfy_plugins:
-    image = image.run_commands("cat ~/.config/comfy-cli/config.yaml && comfy --recent which").run_commands("comfy node install " + " ".join(comfy_plugins))
+    image = image.run_commands("comfy --recent which").run_commands("comfy node install " + " ".join(comfy_plugins), volumes={"/cache": vol)
 
 if comfy_plugins_ext:
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
