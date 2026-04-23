@@ -10,14 +10,14 @@ from plugins import comfy_plugins, comfy_plugins_ext
 
 root_dir = Path(__file__).parent
 
-COMFYUI_ROOT = Path("/cache/ComfyUI") # Path("/root/comfy/ComfyUI")
+COMFYUI_ROOT = Path("/root/comfy/ComfyUI")
 COMFY_MODELS_ROOT = Path(COMFYUI_ROOT / "models")
 
 
 def get_comfyui_path() -> Path:
     global COMFYUI_ROOT, COMFY_MODELS_ROOT
     comfyui_path = COMFYUI_ROOT
-    return COMFYUI_ROOT
+    #return COMFYUI_ROOT
     try:
         result = subprocess.check_output(["comfy", "which"], text=True)
         if ":" in result:
@@ -154,8 +154,8 @@ image = (
     #.run_commands("git config --global core.fileMode false")
     #.run_commands("git config --global pull.rebase")
     #  || cd /cache/ComfyUI && comfy --here install --restore && cd - 
-    .run_commands("comfy --skip-prompt --workspace /cache/ComfyUI install --restore --nvidia --cuda-version 13.0", volumes={"/cache": vol})
-    .run_commands("comfy --skip-prompt --workspace /cache/ComfyUI set-default /cache/ComfyUI", volumes={"/cache": vol})
+    .run_commands("comfy --skip-prompt install --restore --nvidia --cuda-version 13.0", volumes={"/cache": vol})
+    #.run_commands("comfy --skip-prompt --workspace /cache/ComfyUI set-default /cache/ComfyUI", volumes={"/cache": vol})
     .run_commands("git lfs install") # --skip-smudge
 )
 
@@ -171,7 +171,7 @@ image = image.add_local_file(
 
 # download models
 image = image.env({"HF_HUB_ENABLE_HF_TRANSFER": "1"}).run_function(
-    download_all#, volumes={"/cache": vol}
+    download_all, volumes={"/cache": vol}
 )
 
 # setup custom nodes
