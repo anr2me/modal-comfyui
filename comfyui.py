@@ -189,7 +189,7 @@ else:
     )
 
 if comfy_plugins:
-    image = image.run_commands("comfy node install " + " ".join(comfy_plugins), volumes={"/cache": vol})
+    image = image.run_commands("comfy node install " + " ".join(comfy_plugins))
 
 if comfy_plugins_ext:
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
