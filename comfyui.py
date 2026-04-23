@@ -109,16 +109,19 @@ image = (
     modal.Image.debian_slim(python_version="3.13")
     .add_local_python_source("models", "plugins", copy=True)
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
-    .run_commands("uv venv /cache/ComfyUI/.venv --seed --allow-existing", volumes={"/cache": vol})
-    .run_commands("source /cache/ComfyUI/.venv/bin/activate", volumes={"/cache": vol})
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"), volumes={"/cache": vol})
     .run_commands("comfy --skip-prompt install --nvidia", volumes={"/cache": vol})
-    .run_commands("git lfs install")
-    .add_local_file(
+    .run_commands("git lfs install") 
+)
+
+# setup base directory
+base_dir = "/cache/ComfyUI"
+#Path(base_dir).mkdir(parents=True, exist_ok=True)
+subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
+image = image.add_local_file(
         str(Path(__file__).parent / "extra_model_paths.yaml"), 
         "/root/comfy/ComfyUI/extra_model_paths.yaml", 
         copy=True
-    ) 
 )
 
 # download models
@@ -156,5 +159,5 @@ uiport = 8188
 @modal.web_server(uiport, startup_timeout=60)
 def comfyui():
     _ = subprocess.Popen(
-        f"comfy launch --background -- --listen 0.0.0.0 --port {uiport} --base-directory /cache/ComfyUI", shell=True
+        f"comfy launch --background -- --listen 0.0.0.0 --port {uiport} --base-directory {base_dir}", shell=True
     )
