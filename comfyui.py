@@ -144,6 +144,7 @@ image = (
     modal.Image.debian_slim(python_version="3.13")
     .add_local_python_source("models", "plugins", copy=True)
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
+    .uv_pip_install("pip", "uv")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"), uv=True) 
 )
 
@@ -198,6 +199,9 @@ if comfy_plugins_ext:
             else:
                 image = image.pip_install_from_requirements(f"{nodes_dir}/{folder_name}/{plugin_install}", volumes={"/cache": vol}, uv=True)
                 
+# install missing dependencies 
+image = image.uv_pip_install("matrix-nio","git+https://github.com/nunchaku-tech/nunchaku")
+
 app = modal.App(name="modal-comfyui", image=image)
 
 uiport = 8188
