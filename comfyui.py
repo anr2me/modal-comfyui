@@ -159,8 +159,8 @@ image = (
 )
 
 # setup base directory
-base_dir = "/cache/ComfyUI"
-Path(base_dir).mkdir(parents=True, exist_ok=True)
+#base_dir = "/cache/ComfyUI"
+#Path(base_dir).mkdir(parents=True, exist_ok=True)
 #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
 image = image.add_local_file(
         str(Path(__file__).parent / "extra_model_paths.yaml"), 
