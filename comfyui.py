@@ -136,8 +136,8 @@ def download_external_plugin(url: str, branch: str, install: str):
 def download_all():
     global image
     image = (
-        image.run_commands("comfy --skip-prompt --workspace /cache/ComfyUI install --nvidia --cuda-version 13.0 || true")
-        .run_commands("comfy --skip-prompt set-default /cache/ComfyUI")
+        image.run_commands("comfy --skip-prompt --workspace /cache/ComfyUI install --nvidia --cuda-version 13.0 || true", volumes={"/cache": vol})
+        .run_commands("comfy --skip-prompt set-default /cache/ComfyUI", volumes={"/cache": vol})
         .run_commands("git lfs install") # --skip-smudge
     )
 
@@ -174,7 +174,7 @@ image = image.add_local_file(
 
 # download models
 image = image.env({"HF_HUB_ENABLE_HF_TRANSFER": "1"}).run_function(
-    download_all, volumes={"/cache": vol}
+    download_all#, volumes={"/cache": vol}
 )
 
 # setup custom nodes
