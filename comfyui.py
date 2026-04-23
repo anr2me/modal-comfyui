@@ -170,7 +170,7 @@ image = image.add_local_file(
 
 # download models
 image = image.env({"HF_HUB_ENABLE_HF_TRANSFER": "1"}).run_function(
-    download_all, volumes={"/cache": vol}
+    download_all#, volumes={"/cache": vol}
 )
 
 # setup custom nodes
