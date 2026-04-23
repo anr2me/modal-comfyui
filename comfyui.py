@@ -10,7 +10,7 @@ from plugins import comfy_plugins, comfy_plugins_ext
 
 root_dir = Path(__file__).parent
 
-COMFYUI_ROOT = Path("/root/comfy/ComfyUI")
+COMFYUI_ROOT = Path("/cache/ComfyUI") # Path("/root/comfy/ComfyUI")
 COMFY_MODELS_ROOT = Path(COMFYUI_ROOT / "models")
 
 
