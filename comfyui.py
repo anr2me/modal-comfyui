@@ -161,7 +161,7 @@ image = (
     modal.Image.debian_slim(python_version="3.13")
     .add_local_python_source("models", "plugins", copy=True)
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
-    .uv_pip_install("pip", "uv", "aiohttp", "comfyui-manager>=4.1b1", extra_options="--upgrade")
+    .uv_pip_install("pip", "uv", "aiohttp", "comfyui-manager>=4.1b1", "setuptools<82", extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
     #.run_commands("git config --global core.fileMode false")
@@ -173,7 +173,7 @@ image = (
 )
 
 # download models
-image = image.env({"HF_HUB_ENABLE_HF_TRANSFER": "1"}).run_function(
+image = image.env({"HF_HUB_ENABLE_HF_TRANSFER": "1", "HF_TOKEN": os.environ["HF_TOKEN"]}).run_function(
     download_all, volumes={"/cache": vol}
 )
 
