@@ -57,7 +57,7 @@ def hf_download(
         repo_id=repo_id,
         filename=filename,
         cache_dir="/cache",
-        token=os.environ.get("HF_TOKEN"),
+        token=os.environ.get("HF_TOKEN", ""),
     )
 
     target_dir = resolve_model_dir(model_dir)
