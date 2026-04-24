@@ -140,13 +140,17 @@ def download_all():
     
     # setup base directory
     #base_dir = "/cache/ComfyUI"
+    extra_file_path = Path(__file__).parent / "extra_model_paths.yaml"
     Path(base_dir).mkdir(parents=True, exist_ok=True)
     #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
-    image = image.add_local_file(
-        str(Path(__file__).parent / "extra_model_paths.yaml"), 
-        "/root/extra_model_paths.yaml", 
-        copy=True
-    )
+    if extra_file_path.exists():
+        image = image.add_local_file(
+            extra_file_path, 
+            "/root/extra_model_paths.yaml", 
+            copy=True
+        )
+    else:
+        print(f"Extra Model Paths file ({extra_file_path}) Not Found!")
 
     for model in models:
         hf_download(model["repo_id"], model["filename"], model["model_dir"])
