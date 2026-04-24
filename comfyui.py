@@ -158,10 +158,14 @@ def download_all():
     for model in models_ext:
         download_external_model(model["url"], model["filename"], model["model_dir"])
 
-    # copy models to base_dir
+    # copy models to base_dir (skip existing files)
     import shutil
+    def copy_if_not_exists(src, dst):
+        if not os.path.exists(dst):
+            shutil.copy2(src, dst)
+    
     print("Copying models structure...")
-    shutil.copytree(COMFYUI_ROOT / "models", base_dir / "models", symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
+    shutil.copytree(COMFYUI_ROOT / "models", base_dir / "models", copy_function=copy_if_not_exists, symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
 
 
 def install_missing_deps():
