@@ -231,9 +231,12 @@ if comfy_plugins_ext:
             else:
                 image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_install}", extra_options="-r") #, uv=True # pip_install_from_requirements 
 
-# copy custom nodes to cache
+# copy custom nodes to base_dir
 import shutil
 shutil.copytree(COMFYUI_ROOT / "custom_nodes", base_dir / "custom_nodes", symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
+
+# copy models to base_dir
+shutil.copytree(COMFYUI_ROOT / "models", base_dir / "models", symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
 
 
 app = modal.App(name="modal-comfyui", image=image)
