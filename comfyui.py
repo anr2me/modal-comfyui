@@ -155,7 +155,7 @@ def download_all():
         download_external_model(model["url"], model["filename"], model["model_dir"])
 
 
-def install_missing_deps:
+def install_missing_deps():
     import torch
     full_pytorch_version = torch.__version__
     pytorch_version_number = ".".join(full_pytorch_version.split(" ")[0].split(".")[:2])
