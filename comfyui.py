@@ -241,5 +241,5 @@ uiport = 8188
 def comfyui():
     print(f"Base Dir: {base_dir}")
     _ = subprocess.Popen(
-        f"comfy launch --background -- --listen 0.0.0.0 --port {uiport} --extra-model-paths-config ./extra_model_paths.yaml", shell=True # --base-directory {base_dir}
+        f"comfy launch --background -- --listen 0.0.0.0 --port {uiport} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml", shell=True # --base-directory {base_dir}
     )
