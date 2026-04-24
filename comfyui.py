@@ -173,8 +173,8 @@ def download_all():
             else:
                 shutil.copy2(src, dst, follow_symlinks=False)
     
-    print("Copying models structure...")
-    shutil.copytree(COMFYUI_ROOT / "models", base_dir / "models", copy_function=copy_if_not_exists, symlinks=False, ignore_dangling_symlinks=True, dirs_exist_ok=True)
+    #print("Copying models structure...")
+    #shutil.copytree(COMFYUI_ROOT / "models", base_dir / "models", copy_function=copy_if_not_exists, symlinks=False, ignore_dangling_symlinks=True, dirs_exist_ok=True)
 
 
 def install_missing_deps():
@@ -255,8 +255,8 @@ if comfy_plugins_ext:
 
 # copy custom nodes to base_dir
 import shutil
-print("Copying custom_nodes structure...")
-shutil.copytree(COMFYUI_ROOT / "custom_nodes", base_dir / "custom_nodes", symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
+#print("Copying custom_nodes structure...")
+#shutil.copytree(COMFYUI_ROOT / "custom_nodes", base_dir / "custom_nodes", symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
 
 
 app = modal.App(name="modal-comfyui", image=image)
