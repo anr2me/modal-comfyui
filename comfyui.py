@@ -185,7 +185,7 @@ def install_missing_deps():
     
     global image
     image = (
-        image.uv_pip_install("matrix-nio", "cupy-cuda13x", f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
+        image.uv_pip_install("cupy-cuda13x", f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
         .uv_pip_install("triton")
         .uv_pip_install("sageattention==2.2.0", extra_options="--no-build-isolation")
     )
@@ -254,9 +254,9 @@ if comfy_plugins_ext:
                 image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_install}", extra_options="-r") #, uv=True # pip_install_from_requirements 
 
 # copy custom nodes to base_dir
-import shutil
-print("Copying custom_nodes structure...")
-shutil.copytree(COMFYUI_ROOT / "custom_nodes", base_dir / "custom_nodes", symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
+#import shutil
+#print("Copying custom_nodes structure...")
+#shutil.copytree(COMFYUI_ROOT / "custom_nodes", base_dir / "custom_nodes", symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
 
 
 app = modal.App(name="modal-comfyui", image=image)
@@ -275,5 +275,5 @@ uiport = 8188
 def comfyui():
     #print(f"Base Dir: {base_dir}")
     _ = subprocess.Popen(
-        f"comfy launch --background -- --listen 0.0.0.0 --port {uiport} --base-directory {base_dir}", shell=True # --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+        f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
     )
