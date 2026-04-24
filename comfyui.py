@@ -195,13 +195,13 @@ if comfy_plugins_ext:
     Path(nodes_dir).mkdir(parents=True, exist_ok=True)
     for plugin in comfy_plugins_ext:
         #download_external_plugin(plugin["url"], plugin["branch"], plugin["install"])
-        image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']} && cd -", volumes={"/cache": vol})
+        image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']} && cd -; exit 0", volumes={"/cache": vol})
         plugin_install = plugin['install']
         if plugin_install and plugin_install.strip():
             plugin_install = plugin_install.strip()
             # Strips trailing slashes, splits by slash, takes the last part, and removes '.git'
             folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
-            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && cd -", volumes={"/cache": vol}).run_commands(f"ls {nodes_dir}/{folder_name}")
+            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && git submodule update --init --recursive && cd -", volumes={"/cache": vol}).run_commands(f"ls {nodes_dir}/{folder_name}")
             if plugin_install.endswith(".py"):
                 image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install} && cd -", volumes={"/cache": vol})
             elif plugin_install.endswith(".toml"):
