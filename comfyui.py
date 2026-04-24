@@ -255,8 +255,8 @@ if comfy_plugins_ext:
 
 # copy custom nodes to base_dir
 import shutil
-#print("Copying custom_nodes structure...")
-#shutil.copytree(COMFYUI_ROOT / "custom_nodes", base_dir / "custom_nodes", symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
+print("Copying custom_nodes structure...")
+shutil.copytree(COMFYUI_ROOT / "custom_nodes", base_dir / "custom_nodes", symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
 
 
 app = modal.App(name="modal-comfyui", image=image)
