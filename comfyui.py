@@ -57,7 +57,7 @@ def hf_download(
         repo_id=repo_id,
         filename=filename,
         cache_dir="/cache",
-        token=os.environ.get("HF_TOKEN", ""),
+        token=os.environ.get("HF_TOKEN"),
     )
 
     target_dir = resolve_model_dir(model_dir)
@@ -144,7 +144,7 @@ def download_all():
     #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
     image = image.add_local_file(
         str(Path(__file__).parent / "extra_model_paths.yaml"), 
-        str(COMFYUI_ROOT / "extra_model_paths.yaml"), 
+        "/root/extra_model_paths.yaml", 
         copy=True
     )
 
@@ -184,7 +184,10 @@ image = (
 )
 
 # download models
-image = image.env({"HF_HUB_ENABLE_HF_TRANSFER": "1", "HF_TOKEN": os.environ.get("HF_TOKEN", "")}).run_function(
+image = image.env({
+    "HF_HUB_ENABLE_HF_TRANSFER": "1", 
+    "HF_TOKEN": os.environ.get("HF_TOKEN"),
+}).run_function(
     download_all, volumes={"/cache": vol}
 ).run_function(
     install_missing_deps, volumes={"/cache": vol}
@@ -241,5 +244,5 @@ uiport = 8188
 def comfyui():
     print(f"Base Dir: {base_dir}")
     _ = subprocess.Popen(
-        f"comfy launch --background -- --listen 0.0.0.0 --port {uiport} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml", shell=True # --base-directory {base_dir}
+        f"comfy launch --background -- --listen 0.0.0.0 --port {uiport} --extra-model-paths-config /root/extra_model_paths.yaml", shell=True # --base-directory {base_dir}
     )
