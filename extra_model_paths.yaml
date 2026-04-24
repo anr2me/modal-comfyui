@@ -5,13 +5,16 @@
 
 comfyui:
      base_path: /cache/ComfyUI/
+     custom_nodes: custom_nodes
+     download_model_base: models
 #     # You can use is_default to mark that these folders should be listed first, and used as the default dirs for eg downloads
-     is_default: true
+     is_default: True
 #     checkpoints: models/checkpoints/
 #     text_encoders: |
 #          models/text_encoders/
 #          models/clip/  # legacy location still supported
 #     clip_vision: models/clip_vision/
+#.    gligen: models/gligen
 #     configs: models/configs/
 #     controlnet: models/controlnet/
 #     diffusion_models: |
