@@ -33,6 +33,11 @@ models = [
     },
     {
         "repo_id": "Comfy-Org/ace_step_1.5_ComfyUI_files",
+        "filename": "split_files/text_encoders/qwen_0.6b_ace15.safetensors",
+        "model_dir": "text_encoders",
+    },
+    {
+        "repo_id": "Comfy-Org/ace_step_1.5_ComfyUI_files",
         "filename": "split_files/vae/ace_1.5_vae.safetensors",
         "model_dir": "vae",
     },
