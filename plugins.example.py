@@ -13,6 +13,11 @@ comfy_plugins_ext = [
     #     "install": "requirements.txt", # or "install.py"
     # },
     {
+        "url": "https://github.com/Comfy-Org/ComfyUI-Manager.git", 
+        "branch": "main",
+        "install": "requirements.txt",
+    },
+    {
         "url": "https://github.com/Lightricks/ComfyUI-LTXVideo.git", 
         "branch": "master",
         "install": "requirements.txt",
