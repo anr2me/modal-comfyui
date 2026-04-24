@@ -209,9 +209,16 @@ if comfy_plugins_ext:
                 image = image.pip_install_from_pyproject(f"{nodes_dir}/{folder_name}/{plugin_install}") # uv_sync
             else:
                 image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_install}", extra_options="-r") #, uv=True # pip_install_from_requirements 
-                
+
+
+# get pytorch version
+import torch
+full_pytorch_version = torch.__version__
+pytorch_version_number = ".".join(full_pytorch_version.split(" ")[0].split(".")[:2])
+print(f"PyTorch Ver = {pytorch_version_number}")
+
 # install missing dependencies 
-image = image.uv_pip_install("matrix-nio","https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch2.11-cp313-cp313-linux_x86_64.whl")
+image = image.uv_pip_install("matrix-nio",f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
 
 app = modal.App(name="modal-comfyui", image=image)
 
