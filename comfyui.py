@@ -210,7 +210,7 @@ else:
     )
 
 if comfy_plugins:
-    image = image.run_commands("comfy --recent which").run_commands("comfy node install " + " ".join(comfy_plugins))
+    image = image.run_commands("comfy node install " + " ".join(comfy_plugins))
 
 if comfy_plugins_ext:
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
@@ -230,6 +230,10 @@ if comfy_plugins_ext:
                 image = image.pip_install_from_pyproject(f"{nodes_dir}/{folder_name}/{plugin_install}") # uv_sync
             else:
                 image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_install}", extra_options="-r") #, uv=True # pip_install_from_requirements 
+
+# copy custom nodes to cache
+import shutil
+shutil.copytree(COMFYUI_ROOT / "custom_nodes", base_dir / "custom_nodes", symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
 
 
 app = modal.App(name="modal-comfyui", image=image)
