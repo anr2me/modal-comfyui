@@ -140,13 +140,13 @@ def download_all():
     
     # setup base directory
     #base_dir = "/cache/ComfyUI"
-    extra_file_path = Path(__file__).parent / "extra_model_paths.yaml"
+    extra_file_path = Path(__file__) / "extra_model_paths.yaml"
     Path(base_dir).mkdir(parents=True, exist_ok=True)
     #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
     if extra_file_path.exists():
         image = image.add_local_file(
             extra_file_path, 
-            "/root/extra_model_paths.yaml", 
+            str(COMFYUI_ROOT / "extra_model_paths.yaml"), 
             copy=True
         )
     else:
@@ -248,5 +248,5 @@ uiport = 8188
 def comfyui():
     print(f"Base Dir: {base_dir}")
     _ = subprocess.Popen(
-        f"comfy launch --background -- --listen 0.0.0.0 --port {uiport} --extra-model-paths-config /root/extra_model_paths.yaml", shell=True # --base-directory {base_dir}
+        f"comfy launch --background -- --listen 0.0.0.0 --port {uiport} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml", shell=True # --base-directory {base_dir}
     )
