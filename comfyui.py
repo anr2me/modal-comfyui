@@ -246,7 +246,7 @@ uiport = 8188
 @modal.concurrent(max_inputs=10)
 @modal.web_server(uiport, startup_timeout=60)
 def comfyui():
-    print(f"Base Dir: {base_dir}")
+    #print(f"Base Dir: {base_dir}")
     _ = subprocess.Popen(
-        f"comfy launch --background -- --listen 0.0.0.0 --port {uiport} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml", shell=True # --base-directory {base_dir}
+        f"comfy launch --background -- --listen 0.0.0.0 --port {uiport} --base-directory {base_dir}", shell=True # --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
     )
