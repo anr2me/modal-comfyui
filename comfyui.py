@@ -161,8 +161,9 @@ def download_all():
     # copy models to base_dir (skip existing files)
     import shutil
     def copy_if_not_exists(src, dst):
-        if dst.is_symlink():
-            dst.unlink() 
+        dst_path = Path(dst)
+        if dst_path.is_symlink():
+            dst_path.unlink() 
         if not os.path.exists(dst):
             shutil.copy2(src, dst, follow_symlinks=False)
     
