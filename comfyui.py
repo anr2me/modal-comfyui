@@ -165,7 +165,13 @@ def download_all():
         if dst_path.is_symlink():
             dst_path.unlink() 
         if not os.path.exists(dst):
-            shutil.copy2(src, dst, follow_symlinks=False)
+            src_path = Path(src)
+            if src_path.is_symlink():
+                # Replicate the symlink itself
+                link_to = os.readlink(src_path)
+                os.symlink(link_to, dst_path)
+            else:
+                shutil.copy2(src, dst, follow_symlinks=False)
     
     print("Copying models structure...")
     shutil.copytree(COMFYUI_ROOT / "models", base_dir / "models", copy_function=copy_if_not_exists, symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
