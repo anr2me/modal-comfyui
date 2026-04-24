@@ -162,7 +162,7 @@ def download_all():
     import shutil
     def copy_if_not_exists(src, dst):
         if not os.path.exists(dst):
-            shutil.copy2(src, dst)
+            shutil.copy2(src, dst, follow_symlinks=False)
     
     print("Copying models structure...")
     shutil.copytree(COMFYUI_ROOT / "models", base_dir / "models", copy_function=copy_if_not_exists, symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
