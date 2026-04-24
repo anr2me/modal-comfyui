@@ -21,6 +21,21 @@ models = [
     #     "filename": "FILENAME",
     #     "model_dir": "checkpoints",
     # },
+    {
+        "repo_id": "Comfy-Org/ace_step_1.5_ComfyUI_files",
+        "filename": "split_files/diffusion_models/acestep_v1.5_xl_turbo_bf16.safetensors",
+        "model_dir": "diffusion_models",
+    },
+    {
+        "repo_id": "Comfy-Org/ace_step_1.5_ComfyUI_files",
+        "filename": "split_files/text_encoders/qwen_4b_ace15.safetensors",
+        "model_dir": "text_encoders",
+    },
+    {
+        "repo_id": "Comfy-Org/ace_step_1.5_ComfyUI_files",
+        "filename": "split_files/vae/ace_1.5_vae.safetensors",
+        "model_dir": "vae",
+    },
 ]
 
 models_ext = [
