@@ -140,7 +140,7 @@ def download_all():
     
     # setup base directory
     #base_dir = "/cache/ComfyUI"
-    extra_file_path = Path(__file__) / "extra_model_paths.yaml"
+    extra_file_path = Path(__file__).parent / "extra_model_paths.yaml"
     Path(base_dir).mkdir(parents=True, exist_ok=True)
     #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
     if extra_file_path.exists():
