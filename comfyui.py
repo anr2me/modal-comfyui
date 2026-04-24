@@ -10,6 +10,7 @@ from plugins import comfy_plugins, comfy_plugins_ext
 
 root_dir = Path(__file__).parent
 
+base_dir = Path("/cache/ComfyUI")
 COMFYUI_ROOT = Path("/root/comfy/ComfyUI")
 COMFY_MODELS_ROOT = Path(COMFYUI_ROOT / "models")
 
@@ -134,10 +135,10 @@ def download_external_plugin(url: str, branch: str, install: str):
 
 
 def download_all():
-    global image
+    global image, base_dir
     
     # setup base directory
-    base_dir = "/cache/ComfyUI"
+    #base_dir = "/cache/ComfyUI"
     Path(base_dir).mkdir(parents=True, exist_ok=True)
     #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
     image = image.add_local_file(
@@ -226,6 +227,7 @@ uiport = 8188
 @modal.concurrent(max_inputs=10)
 @modal.web_server(uiport, startup_timeout=60)
 def comfyui():
+    print(f"Base Dir: {base_dir}")
     _ = subprocess.Popen(
-        f"comfy launch --background -- --listen 0.0.0.0 --port {uiport} ", shell=True # --base-directory /cache/ComfyUI 
+        f"comfy launch --background -- --listen 0.0.0.0 --port {uiport} ", shell=True # --base-directory {base_dir}
     )
