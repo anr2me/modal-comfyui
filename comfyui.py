@@ -171,7 +171,11 @@ def install_missing_deps():
     print(f"PyTorch Ver = {pytorch_version_number}")
     
     global image
-    image = image.uv_pip_install("matrix-nio", "cupy-cuda13x", f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
+    image = (
+        image.uv_pip_install("matrix-nio", "cupy-cuda13x", f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
+        .uv_pip_install("triton")
+        .uv_pip_install("sageattention==2.2.0", build_isolation=False)
+    )
 
 
 vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True, version=2)
