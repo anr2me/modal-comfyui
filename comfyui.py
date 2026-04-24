@@ -155,6 +155,16 @@ def download_all():
         download_external_model(model["url"], model["filename"], model["model_dir"])
 
 
+def install_missing_deps:
+    import torch
+    full_pytorch_version = torch.__version__
+    pytorch_version_number = ".".join(full_pytorch_version.split(" ")[0].split(".")[:2])
+    print(f"PyTorch Ver = {pytorch_version_number}")
+    
+    global image
+    image = image.uv_pip_install("matrix-nio",f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
+
+
 vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True, version=2)
 
 # construct images and install deps/custom nodes
@@ -176,7 +186,10 @@ image = (
 # download models
 image = image.env({"HF_HUB_ENABLE_HF_TRANSFER": "1", "HF_TOKEN": os.environ.get("HF_TOKEN", "")}).run_function(
     download_all, volumes={"/cache": vol}
+).run_function(
+    install_missing_deps, volumes={"/cache": vol}
 )
+
 
 # setup custom nodes
 workflow_file_path = Path(__file__).parent / "workflow_api.json"
@@ -201,9 +214,9 @@ if comfy_plugins_ext:
         plugin_install = plugin['install']
         if plugin_install and plugin_install.strip():
             plugin_install = plugin_install.strip()
-            # Strips trailing slashes, splits by slash, takes the last part, and removes '.git'
             folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
-            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && git submodule update --init --recursive && cd -", volumes={"/cache": vol}).run_commands(f"ls {nodes_dir}/{folder_name}")
+            
+            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && git submodule update --init --recursive && cd -", volumes={"/cache": vol})
             if plugin_install.endswith(".py"):
                 image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install} && cd -", volumes={"/cache": vol})
             elif plugin_install.endswith(".toml"):
@@ -211,15 +224,6 @@ if comfy_plugins_ext:
             else:
                 image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_install}", extra_options="-r") #, uv=True # pip_install_from_requirements 
 
-
-# get pytorch version
-import torch
-full_pytorch_version = torch.__version__
-pytorch_version_number = ".".join(full_pytorch_version.split(" ")[0].split(".")[:2])
-print(f"PyTorch Ver = {pytorch_version_number}")
-
-# install missing dependencies 
-image = image.uv_pip_install("matrix-nio",f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
 
 app = modal.App(name="modal-comfyui", image=image)
 
