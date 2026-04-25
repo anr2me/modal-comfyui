@@ -295,7 +295,7 @@ def comfyui():
 )
 @modal.concurrent(max_inputs=10)
 @modal.web_server(uiport+1, startup_timeout=60)
-def comfyui():
+def comfyui_cpu():
     #print(f"Base Dir: {base_dir}")
     _ = subprocess.Popen(
         f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport+1} ", shell=True # --cpu --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
