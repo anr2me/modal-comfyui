@@ -214,7 +214,7 @@ secrets=[modal.Secret.from_name("huggingface-secret")]
 image = image.env({
     "HF_HUB_ENABLE_HF_TRANSFER": "1", 
     "HF_TOKEN": os.environ.get("HF_TOKEN"),
-}).run_function(
+}, secrets=[modal.Secret.from_name("huggingface-secret")]).run_function(
     download_all, volumes={"/cache": vol}
 ).run_function(
     install_missing_deps, volumes={"/cache": vol}
