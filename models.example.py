@@ -41,6 +41,26 @@ models = [
         "filename": "split_files/vae/ace_1.5_vae.safetensors",
         "model_dir": "vae",
     },
+    {
+        "repo_id": "Comfy-Org/ERNIE-Image",
+        "filename": "diffusion_models/ernie-image-turbo.safetensors",
+        "model_dir": "diffusion_models",
+    },
+    {
+        "repo_id": "Comfy-Org/ERNIE-Image",
+        "filename": "text_encoders/ministral-3-3b.safetensors",
+        "model_dir": "text_encoders",
+    },
+    {
+        "repo_id": "Comfy-Org/ERNIE-Image",
+        "filename": "text_encoders/ernie-image-prompt-enhancer.safetensors",
+        "model_dir": "text_encoders",
+    },
+    {
+        "repo_id": "Comfy-Org/ERNIE-Image",
+        "filename": "vae/flux2-vae.safetensors",
+        "model_dir": "vae",
+    },
 ]
 
 models_ext = [
