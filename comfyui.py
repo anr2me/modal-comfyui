@@ -255,7 +255,7 @@ if comfy_plugins_ext:
             plugin_install = plugin_install.strip()
             folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
             
-            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && git submodule update --init --recursive && cd -", volumes={"/cache": vol})
+            #image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && git submodule update --init --recursive && cd -", volumes={"/cache": vol})
             if plugin_install.endswith(".py"):
                 image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install} && cd -", volumes={"/cache": vol}) #, gpu=GPU_MODEL
             elif plugin_install.endswith(".toml"):
