@@ -224,7 +224,9 @@ image = image.env({
     secrets=[modal.Secret.from_name("huggingface-secret")], 
     volumes={"/cache": vol}
 ).run_function(
-    install_missing_deps, volumes={"/cache": vol}
+    install_missing_deps, 
+    volumes={"/cache": vol},
+    #gpu=GPU_MODEL
 )
 
 
@@ -247,7 +249,7 @@ if comfy_plugins_ext:
     Path(nodes_dir).mkdir(parents=True, exist_ok=True)
     for plugin in comfy_plugins_ext:
         #download_external_plugin(plugin["url"], plugin["branch"], plugin["install"])
-        image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']} && cd -; exit 0", volumes={"/cache": vol})
+        image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']} && cd -", volumes={"/cache": vol}) # ; exit 0 
         plugin_install = plugin['install']
         if plugin_install and plugin_install.strip():
             plugin_install = plugin_install.strip()
