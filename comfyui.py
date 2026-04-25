@@ -6,6 +6,8 @@ from pathlib import Path
 
 import modal
 
+GPU_MODEL = "L4"
+
 from models import models, models_ext
 from plugins import comfy_plugins, comfy_plugins_ext
 
@@ -191,6 +193,8 @@ def install_missing_deps():
         .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130") #flash-attn-4[cu13]
         .uv_pip_install(f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
     )
+    image.run_commands("uv pip show cupy-cuda13x sageattention flash-attn-3 nunchaku")
+    print("Done install missing dependencies.")
 
 
 vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True, version=2)
@@ -204,9 +208,9 @@ image = (
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
     #.run_commands("git config --global core.fileMode false")
-    #.run_commands("git config --global pull.rebase")
+    #.run_commands("git config --global pull.rebase") 
+    .run_commands("comfy --skip-prompt install --restore --nvidia --cuda-version 13.0", volumes={"/cache": vol}) # --workspace /cache/ComfyUI
     #  || cd /cache/ComfyUI && comfy --here install --restore && cd - 
-    .run_commands("comfy --skip-prompt install --restore --nvidia --cuda-version 13.0", volumes={"/cache": vol})
     #.run_commands("comfy --skip-prompt --workspace /cache/ComfyUI set-default /cache/ComfyUI", volumes={"/cache": vol})
     .run_commands("git lfs install") # --skip-smudge
 )
@@ -236,7 +240,7 @@ else:
     )
 
 if comfy_plugins:
-    image = image.run_commands("comfy node install " + " ".join(comfy_plugins))
+    image = image.run_commands("comfy node install " + " ".join(comfy_plugins), volumes={"/cache": vol}) #, gpu=GPU_MODEL
 
 if comfy_plugins_ext:
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
@@ -251,7 +255,7 @@ if comfy_plugins_ext:
             
             image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && git submodule update --init --recursive && cd -", volumes={"/cache": vol})
             if plugin_install.endswith(".py"):
-                image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install} && cd -", volumes={"/cache": vol})
+                image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install} && cd -", volumes={"/cache": vol}) #, gpu=GPU_MODEL
             elif plugin_install.endswith(".toml"):
                 image = image.pip_install_from_pyproject(f"{nodes_dir}/{folder_name}/{plugin_install}") # uv_sync
             else:
@@ -271,7 +275,7 @@ app = modal.App(name="modal-comfyui", image=image)
 uiport = 8188
 @app.function(
     max_containers=1,
-    gpu="L4",
+    gpu=GPU_MODEL,
     volumes={"/cache": vol},
     scaledown_window=60,  # idle 1 minutes to shutdown
     enable_memory_snapshot=True,
@@ -287,7 +291,7 @@ def comfyui():
 
 @app.function(
     max_containers=1,
-    #cpu=4.0, memory=8192,
+    #cpu=2.0, memory=4096,
     volumes={"/cache": vol},
     scaledown_window=60,  # idle 1 minutes to shutdown
     enable_memory_snapshot=True,
