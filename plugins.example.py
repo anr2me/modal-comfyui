@@ -3,6 +3,13 @@ comfy_plugins = [
     # IMPORTANT: node id from comfyui registry (Not node name)
     "comfyui-kjnodes",
     "ComfyUI-WanVideoWrapper",
+    "rgthree-comfy",
+    "comfyui-easy-use",
+    "comfyui-videohelpersuite",
+    "comfyui-impact-pack",
+    "comfyui-impact-subpack",
+    "ComfyUI-Crystools",
+    "raylight",
 ]
 
 comfy_plugins_ext = [
