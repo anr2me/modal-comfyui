@@ -284,3 +284,19 @@ def comfyui():
     _ = subprocess.Popen(
         f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
     )
+
+@app.function(
+    max_containers=1,
+    #cpu=4.0, memory=8192,
+    volumes={"/cache": vol},
+    scaledown_window=60,  # idle 1 minutes to shutdown
+    enable_memory_snapshot=True,
+    experimental_options={"enable_gpu_snapshot": True},
+)
+@modal.concurrent(max_inputs=10)
+@modal.web_server(uiport+1, startup_timeout=60)
+def comfyui():
+    #print(f"Base Dir: {base_dir}")
+    _ = subprocess.Popen(
+        f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport+1} ", shell=True # --cpu --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+    )
