@@ -200,7 +200,7 @@ image = (
     modal.Image.debian_slim(python_version="3.13")
     .add_local_python_source("models", "plugins", copy=True)
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
-    .uv_pip_install("pip", "uv", "aiohttp", "comfyui-manager>=4.1b1", "setuptools<82", extra_options="--upgrade")
+    .uv_pip_install("pip", "uv", "aiohttp", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools<82", "gradio>=4", extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
     #.run_commands("git config --global core.fileMode false")
@@ -256,6 +256,9 @@ if comfy_plugins_ext:
                 image = image.pip_install_from_pyproject(f"{nodes_dir}/{folder_name}/{plugin_install}") # uv_sync
             else:
                 image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_install}", extra_options="-r") #, uv=True # pip_install_from_requirements 
+
+# Disable ultralytics' Anonymized Google Analytics
+image = image.run_commands("yolo settings sync=False")
 
 # copy custom nodes to base_dir
 #import shutil
