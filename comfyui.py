@@ -224,12 +224,14 @@ image = image.env({
     download_all, 
     secrets=[modal.Secret.from_name("huggingface-secret")], 
     volumes={"/cache": vol}
-).run_function(
+)
+
+# install missing dependencies or override with a compatible version
+image = image.run_function(
     install_missing_deps, 
     volumes={"/cache": vol},
     #gpu=GPU_MODEL
 )
-
 
 # setup custom nodes
 workflow_file_path = Path(__file__).parent / "workflow_api.json"
