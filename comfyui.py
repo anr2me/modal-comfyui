@@ -187,6 +187,7 @@ def install_missing_deps():
     print(f"PyTorch Ver = {pytorch_version_number}")
     
     global image
+    print(f"Testing2 Global Base Dir: {base_dir}, Image: {image}")
     image = image.uv_pip_install("cupy-cuda13x")
     image = image.run_commands("pip install sageattention==2.* --no-build-isolation --extra-index-url https://comfy-org.github.io/wheels; exit 1")
     image = image.pip_install("sageattention==2.2.0", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3 
