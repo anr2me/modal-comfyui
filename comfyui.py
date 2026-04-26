@@ -186,8 +186,8 @@ def install_missing_deps():
     print(f"PyTorch Ver = {pytorch_version_number}")
     
     global image
-    image = image.uv_pip_install("cupy-cuda13x") \
-    image = image.uv_pip_install("sageattention==2.*", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3 
+    image = image.uv_pip_install("cupy-cuda13x")
+    image = image.uv_pip_install("sageattention==2.2.0", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3 
     image = image.uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130") #flash-attn-4[cu13]
     image = image.uv_pip_install(f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
     
