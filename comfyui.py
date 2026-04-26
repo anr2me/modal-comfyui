@@ -187,6 +187,7 @@ def install_missing_deps():
     
     global image
     image = image.uv_pip_install("cupy-cuda13x")
+    image = image.run_commands("pip install sageattention==2.* --no-build-isolation --extra-index-url https://comfy-org.github.io/wheels; exit 1")
     image = image.pip_install("sageattention==2.2.0", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3 
     image = image.uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130") #flash-attn-4[cu13]
     image = image.uv_pip_install(f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
@@ -223,13 +224,6 @@ image = image.env({
     volumes={"/cache": vol}
 )
 
-# install missing dependencies or override with a compatible version
-image = image.run_function(
-    install_missing_deps, 
-    volumes={"/cache": vol},
-    #gpu=GPU_MODEL
-)
-
 # setup custom nodes
 workflow_file_path = Path(__file__).parent / "workflow_api.json"
 if workflow_file_path.exists():
@@ -262,6 +256,13 @@ if comfy_plugins_ext:
                 image = image.pip_install_from_pyproject(f"{nodes_dir}/{folder_name}/{plugin_install}") # uv_sync
             else:
                 image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_install}", extra_options="-r") #, uv=True # pip_install_from_requirements 
+
+# install missing dependencies or override with a compatible version
+image = image.run_function(
+    install_missing_deps, 
+    volumes={"/cache": vol},
+    #gpu=GPU_MODEL
+)
 
 # Disable ultralytics' Anonymized Google Analytics
 image = image.run_commands("yolo settings sync=False")
