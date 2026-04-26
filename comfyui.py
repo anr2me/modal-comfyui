@@ -142,6 +142,7 @@ def download_all():
     
     # setup base directory
     #base_dir = "/cache/ComfyUI"
+    print(f"Testing Global Base Dir: {base_dir}, Image: {image}")
     extra_file_path = Path(__file__).parent / "extra_model_paths.yaml"
     Path(base_dir).mkdir(parents=True, exist_ok=True)
     #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
