@@ -186,7 +186,7 @@ def install_missing_deps():
     pytorch_version_number = ".".join(full_pytorch_version.split(" ")[0].split(".")[:2])
     print(f"PyTorch Ver = {pytorch_version_number}")
     
-    #global image
+    global image
     print(f"Testing2 Global Base Dir: {base_dir}, Image: {image}")
     image = image.uv_pip_install("cupy-cuda13x this_should_fail")
     image = image.run_commands("pip install sageattention==2.* --no-build-isolation --extra-index-url https://comfy-org.github.io/wheels; exit 1")
