@@ -188,6 +188,7 @@ def install_missing_deps():
     global image
     image = (
         image.uv_pip_install("cupy-cuda13x")
+        .run_commands(f"echo 'Test Rebuilding...' && date") # Forces logs
         #.uv_pip_install("triton")
         .uv_pip_install("sageattention==2.*", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3
         .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130") #flash-attn-4[cu13]
