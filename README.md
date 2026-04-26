@@ -47,7 +47,7 @@ Copy `plugins.example.py` to `plugins.py` and edit it to add custom node IDs or 
 
 Open ComfyUI manager on comfyui and click "Used in Workflow" to see which custom nodes are used in the workflow.
 
-Add these custom nodes to `plugins.py`(be careful of node id).
+Add these custom nodes to `plugins.py`(be careful of node id). You can find the node id at https://registry.comfy.org/
 
 ## Usage
 
