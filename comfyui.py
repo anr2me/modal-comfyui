@@ -220,7 +220,7 @@ image = (
 # download models
 image = image.env({
     "HF_HUB_ENABLE_HF_TRANSFER": "1", 
-    #"HF_TOKEN": os.environ.get("HF_TOKEN"),
+    "HF_XET_HIGH_PERFORMANCE": "1"
 }).run_function(
     download_all, 
     secrets=[modal.Secret.from_name("huggingface-secret")], 
