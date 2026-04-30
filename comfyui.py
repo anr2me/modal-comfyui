@@ -246,20 +246,25 @@ if comfy_plugins_ext:
     Path(nodes_dir).mkdir(parents=True, exist_ok=True)
     for plugin in comfy_plugins_ext:
         #download_external_plugin(plugin["url"], plugin["branch"], plugin["install"])
+        folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
         image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']} && cd -", volumes={"/cache": vol}) # ; exit 0 
+        #image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && git submodule update --init --recursive && cd -", volumes={"/cache": vol})
+        plugin_reqs = plugin['requirements'] # TODO: allows more than one requirements files (comma/space separated)
+        if plugin_reqs and plugin_reqs.strip():
+            plugin_reqs = plugin_reqs.strip()
+            if plugin_reqs.endswith(".toml"):
+                image = image.pip_install_from_pyproject(f"{nodes_dir}/{folder_name}/{plugin_install}") # uv_sync
+            else:
+                image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_install}", extra_options="-r") #, uv=True # pip_install_from_requirements #, gpu=GPU_MODEL
+
         plugin_install = plugin['install']
         if plugin_install and plugin_install.strip():
             plugin_install = plugin_install.strip()
-            folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
-            
-            #image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && git submodule update --init --recursive && cd -", volumes={"/cache": vol})
             if plugin_install.endswith(".py"):
                 image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install} && cd -", volumes={"/cache": vol}) #, gpu=GPU_MODEL
-            elif plugin_install.endswith(".toml"):
-                image = image.pip_install_from_pyproject(f"{nodes_dir}/{folder_name}/{plugin_install}") # uv_sync
             else:
-                image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_install}", extra_options="-r") #, uv=True # pip_install_from_requirements 
-
+                print(f"Unsupported installation script: {plugin_install}")
+ 
 # install missing dependencies or override with a compatible version
 image = image.run_function(
     install_missing_deps, 
