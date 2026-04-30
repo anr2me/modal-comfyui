@@ -217,15 +217,27 @@ image = (
     .run_commands("git lfs install") # --skip-smudge
 )
 
+def _hf_secrets() -> list[modal.Secret]:
+    """Prefer Modal Secret 'huggingface-secret'; fall back to local HF_TOKEN
+    env. Public models work even when both are absent (warned)."""
+    try:
+        s = modal.Secret.from_name("huggingface-secret")
+        s.hydrate()  # from_name is lazy, force the existence check here
+        return [s]
+    except modal.exception.NotFoundError:
+        token = os.environ.get("HF_TOKEN", "")
+        if not token:
+            print(
+                "Warning: no Modal Secret 'huggingface-secret' and no HF_TOKEN env. "
+                "Public models will download with throttled bandwidth; "
+                "gated models will fail."
+            )
+        return [modal.Secret.from_dict({"HF_TOKEN": token})]
+
 # download models
-image = image.env({
-    "HF_HUB_ENABLE_HF_TRANSFER": "1", 
-    "HF_XET_HIGH_PERFORMANCE": "1"
-}).run_function(
-    download_all, 
-    secrets=[modal.Secret.from_name("huggingface-secret")], 
-    volumes={"/cache": vol}
-)
+image = image.env(
+    {"HF_HUB_ENABLE_HF_TRANSFER": "1", "HF_XET_HIGH_PERFORMANCE": "1"}
+).run_function(download_all, volumes={"/cache": vol}, secrets=_hf_secrets())
 
 # setup custom nodes
 workflow_file_path = Path(__file__).parent / "workflow_api.json"
