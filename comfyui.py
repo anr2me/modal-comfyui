@@ -215,6 +215,8 @@ image = (
     #  || cd /cache/ComfyUI && comfy --here install --restore && cd - 
     #.run_commands("comfy --skip-prompt --workspace /cache/ComfyUI set-default /cache/ComfyUI", volumes={"/cache": vol})
     .run_commands("git lfs install") # --skip-smudge
+    # Since nunchaku doesn't have pre-built wheels for pytorch 2.11, let's use the nightly pytorch (2.12)
+    .uv_pip_install("torch", "torchao", "torchvision", "torchaudio", "torchcodec", pre=True, extra_options="--upgrade", index_url="https://download.pytorch.org/whl/nightly/cu130") # xformers
 )
 
 def _hf_secrets() -> list[modal.Secret]:
