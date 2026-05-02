@@ -14,6 +14,10 @@ from plugins import comfy_plugins, comfy_plugins_ext
 root_dir = Path(__file__).parent
 
 base_dir = Path("/cache/ComfyUI")
+input_dir = Path("/cache/ComfyUI/input")
+output_dir = Path("/cache/ComfyUI/output")
+user_dir = Path("/cache/ComfyUI/user")
+
 COMFYUI_ROOT = Path("/root/comfy/ComfyUI")
 COMFY_MODELS_ROOT = Path(COMFYUI_ROOT / "models")
 
@@ -159,13 +163,16 @@ def download_external_plugin(url: str, branch: str, install: str):
 
 
 def download_all():
-    global image, base_dir
+    global image
     
-    # setup base directory
-    #base_dir = "/cache/ComfyUI"
-    print(f"Testing Global Base Dir: {base_dir}, Image: {image}")
+    # prepare base directory
+    print(f"Testing Global Image: {image}")
     extra_file_path = Path(__file__).parent / "extra_model_paths.yaml"
     Path(base_dir).mkdir(parents=True, exist_ok=True)
+    Path(input_dir).mkdir(parents=True, exist_ok=True)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    Path(user_dir).mkdir(parents=True, exist_ok=True)
+    
     #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
     if extra_file_path.exists():
         image = image.add_local_file(
@@ -208,13 +215,13 @@ def install_missing_deps():
     print(f"PyTorch Ver = {pytorch_version_number}")
     
     global image
-    print(f"Testing2 Global Base Dir: {base_dir}, Image: {image}")
+    print(f"Testing2 Global Image: {image}")
     image = image.uv_pip_install("cupy-cuda13x", "this_should_fail")
-    image = image.run_commands("pip install sageattention==2.2.0 --no-build-isolation --extra-index-url https://comfy-org.github.io/wheels; exit 1")
-    image = image.pip_install("sageattention==2.*", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3 
+    #image = image.run_commands("pip install sageattention==2.2.0 --no-build-isolation --extra-index-url https://comfy-org.github.io/wheels; exit 1")
+    #image = image.pip_install("sageattention==2.*", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3 
     #raise ValueError("Break! Testing purpose.")
-    image = image.uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130") #flash-attn-4[cu13]
-    image = image.uv_pip_install(f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
+    #image = image.uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130") #flash-attn-4[cu13]
+    #image = image.uv_pip_install(f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
     
     image = image.run_commands("uv pip show cupy-cuda13x sageattention flash-attn-3 nunchaku; exit 1")
     print("Done install missing dependencies.")
