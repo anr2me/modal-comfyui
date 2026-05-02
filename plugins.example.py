@@ -19,6 +19,7 @@ comfy_plugins_ext = [
     #     "branch": "BRANCH",
     #     "requirements": "requirements.txt", # or "pyproject.toml"
     #     "install": "install.py", 
+    #     "dependencies": "'numpy<2' ninja", 
     # },
     {
         "url": "https://github.com/Comfy-Org/ComfyUI-Manager.git", 
@@ -29,7 +30,8 @@ comfy_plugins_ext = [
     {
         "url": "https://github.com/Lightricks/ComfyUI-LTXVideo.git", 
         "branch": "master",
-        "requirements": "requirements.txt",
+        #"requirements": "requirements.txt",
         "install": "",
+        "dependencies": "ninja"
     },
 ]
