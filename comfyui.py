@@ -288,6 +288,11 @@ if comfy_plugins_ext:
                 image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install} && cd -", volumes={"/cache": vol}) #, gpu=GPU_MODEL
             else:
                 print(f"Unsupported installation script: {plugin_install}")
+        
+        plugin_deps = plugin['dependencies']
+        if plugin_deps and plugin_deps.strip():
+            plugin_deps = plugin_deps.strip()
+            image = image.uv_pip_install(plugin_deps) #, gpu=GPU_MODEL
  
 # install missing dependencies or override with a compatible version
 print(f"Testing3 Global Image: {image}")
