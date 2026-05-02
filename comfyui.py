@@ -166,7 +166,7 @@ def download_all():
     global image
     
     # prepare base directory
-    print(f"Testing Global Image: {image}")
+    print(f"Testing2 Global Image: {image}")
     extra_file_path = Path(__file__).parent / "extra_model_paths.yaml"
     Path(base_dir).mkdir(parents=True, exist_ok=True)
     Path(input_dir).mkdir(parents=True, exist_ok=True)
@@ -215,7 +215,7 @@ def install_missing_deps():
     print(f"PyTorch Ver = {pytorch_version_number}")
     
     global image
-    print(f"Testing2 Global Image: {image}")
+    print(f"Testing4 Global Image: {image}")
     image = image.uv_pip_install("cupy-cuda13x", "this_should_fail")
     #image = image.run_commands("pip install sageattention==2.2.0 --no-build-isolation --extra-index-url https://comfy-org.github.io/wheels; exit 1")
     #image = image.pip_install("sageattention==2.*", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3 
@@ -245,6 +245,7 @@ def _hf_secrets() -> list[modal.Secret]:
         return [modal.Secret.from_dict({"HF_TOKEN": token})]
 
 # download models
+print(f"Testing1 Global Image: {image}")
 image = image.env(
     {"HF_HUB_ENABLE_HF_TRANSFER": "1", "HF_XET_HIGH_PERFORMANCE": "1"}
 ).run_function(download_all, volumes={"/cache": vol}, secrets=_hf_secrets())
@@ -288,6 +289,7 @@ if comfy_plugins_ext:
                 print(f"Unsupported installation script: {plugin_install}")
  
 # install missing dependencies or override with a compatible version
+print(f"Testing3 Global Image: {image}")
 image = image.run_function(
     install_missing_deps, 
     volumes={"/cache": vol},
