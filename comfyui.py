@@ -33,6 +33,7 @@ image = (
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
     .uv_pip_install("torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec", extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
+    .uv_pip_install("cupy-cuda13x")
     .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
     #.run_commands("git config --global core.fileMode false")
     #.run_commands("git config --global pull.rebase") 
@@ -292,7 +293,7 @@ if comfy_plugins_ext:
 print(f"Testing3 Global Image: {image}")
 image = image.run_function(
     install_missing_deps, 
-    volumes={"/cache": vol},
+    #volumes={"/cache": vol},
     #gpu=GPU_MODEL
 )
 
