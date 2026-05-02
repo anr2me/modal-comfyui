@@ -247,7 +247,7 @@ def _hf_secrets() -> list[modal.Secret]:
 
 # download models
 print(f"Testing1 Global Image: {image}")
-image.env(
+image = image.env(
     {"HF_HUB_ENABLE_HF_TRANSFER": "1", "HF_XET_HIGH_PERFORMANCE": "1"}
 ).run_function(download_all, volumes={"/cache": vol}, secrets=_hf_secrets())
 
@@ -291,7 +291,7 @@ if comfy_plugins_ext:
  
 # install missing dependencies or override with a compatible version
 print(f"Testing3 Global Image: {image}")
-image.run_function(
+image = image.run_function(
     install_missing_deps, 
     volumes={"/cache": vol},
     #gpu=GPU_MODEL
