@@ -176,7 +176,7 @@ def download_all():
     
     #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
     if extra_file_path.exists():
-        image = image.add_local_file(
+        image.add_local_file(
             extra_file_path, 
             str(COMFYUI_ROOT / "extra_model_paths.yaml"), 
             copy=True
@@ -217,14 +217,14 @@ def install_missing_deps():
     
     global image
     print(f"Testing4 Global Image: {image}")
-    image = image.uv_pip_install("cupy-cuda13x", "this_should_fail")
+    image.uv_pip_install("cupy-cuda13x", "this_should_fail")
     #image = image.run_commands("pip install sageattention==2.2.0 --no-build-isolation --extra-index-url https://comfy-org.github.io/wheels; exit 1")
     #image = image.pip_install("sageattention==2.*", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3 
     #raise ValueError("Break! Testing purpose.")
     #image = image.uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130") #flash-attn-4[cu13]
     #image = image.uv_pip_install(f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
     
-    image = image.run_commands("uv pip show cupy-cuda13x sageattention flash-attn-3 nunchaku; exit 1")
+    image.run_commands("uv pip show cupy-cuda13x sageattention flash-attn-3 nunchaku; exit 1")
     print("Done install missing dependencies.")
 
 
@@ -254,7 +254,7 @@ image = image.env(
 # setup custom nodes
 workflow_file_path = Path(__file__).parent / "workflow_api.json"
 if workflow_file_path.exists():
-    image = image.add_local_file(
+    image.add_local_file(
         workflow_file_path, "/root/workflow_api.json", copy=True
     ).run_commands("comfy node install-deps --workflow=/root/workflow_api.json", volumes={"/cache": vol})
 else:
@@ -263,7 +263,7 @@ else:
     )
 
 if comfy_plugins:
-    image = image.run_commands("comfy node install " + " ".join(comfy_plugins), volumes={"/cache": vol}) #, gpu=GPU_MODEL
+    image.run_commands("comfy node install " + " ".join(comfy_plugins), volumes={"/cache": vol}) #, gpu=GPU_MODEL
 
 if comfy_plugins_ext:
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
@@ -271,21 +271,21 @@ if comfy_plugins_ext:
     for plugin in comfy_plugins_ext:
         #download_external_plugin(plugin["url"], plugin["branch"], plugin["install"])
         folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
-        image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']} && cd -", volumes={"/cache": vol}) # ; exit 0 
+        image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']} && cd -", volumes={"/cache": vol}) # ; exit 0 
         #image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && git submodule update --init --recursive && cd -", volumes={"/cache": vol})
         plugin_reqs = plugin['requirements'] # TODO: allows more than one requirements files (comma/space separated)
         if plugin_reqs and plugin_reqs.strip():
             plugin_reqs = plugin_reqs.strip()
             if plugin_reqs.endswith(".toml"):
-                image = image.pip_install_from_pyproject(f"{nodes_dir}/{folder_name}/{plugin_reqs}") # uv_sync
+                image.pip_install_from_pyproject(f"{nodes_dir}/{folder_name}/{plugin_reqs}") # uv_sync
             else:
-                image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_reqs}", extra_options="-r") #, uv=True # pip_install_from_requirements #, gpu=GPU_MODEL
+                image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_reqs}", extra_options="-r") #, uv=True # pip_install_from_requirements #, gpu=GPU_MODEL
 
         plugin_install = plugin['install']
         if plugin_install and plugin_install.strip():
             plugin_install = plugin_install.strip()
             if plugin_install.endswith(".py"):
-                image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install} && cd -", volumes={"/cache": vol}) #, gpu=GPU_MODEL
+                image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install} && cd -", volumes={"/cache": vol}) #, gpu=GPU_MODEL
             else:
                 print(f"Unsupported installation script: {plugin_install}")
  
@@ -293,12 +293,12 @@ if comfy_plugins_ext:
 print(f"Testing3 Global Image: {image}")
 image = image.run_function(
     install_missing_deps, 
-    #volumes={"/cache": vol},
+    volumes={"/cache": vol},
     #gpu=GPU_MODEL
 )
 
 # Disable ultralytics' Anonymized Google Analytics
-image = image.run_commands("yolo settings sync=False")
+image.run_commands("yolo settings sync=False")
 
 # copy custom nodes to base_dir
 #import shutil
