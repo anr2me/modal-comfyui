@@ -17,6 +17,27 @@ base_dir = Path("/cache/ComfyUI")
 COMFYUI_ROOT = Path("/root/comfy/ComfyUI")
 COMFY_MODELS_ROOT = Path(COMFYUI_ROOT / "models")
 
+# create persistent storage
+vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True, version=2)
+
+# construct images and install deps/custom nodes
+image = (
+    modal.Image.debian_slim(python_version="3.13")
+    .add_local_python_source("models", "plugins", copy=True)
+    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
+    .uv_pip_install("pip", "uv", "aiohttp", "ninja", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0", extra_options="--upgrade")
+    .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
+    .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
+    #.run_commands("git config --global core.fileMode false")
+    #.run_commands("git config --global pull.rebase") 
+    .run_commands("comfy --skip-prompt install --restore --nvidia --cuda-version 13.0", volumes={"/cache": vol}) # --workspace /cache/ComfyUI
+    #  || cd /cache/ComfyUI && comfy --here install --restore && cd - 
+    #.run_commands("comfy --skip-prompt --workspace /cache/ComfyUI set-default /cache/ComfyUI", volumes={"/cache": vol})
+    .run_commands("git lfs install") # --skip-smudge
+    # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
+    .uv_pip_install("torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec", extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
+)
+
 
 def get_comfyui_path() -> Path:
     global COMFYUI_ROOT, COMFY_MODELS_ROOT
@@ -198,26 +219,6 @@ def install_missing_deps():
     image = image.run_commands("uv pip show cupy-cuda13x sageattention flash-attn-3 nunchaku; exit 1")
     print("Done install missing dependencies.")
 
-
-vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True, version=2)
-
-# construct images and install deps/custom nodes
-image = (
-    modal.Image.debian_slim(python_version="3.13")
-    .add_local_python_source("models", "plugins", copy=True)
-    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
-    .uv_pip_install("pip", "uv", "aiohttp", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0", extra_options="--upgrade")
-    .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
-    .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
-    #.run_commands("git config --global core.fileMode false")
-    #.run_commands("git config --global pull.rebase") 
-    .run_commands("comfy --skip-prompt install --restore --nvidia --cuda-version 13.0", volumes={"/cache": vol}) # --workspace /cache/ComfyUI
-    #  || cd /cache/ComfyUI && comfy --here install --restore && cd - 
-    #.run_commands("comfy --skip-prompt --workspace /cache/ComfyUI set-default /cache/ComfyUI", volumes={"/cache": vol})
-    .run_commands("git lfs install") # --skip-smudge
-    # Since nunchaku doesn't have pre-built wheels for pytorch 2.11, let's use the nightly pytorch (2.12)
-    .uv_pip_install("torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec", extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
-)
 
 def _hf_secrets() -> list[modal.Secret]:
     """Prefer Modal Secret 'huggingface-secret'; fall back to local HF_TOKEN
