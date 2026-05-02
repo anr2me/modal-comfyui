@@ -172,7 +172,7 @@ def download_all():
     Path(base_dir).mkdir(parents=True, exist_ok=True)
     Path(input_dir).mkdir(parents=True, exist_ok=True)
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    Path(user_dir).mkdir(parents=True, exist_ok=True)
+    Path(str(user_dir / "default/workflows")).mkdir(parents=True, exist_ok=True)
     
     #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
     if extra_file_path.exists():
