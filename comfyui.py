@@ -273,7 +273,7 @@ if comfy_plugins_ext:
         folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
         image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']} && cd -", volumes={"/cache": vol}) # ; exit 0 
         #image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && git submodule update --init --recursive && cd -", volumes={"/cache": vol})
-        plugin_reqs = plugin['requirements'] # TODO: allows more than one requirements files (comma/space separated)
+        plugin_reqs = plugin.get('requirements') # TODO: allows more than one requirements files (comma/space separated)
         if plugin_reqs and plugin_reqs.strip():
             plugin_reqs = plugin_reqs.strip()
             if plugin_reqs.endswith(".toml"):
@@ -281,7 +281,7 @@ if comfy_plugins_ext:
             else:
                 image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_reqs}", extra_options="-r") #, uv=True # pip_install_from_requirements #, gpu=GPU_MODEL
 
-        plugin_install = plugin['install']
+        plugin_install = plugin.get('install')
         if plugin_install and plugin_install.strip():
             plugin_install = plugin_install.strip()
             if plugin_install.endswith(".py"):
