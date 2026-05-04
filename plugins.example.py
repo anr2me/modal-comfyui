@@ -22,6 +22,10 @@ comfy_plugins_ext = [
     #     "dependencies": "'numpy<2' ninja", 
     # },
     {
+        "url": "https://github.com/Echoflare/ComfyUI-Reverse-Proxy-Fix.git", 
+        "branch": "main",
+    },
+    {
         "url": "https://github.com/Comfy-Org/ComfyUI-Manager.git", 
         "branch": "main",
         "requirements": "requirements.txt",
