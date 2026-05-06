@@ -389,7 +389,7 @@ class ComfyUICPU:
     
     @modal.web_server(uiport + 1, startup_timeout=60)
     def web(self):
-        print("App Restored!")
+        print("App Ready!")
     
     @modal.exit()
     def cleanup(self):
