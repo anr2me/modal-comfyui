@@ -315,7 +315,7 @@ image = image.run_commands("yolo settings sync=False")
 app = modal.App(name="modal-comfyui", image=image)
 
 uiport = 8188
-@app.function(
+@app.cls(
     max_containers=1,
     gpu=GPU_MODEL,
     volumes={"/cache": vol},
@@ -324,13 +324,22 @@ uiport = 8188
     experimental_options={"enable_gpu_snapshot": True},
 )
 @modal.concurrent(max_inputs=10)
-@modal.web_server(uiport, startup_timeout=60)
-def comfyui():
-    _ = subprocess.Popen(
-        f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
-    )
+class ComfyUI:
+    @modal.enter(snap=True)
+    def startup(self):
+        self.proc = subprocess.Popen(
+            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+        )
+    
+    @modal.web_server(uiport, startup_timeout=60)
+    def web(self):
+        print("App Restored!")
+    
+    @modal.exit()
+    def cleanup(self):
+        print("App CleanUp!")
 
-@app.function(
+@app.cls(
     max_containers=1,
     #cpu=2.0, memory=4096,
     volumes={"/cache": vol},
@@ -339,8 +348,17 @@ def comfyui():
     experimental_options={"enable_gpu_snapshot": True},
 )
 @modal.concurrent(max_inputs=10)
-@modal.web_server(uiport+1, startup_timeout=60)
-def comfyui_cpu():
-    _ = subprocess.Popen(
-        f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport+1} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
-    )
+class ComfyUICPU:
+    @modal.enter(snap=True)
+    def startup(self):
+        self.proc = subprocess.Popen(
+            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport+1} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+        )
+    
+    @modal.web_server(uiport+1, startup_timeout=60)
+    def web(self):
+        print("App Restored!")
+    
+    @modal.exit()
+    def cleanup(self):
+        print("App CleanUp!")
