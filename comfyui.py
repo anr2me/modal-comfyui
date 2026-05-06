@@ -41,7 +41,7 @@ image = (
     .run_commands("comfy --skip-prompt install --restore --nvidia --cuda-version 13.0", volumes={"/cache": vol}) # --workspace /cache/ComfyUI
     #  || cd /cache/ComfyUI && comfy --here install --restore && cd - 
     #.run_commands(f"comfy --skip-prompt --workspace /cache/ComfyUI set-default {base_dir}", volumes={"/cache": vol})
-    .run_commands(f"comfy --skip-prompt set-default {COMFYUI_ROOT} --launch-extras='--network-mode personal_cloud --security-level normal'") # Allow installing custom nodes from Manager
+    #.run_commands(f"comfy --skip-prompt set-default {COMFYUI_ROOT} --launch-extras='--network-mode personal_cloud --security-level normal'") # Allow installing custom nodes from Manager
     .run_commands("git lfs install") # --skip-smudge
 )
 
@@ -343,7 +343,7 @@ class ComfyUI:
     @modal.enter(snap=True)
     def start_checkpoint(self):
         self.proc = subprocess.Popen(
-            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --network-mode personal_cloud --security-level normal --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         )
         # Block here — snapshot is taken only after this returns
         wait_for_port(uiport, timeout=120)
@@ -352,7 +352,7 @@ class ComfyUI:
     def start_restore(self):
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
-        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --network-mode personal_cloud --security-level normal --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         #)
         wait_for_port(uiport, timeout=120)
     
@@ -378,7 +378,7 @@ class ComfyUICPU:
     @modal.enter(snap=True)
     def start_checkpoint(self):
         self.proc = subprocess.Popen(
-            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport + 1} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport + 1} --network-mode personal_cloud --security-level normal --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
         )
         # Block here — snapshot is taken only after this returns
         wait_for_port(uiport + 1, timeout=120)
@@ -387,7 +387,7 @@ class ComfyUICPU:
     def start_restore(self):
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
-        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport + 1} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport + 1} --network-mode personal_cloud --security-level normal --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         #)
         wait_for_port(uiport + 1, timeout=120)
     
