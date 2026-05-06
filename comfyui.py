@@ -40,8 +40,8 @@ image = (
     #.run_commands("git config --global pull.rebase") 
     .run_commands("comfy --skip-prompt install --restore --nvidia --cuda-version 13.0", volumes={"/cache": vol}) # --workspace /cache/ComfyUI
     #  || cd /cache/ComfyUI && comfy --here install --restore && cd - 
-    #.run_commands("comfy --skip-prompt --workspace /cache/ComfyUI set-default /cache/ComfyUI", volumes={"/cache": vol})
-    .run_commands("comfy --skip-prompt set-default comfy --launch-extras='--network-mode personal_cloud --security-level normal'") # Allow installing custom nodes from Manager
+    #.run_commands(f"comfy --skip-prompt --workspace /cache/ComfyUI set-default {base_dir}", volumes={"/cache": vol})
+    .run_commands(f"comfy --skip-prompt set-default {COMFYUI_ROOT} --launch-extras='--network-mode personal_cloud --security-level normal'") # Allow installing custom nodes from Manager
     .run_commands("git lfs install") # --skip-smudge
 )
 
