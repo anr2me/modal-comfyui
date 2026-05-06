@@ -313,6 +313,9 @@ image = image.run_commands("yolo settings sync=False")
 #shutil.copytree(COMFYUI_ROOT / "custom_nodes", base_dir / "custom_nodes", symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
 
 def wait_for_port(port: int, timeout: int = 120):
+    import time
+    import socket
+    
     """Block until the port is accepting connections."""
     deadline = time.time() + timeout
     while time.time() < deadline:
