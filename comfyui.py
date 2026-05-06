@@ -312,6 +312,17 @@ image = image.run_commands("yolo settings sync=False")
 #print("Copying custom_nodes structure...")
 #shutil.copytree(COMFYUI_ROOT / "custom_nodes", base_dir / "custom_nodes", symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
 
+def wait_for_port(port: int, timeout: int = 120):
+    """Block until the port is accepting connections."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=1):
+                return  # port is open — ComfyUI is ready
+        except OSError:
+            time.sleep(0.5)
+    raise TimeoutError(f"ComfyUI never became ready on port {port}")
+
 
 app = modal.App(name="modal-comfyui", image=image)
 
@@ -327,14 +338,24 @@ uiport = 8188
 @modal.concurrent(max_inputs=10)
 class ComfyUI:
     @modal.enter(snap=True)
-    def startup(self):
+    def start_checkpoint(self):
         self.proc = subprocess.Popen(
             f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         )
+        # Block here — snapshot is taken only after this returns
+        wait_for_port(uiport, timeout=120)
+
+    @modal.enter(snap=False)
+    def start_restore(self):
+        # On restore ComfyUI process is gone — relaunch it
+        self.proc = subprocess.Popen(
+            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        )
+        wait_for_port(uiport, timeout=120)
     
     @modal.web_server(uiport, startup_timeout=60)
     def web(self):
-        print("App Restored!")
+        print("App Ready!")
     
     @modal.exit()
     def cleanup(self):
@@ -351,12 +372,22 @@ class ComfyUI:
 @modal.concurrent(max_inputs=10)
 class ComfyUICPU:
     @modal.enter(snap=True)
-    def startup(self):
+    def start_checkpoint(self):
         self.proc = subprocess.Popen(
-            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport+1} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport + 1} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
         )
+        # Block here — snapshot is taken only after this returns
+        wait_for_port(uiport + 1, timeout=120)
+
+    @modal.enter(snap=False)
+    def start_restore(self):
+        # On restore ComfyUI process is gone — relaunch it
+        self.proc = subprocess.Popen(
+            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport + 1} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        )
+        wait_for_port(uiport + 1, timeout=120)
     
-    @modal.web_server(uiport+1, startup_timeout=60)
+    @modal.web_server(uiport + 1, startup_timeout=60)
     def web(self):
         print("App Restored!")
     
