@@ -18,8 +18,8 @@ comfy_plugins_ext = [
     #     "url": "URL",
     #     "branch": "BRANCH",
     #     "requirements": "requirements.txt", # or "pyproject.toml"
-    #     "install": "install.py", 
-    #     "dependencies": "'numpy<2' ninja", 
+    #     "install": "install.py", # or "setup.py"
+    #     "dependencies": "'numpy<2' ninja", # in case requirements.txt breaks something by installing a specific version
     # },
     {
         "url": "https://github.com/Echoflare/ComfyUI-Reverse-Proxy-Fix.git", 
