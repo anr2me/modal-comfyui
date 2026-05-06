@@ -347,10 +347,10 @@ class ComfyUI:
 
     @modal.enter(snap=False)
     def start_restore(self):
-        # On restore ComfyUI process is gone — relaunch it
-        self.proc = subprocess.Popen(
-            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
-        )
+        # On restore, sockets may need to be rebound
+        #self.proc = subprocess.Popen(
+        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        #)
         wait_for_port(uiport, timeout=120)
     
     @modal.web_server(uiport, startup_timeout=60)
@@ -359,6 +359,7 @@ class ComfyUI:
     
     @modal.exit()
     def cleanup(self):
+        self.proc.terminate()
         print("App CleanUp!")
 
 @app.cls(
@@ -381,10 +382,10 @@ class ComfyUICPU:
 
     @modal.enter(snap=False)
     def start_restore(self):
-        # On restore ComfyUI process is gone — relaunch it
-        self.proc = subprocess.Popen(
-            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport + 1} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
-        )
+        # On restore, sockets may need to be rebound
+        #self.proc = subprocess.Popen(
+        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport + 1} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        #)
         wait_for_port(uiport + 1, timeout=120)
     
     @modal.web_server(uiport + 1, startup_timeout=60)
@@ -393,4 +394,5 @@ class ComfyUICPU:
     
     @modal.exit()
     def cleanup(self):
+        self.proc.terminate()
         print("App CleanUp!")
