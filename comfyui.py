@@ -41,6 +41,7 @@ image = (
     .run_commands("comfy --skip-prompt install --restore --nvidia --cuda-version 13.0", volumes={"/cache": vol}) # --workspace /cache/ComfyUI
     #  || cd /cache/ComfyUI && comfy --here install --restore && cd - 
     #.run_commands("comfy --skip-prompt --workspace /cache/ComfyUI set-default /cache/ComfyUI", volumes={"/cache": vol})
+    .run_commands("comfy --skip-prompt set-default --launch-extras='--network-mode personal_cloud --security-level normal'") # Allow installing custom nodes from Manager
     .run_commands("git lfs install") # --skip-smudge
 )
 
@@ -328,7 +329,7 @@ class ComfyUI:
     @modal.enter(snap=True)
     def startup(self):
         self.proc = subprocess.Popen(
-            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         )
     
     @modal.web_server(uiport, startup_timeout=60)
