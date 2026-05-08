@@ -416,7 +416,7 @@ async def proxy_websocket(websocket: WebSocket):
     if active_count > 0:
         url = await get_remote_url("ComfyGPU")
         from urllib.parse import urlparse, urlunparse
-        scheme_map = {"http": "ws", "https": "wss"}
+        scheme_map = {"http": "ws", "https": "ws"}
         parsed = urlparse(url)
         if parsed.scheme in scheme_map:
             # Create a new URL object with the updated scheme
