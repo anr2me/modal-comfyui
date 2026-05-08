@@ -407,7 +407,8 @@ async def proxy_websocket(websocket: WebSocket):
 
     # Use active GPU instance when available, otherwise use localhost (CPU)
     uri = f"ws://127.0.0.1:{uiport}/ws"
-    if shared_dict["active"] and shared_dict["active"]>0:
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
         url = await get_remote_url("ComfyGPU")
         from urllib.parse import urlparse, urlunparse
         scheme_map = {"http": "ws", "https": "wss"}
@@ -477,8 +478,8 @@ class ComfyGPU:
 
     @modal.enter(snap=False)
     def start_restore(self):
-        if shared_dict["active"]:
-            shared_dict["active"] = shared_dict["active"] + 1
+        if shared_dict.get("active"):
+            shared_dict["active"] += 1
         else:
             shared_dict["active"] = 1
         print("App Restored!")
@@ -494,8 +495,8 @@ class ComfyGPU:
     
     @modal.exit()
     def cleanup(self):
-        if shared_dict["active"] and shared_dict["active"]>0:
-            shared_dict["active"] = shared_dict["active"] - 1
+        if shared_dict.get("active") and shared_dict["active"]>0:
+            shared_dict["active"] -= 1
         else:
             shared_dict["active"] = 0
         self.proc.terminate()
