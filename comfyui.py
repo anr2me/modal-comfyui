@@ -338,7 +338,7 @@ uiport = 8188
 gpuport = uiport + 1
 
 def get_remote_url(class_name: str) -> str:
-    remote_cls = modal.Cls.from_name(app.name(), class_name)
+    remote_cls = modal.Cls.from_name(app.name, class_name)
     url = remote_cls.web.get_web_url()
     return url
     
