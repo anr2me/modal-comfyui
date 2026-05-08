@@ -339,7 +339,7 @@ gpuport = uiport + 1
 
 def get_remote_url(class_name: str) -> str:
     remote_cls = modal.Cls.from_name(app.name, class_name)
-    url = remote_cls.web.get_web_url()
+    url = remote_cls().web.get_web_url()
     return url
     
 @web_app.get("/prompt")
