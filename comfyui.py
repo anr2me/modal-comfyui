@@ -408,8 +408,12 @@ async def proxy(path: str, request: Request):
             content=await request.body(),
             headers=dict(request.headers),
         )
-        print(f"Resp => {resp} <=")
-    return JSONResponse(resp.json())
+    # Return raw bytes with the original content-type
+    return Response(
+        content=resp.content,
+        status_code=resp.status_code,
+        media_type=resp.headers.get("content-type"),
+    )
     
 
 @app.cls(
