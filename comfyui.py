@@ -408,6 +408,7 @@ async def proxy(path: str, request: Request):
             content=await request.body(),
             headers=dict(request.headers),
         )
+        print(f"Resp => {resp} <=")
     return JSONResponse(resp.json())
     
 
