@@ -327,7 +327,7 @@ def wait_for_port(port: int, timeout: int = 60):
     raise TimeoutError(f"ComfyUI never became ready on port {port}")
 
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 import httpx
 
