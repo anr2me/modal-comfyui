@@ -401,14 +401,14 @@ async def interrupt(request: Request):
 # Proxy everything else to local ComfyUI
 @web_app.api_route("/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "CONNECT", "OPTIONS", "TRACE"])
 async def proxy(path: str, request: Request):
-    async with httpx.AsyncClient() as client:
-        resp = await client.request(
-            method=request.method,
-            url=f"http://127.0.0.1:{uiport}/{path}",
-            content=await request.body(),
-            headers=dict(request.headers),
-        )
-    return JSONResponse(resp.json())
+    #async with httpx.AsyncClient() as client:
+    #    resp = await client.request(
+    #        method=request.method,
+    #        url=f"http://127.0.0.1:{uiport}/{path}",
+    #        content=await request.body(),
+    #        headers=dict(request.headers),
+    #    )
+    return f"{path} --- {request}" #JSONResponse(resp.json())
     
 
 @app.cls(
