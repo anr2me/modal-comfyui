@@ -337,14 +337,14 @@ web_app = FastAPI()
 uiport = 8188
 gpuport = uiport + 1
 
-def get_remote_url(class_name: str) -> str:
+async def get_remote_url(class_name: str) -> str:
     remote_cls = modal.Cls.from_name(app.name, class_name)
     url = await remote_cls().web.get_web_url.aio()
     return url
     
 @web_app.get("/prompt")
 async def prompt_get():
-    url = get_remote_url("ComfyGPU")
+    url = await get_remote_url("ComfyGPU")
     async with httpx.AsyncClient() as client:
         resp = await client.get(f"{url}/prompt")
     return JSONResponse(resp.json())
@@ -353,7 +353,7 @@ async def prompt_get():
 async def prompt_post(request: Request):
     body = await request.json()
     
-    url = get_remote_url("ComfyGPU")
+    url = await get_remote_url("ComfyGPU")
 
     # Your custom logic — transform, validate, log, route
     # ...
@@ -369,7 +369,7 @@ async def prompt_post(request: Request):
 
 @web_app.get("/queue")
 async def queue_get():
-    url = get_remote_url("ComfyGPU")
+    url = await get_remote_url("ComfyGPU")
     async with httpx.AsyncClient() as client:
         resp = await client.get(f"{url}/queue")
     return JSONResponse(resp.json())
@@ -377,7 +377,7 @@ async def queue_get():
 @web_app.post("/queue")
 async def queue_post(request: Request):
     body = await request.json()
-    url = get_remote_url("ComfyGPU")
+    url = await get_remote_url("ComfyGPU")
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             f"{url}/queue",
@@ -389,7 +389,7 @@ async def queue_post(request: Request):
 @web_app.post("/interrupt")
 async def interrupt(request: Request):
     body = await request.json()
-    url = get_remote_url("ComfyGPU")
+    url = await get_remote_url("ComfyGPU")
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             f"{url}/interrupt",
