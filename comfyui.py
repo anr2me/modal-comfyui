@@ -423,7 +423,8 @@ async def proxy_websocket(websocket: WebSocket):
             new_parsed = parsed._replace(scheme=scheme_map[parsed.scheme])
             url = urlunparse(new_parsed)
         uri = f"{url}/ws"
-    
+
+    print(f"CONNECTing to {uri}")
     async with websockets.connect(uri) as comfy_ws:
         async def client_to_comfy():
             try:
