@@ -479,7 +479,7 @@ class ComfyGPU:
     def start_restore(self):
         if shared_dict["active"]:
             shared_dict["active"] = shared_dict["active"] + 1
-        else
+        else:
             shared_dict["active"] = 1
         print("App Restored!")
         # On restore, sockets may need to be rebound
@@ -496,7 +496,7 @@ class ComfyGPU:
     def cleanup(self):
         if shared_dict["active"] and shared_dict["active"]>0:
             shared_dict["active"] = shared_dict["active"] - 1
-        else
+        else:
             shared_dict["active"] = 0
         self.proc.terminate()
         print("App CleanUp!")
