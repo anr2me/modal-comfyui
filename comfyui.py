@@ -30,7 +30,7 @@ image = (
     .add_local_python_source("models", "plugins", copy=True)
     .run_commands("apt-get update")
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "ffmpeg") #rav1e
-    .uv_pip_install("pip", "uv", "aiohttp", "fastapi", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0", extra_options="--upgrade")
+    .uv_pip_install("pip", "uv", "aiohttp", "fastapi", "websockets", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0", extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
     .uv_pip_install("torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec", extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
@@ -327,9 +327,10 @@ def wait_for_port(port: int, timeout: int = 60):
     raise TimeoutError(f"ComfyUI never became ready on port {port}")
 
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, WebSocket
 from fastapi.responses import JSONResponse
 import httpx
+import websockets
 
 app = modal.App(name="modal-comfyui", image=image)
 web_app = FastAPI()
@@ -398,8 +399,35 @@ async def interrupt(request: Request):
         )
     return JSONResponse(resp.json())
 
+@web_app.websocket("/ws")
+async def proxy_websocket(websocket: WebSocket):
+    await websocket.accept()
+    
+    uri = f"ws://127.0.0.1:{uiport}/ws"
+    
+    async with websockets.connect(uri) as comfy_ws:
+        async def client_to_comfy():
+            try:
+                async for message in websocket.iter_bytes():
+                    await comfy_ws.send(message)
+            except Exception:
+                pass
+
+        async def comfy_to_client():
+            try:
+                async for message in comfy_ws:
+                    if isinstance(message, bytes):
+                        await websocket.send_bytes(message)
+                    else:
+                        await websocket.send_text(message)
+            except Exception:
+                pass
+
+        import asyncio
+        await asyncio.gather(client_to_comfy(), comfy_to_client())
+        
 # Proxy everything else to local ComfyUI
-@web_app.api_route("/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "CONNECT", "OPTIONS", "TRACE"])
+@web_app.api_route("/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "TRACE"])
 async def proxy(path: str, request: Request):
     async with httpx.AsyncClient() as client:
         resp = await client.request(
