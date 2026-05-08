@@ -448,7 +448,7 @@ async def proxy_websocket(websocket: WebSocket):
 # Proxy everything else to local ComfyUI
 @web_app.api_route("/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "TRACE"])
 async def proxy(path: str, request: Request):
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.request(
             method=request.method,
             url=f"http://127.0.0.1:{uiport}/{path}",
