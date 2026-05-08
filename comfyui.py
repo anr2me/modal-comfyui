@@ -346,6 +346,7 @@ async def get_remote_url(class_name: str) -> str:
     return url
     
 @web_app.get("/prompt")
+@web_app.get("/api/prompt")
 async def prompt_get():
     url = await get_remote_url("ComfyGPU")
     async with httpx.AsyncClient(timeout=120.0) as client:
@@ -353,6 +354,7 @@ async def prompt_get():
     return JSONResponse(resp.json())
     
 @web_app.post("/prompt")
+@web_app.post("/api/prompt")
 async def prompt_post(request: Request):
     body = await request.json()
     
@@ -371,6 +373,7 @@ async def prompt_post(request: Request):
     return JSONResponse(resp.json())
 
 @web_app.get("/queue")
+@web_app.get("/api/queue")
 async def queue_get():
     url = await get_remote_url("ComfyGPU")
     async with httpx.AsyncClient(timeout=120.0) as client:
@@ -378,6 +381,7 @@ async def queue_get():
     return JSONResponse(resp.json())
 
 @web_app.post("/queue")
+@web_app.post("/api/queue")
 async def queue_post(request: Request):
     body = await request.json()
     url = await get_remote_url("ComfyGPU")
@@ -390,6 +394,7 @@ async def queue_post(request: Request):
     return JSONResponse(resp.json())
     
 @web_app.post("/interrupt")
+@web_app.post("/api/interrupt")
 async def interrupt(request: Request):
     body = await request.json()
     url = await get_remote_url("ComfyGPU")
