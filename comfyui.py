@@ -334,6 +334,8 @@ import websockets
 
 app = modal.App(name="modal-comfyui", image=image)
 web_app = FastAPI()
+shared_dict = modal.Dict.from_name(app.name, create_if_missing=True)
+
 
 uiport = 8188
 gpuport = uiport + 1
@@ -402,8 +404,19 @@ async def interrupt(request: Request):
 @web_app.websocket("/ws")
 async def proxy_websocket(websocket: WebSocket):
     await websocket.accept()
-    
+
+    # Use active GPU instance when available, otherwise use localhost (CPU)
     uri = f"ws://127.0.0.1:{uiport}/ws"
+    if shared_dict["active"] and shared_dict["active"]>0:
+        url = await get_remote_url("ComfyGPU")
+        from urllib.parse import urlparse, urlunparse
+        scheme_map = {"http": "ws", "https": "wss"}
+        parsed = urlparse(url)
+        if parsed.scheme in scheme_map:
+            # Create a new URL object with the updated scheme
+            new_parsed = parsed._replace(scheme=scheme_map[parsed.scheme])
+            url = urlunparse(new_parsed)
+        uri = f"{url}/ws"
     
     async with websockets.connect(uri) as comfy_ws:
         async def client_to_comfy():
@@ -464,6 +477,10 @@ class ComfyGPU:
 
     @modal.enter(snap=False)
     def start_restore(self):
+        if shared_dict["active"]:
+            shared_dict["active"] = shared_dict["active"] + 1
+        else
+            shared_dict["active"] = 1
         print("App Restored!")
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
@@ -477,6 +494,10 @@ class ComfyGPU:
     
     @modal.exit()
     def cleanup(self):
+        if shared_dict["active"] and shared_dict["active"]>0:
+            shared_dict["active"] = shared_dict["active"] - 1
+        else
+            shared_dict["active"] = 0
         self.proc.terminate()
         print("App CleanUp!")
 
