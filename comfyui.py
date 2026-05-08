@@ -327,9 +327,90 @@ def wait_for_port(port: int, timeout: int = 60):
     raise TimeoutError(f"ComfyUI never became ready on port {port}")
 
 
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+import httpx
+
 app = modal.App(name="modal-comfyui", image=image)
+web_app = FastAPI()
 
 uiport = 8188
+gpuport = uiport + 1
+
+def get_remote_url(class_name: str) -> str:
+    remote_cls = modal.Cls.from_name(app.name(), class_name)
+    url = remote_cls.web.get_web_url()
+    return url
+    
+@web_app.get("/prompt")
+async def prompt_get():
+    url = get_remote_url("ComfyGPU")
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{url}/prompt")
+    return JSONResponse(resp.json())
+    
+@web_app.post("/prompt")
+async def prompt_post(request: Request):
+    body = await request.json()
+    
+    url = get_remote_url("ComfyGPU")
+
+    # Your custom logic — transform, validate, log, route
+    # ...
+
+    # Forward to remote ComfyUI
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{url}/prompt",
+            json=body,
+            timeout=120,
+        )
+    return JSONResponse(resp.json())
+
+@web_app.get("/queue")
+async def queue_get():
+    url = get_remote_url("ComfyGPU")
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{url}/queue")
+    return JSONResponse(resp.json())
+
+@web_app.post("/queue")
+async def queue_post(request: Request):
+    body = await request.json()
+    url = get_remote_url("ComfyGPU")
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{url}/queue",
+            json=body,
+            timeout=120,
+        )
+    return JSONResponse(resp.json())
+    
+@web_app.post("/interrupt")
+async def interrupt(request: Request):
+    body = await request.json()
+    url = get_remote_url("ComfyGPU")
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{url}/interrupt",
+            json=body,
+            timeout=120,
+        )
+    return JSONResponse(resp.json())
+
+# Proxy everything else to local ComfyUI
+@web_app.api_route("/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "CONNECT", "OPTIONS", "TRACE"])
+async def proxy(path: str, request: Request):
+    async with httpx.AsyncClient() as client:
+        resp = await client.request(
+            method=request.method,
+            url=f"http://127.0.0.1:{uiport}/{path}",
+            content=await request.body(),
+            headers=dict(request.headers),
+        )
+    return JSONResponse(resp.json())
+    
+
 @app.cls(
     max_containers=1,
     gpu=GPU_MODEL,
@@ -339,25 +420,25 @@ uiport = 8188
     experimental_options={"enable_gpu_snapshot": True},
 )
 @modal.concurrent(max_inputs=10)
-class ComfyUI:
+class ComfyGPU:
     @modal.enter(snap=True)
     def start_checkpoint(self):
         self.proc = subprocess.Popen(
-            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {gpuport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         )
         # Block here — snapshot is taken only after this returns
-        wait_for_port(uiport, timeout=120)
+        wait_for_port(gpuport, timeout=120)
 
     @modal.enter(snap=False)
     def start_restore(self):
         print("App Restored!")
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
-        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {gpuport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         #)
-        #wait_for_port(uiport, timeout=120)
+        #wait_for_port(gpuport, timeout=120)
     
-    @modal.web_server(uiport, startup_timeout=60)
+    @modal.web_server(gpuport, startup_timeout=60)
     def web(self):
         print("App Ready!")
     
@@ -375,27 +456,32 @@ class ComfyUI:
     experimental_options={"enable_gpu_snapshot": True},
 )
 @modal.concurrent(max_inputs=10)
-class ComfyUICPU:
+class ComfyCPU:
     @modal.enter(snap=True)
     def start_checkpoint(self):
         self.proc = subprocess.Popen(
-            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport + 1} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
         )
         # Block here — snapshot is taken only after this returns
-        wait_for_port(uiport + 1, timeout=120)
+        wait_for_port(uiport, timeout=120)
 
     @modal.enter(snap=False)
     def start_restore(self):
         print("App Restored!")
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
-        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport + 1} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         #)
-        #wait_for_port(uiport + 1, timeout=120)
+        #wait_for_port(uiport, timeout=120)
     
-    @modal.web_server(uiport + 1, startup_timeout=60)
-    def web(self):
+    #@modal.web_server(uiport, startup_timeout=60)
+    #def web(self):
+    #    print("App Ready!")
+
+    @modal.asgi_app()
+    def api(self):
         print("App Ready!")
+        return web_app
     
     @modal.exit()
     def cleanup(self):
