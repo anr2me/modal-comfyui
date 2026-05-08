@@ -345,7 +345,7 @@ async def get_remote_url(class_name: str) -> str:
 @web_app.get("/prompt")
 async def prompt_get():
     url = await get_remote_url("ComfyGPU")
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         resp = await client.get(f"{url}/prompt")
     return JSONResponse(resp.json())
     
@@ -359,7 +359,7 @@ async def prompt_post(request: Request):
     # ...
 
     # Forward to remote ComfyUI
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         resp = await client.post(
             f"{url}/prompt",
             json=body,
@@ -370,7 +370,7 @@ async def prompt_post(request: Request):
 @web_app.get("/queue")
 async def queue_get():
     url = await get_remote_url("ComfyGPU")
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         resp = await client.get(f"{url}/queue")
     return JSONResponse(resp.json())
 
@@ -378,7 +378,7 @@ async def queue_get():
 async def queue_post(request: Request):
     body = await request.json()
     url = await get_remote_url("ComfyGPU")
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         resp = await client.post(
             f"{url}/queue",
             json=body,
@@ -390,7 +390,7 @@ async def queue_post(request: Request):
 async def interrupt(request: Request):
     body = await request.json()
     url = await get_remote_url("ComfyGPU")
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         resp = await client.post(
             f"{url}/interrupt",
             json=body,
