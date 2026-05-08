@@ -152,10 +152,25 @@ else:
 if comfy_plugins:
     image = image.run_commands("comfy node install " + " ".join(comfy_plugins))
 
+
+def wait_for_port(port: int, timeout: int = 60):
+    import time
+    import socket
+    
+    """Block until the port is accepting connections."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=1):
+                return  # port is open — ComfyUI is ready
+        except OSError:
+            time.sleep(0.5)
+    raise TimeoutError(f"ComfyUI never became ready on port {port}")
+    
 app = modal.App(name="modal-comfyui", image=image)
 
 
-@app.function(
+@app.cls(
     max_containers=1,
     gpu="L4",
     volumes={"/cache": vol},
@@ -164,8 +179,24 @@ app = modal.App(name="modal-comfyui", image=image)
     experimental_options={"enable_gpu_snapshot": True},
 )
 @modal.concurrent(max_inputs=10)
-@modal.web_server(8000, startup_timeout=60)
-def ui():
-    _ = subprocess.Popen(
-        "comfy launch --background -- --listen 0.0.0.0 --port 8000", shell=True
-    )
+class ComfyUI:
+    @modal.enter(snap=True)
+    def start_checkpoint(self):
+        self.proc = subprocess.Popen(
+            "comfy launch --background -- --listen 0.0.0.0 --port 8000", shell=True
+        )
+        # Block here — snapshot is taken only after this returns
+        wait_for_port(8000, timeout=120)
+
+    @modal.enter(snap=False)
+    def start_restore(self):
+        print("App Restored!")
+    
+    @modal.web_server(8000, startup_timeout=60)
+    def ui(self):
+        print("App Ready!")
+    
+    @modal.exit()
+    def cleanup(self):
+        self.proc.terminate()
+        print("App CleanUp!")
