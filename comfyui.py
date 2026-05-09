@@ -431,9 +431,10 @@ async def proxy_websocket(websocket: WebSocket):
         ping_timeout=20,        # wait N seconds for pong before closing
     ) as comfy_ws:
         async def client_to_comfy():
+            import json
             try:
                 async for message in websocket.iter_bytes():
-                    if message != "None":
+                    if message:
                         msgobj = json.loads(message)
                         print(f"client_to_comfy: {comfy_ws} => {message}")
                     await comfy_ws.send(message)
@@ -441,15 +442,15 @@ async def proxy_websocket(websocket: WebSocket):
                 print(repr(e))
             finally:
                 active_count = await shared_dict.get.aio("active", 0)
-                print(f"Active = {active_count}, URI = {comfy_ws.uri}")
-                if comfy_ws.uri.startswith("ws://127.0.0.1") and active_count>0:
+                print(f"Active = {active_count}, URI = {comfy_ws.request.path}")
+                if comfy_ws.request.path.startswith("ws://127.0.0.1") and active_count>0:
                     await comfy_ws.close()  # ensure cleanup 
 
         async def comfy_to_client():
             import json
             try:
                 async for message in comfy_ws:
-                    if message != "None":
+                    if message:
                         msgobj = json.loads(message)
                         if not msgobj.type.startswith("crystools.monitor"):
                             print(f"comfy_to_client: {comfy_ws} => {message}")
@@ -464,8 +465,8 @@ async def proxy_websocket(websocket: WebSocket):
             try:
                 while True:
                     active_count = await shared_dict.get.aio("active", 0)
-                    print(f"Active = {active_count}, URI = {comfy_ws.uri}")
-                    if comfy_ws.uri.startswith("ws://127.0.0.1") and active_count>0:
+                    print(f"Active = {active_count}, URI = {comfy_ws.request.path}")
+                    if comfy_ws.request.path.startswith("ws://127.0.0.1") and active_count>0:
                         print("Active GPU instance detected, disconnecting from CPU instance.")
                         await comfy_ws.close()
                         break
