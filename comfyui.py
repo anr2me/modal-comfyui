@@ -438,7 +438,7 @@ async def proxy_websocket(websocket: WebSocket):
                         print(f"client_to_comfy: {comfy_ws} => {message}")
                     await comfy_ws.send(message)
             except Exception as e:
-                pass
+                print(repr(e))
             finally:
                 active_count = await shared_dict.get.aio("active", 0)
                 print(f"Active = {active_count}, URI = {comfy_ws.uri}")
@@ -458,17 +458,20 @@ async def proxy_websocket(websocket: WebSocket):
                     else:
                         await websocket.send_text(message)
             except Exception as e:
-                pass
+                print(repr(e))
 
         async def watch_active():
-            while True:
-                active_count = await shared_dict.get.aio("active", 0)
-                print(f"Active = {active_count}, URI = {comfy_ws.uri}")
-                if comfy_ws.uri.startswith("ws://127.0.0.1") and active_count>0:
-                    print("Active GPU instance detected, disconnecting from CPU instance.")
-                    await comfy_ws.close()
-                    break
-                await asyncio.sleep(1)  # poll every second
+            try
+                while True:
+                    active_count = await shared_dict.get.aio("active", 0)
+                    print(f"Active = {active_count}, URI = {comfy_ws.uri}")
+                    if comfy_ws.uri.startswith("ws://127.0.0.1") and active_count>0:
+                        print("Active GPU instance detected, disconnecting from CPU instance.")
+                        await comfy_ws.close()
+                        break
+                    await asyncio.sleep(1)  # poll every second
+            except Exception as e:
+                print(repr(e))
 
         import asyncio
         # Cancel both tasks when either side closes
