@@ -154,10 +154,10 @@ if comfy_plugins:
 
 
 def wait_for_port(port: int, timeout: int = 60):
+    """Block until the port is accepting connections."""
     import time
     import socket
     
-    """Block until the port is accepting connections."""
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
