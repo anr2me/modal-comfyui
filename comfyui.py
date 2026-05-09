@@ -444,9 +444,12 @@ async def proxy_websocket(websocket: WebSocket):
                     await comfy_ws.close()  # ensure cleanup 
 
         async def comfy_to_client():
+            import json
             try:
                 async for message in comfy_ws:
-                    print(f"comfy_to_client: {comfy_ws} => {message}")
+                    msgobj = json.loads(message)
+                    if not msgobj.type.startswith("crystools.monitor"):
+                        print(f"comfy_to_client: {comfy_ws} => {message}")
                     if isinstance(message, bytes):
                         await websocket.send_bytes(message)
                     else:
