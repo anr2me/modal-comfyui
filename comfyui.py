@@ -443,7 +443,7 @@ async def proxy_websocket(websocket: WebSocket):
             finally:
                 active_count = await shared_dict.get.aio("active", 0)
                 print(f"Active = {active_count}, URI = {comfy_ws.request}")
-                if comfy_ws.request.host.startswith("127.0.") and active_count>0:
+                if comfy_ws.request.headers.Host.startswith("127.0.") and active_count>0:
                     await comfy_ws.close()  # ensure cleanup 
 
         async def comfy_to_client():
@@ -452,7 +452,7 @@ async def proxy_websocket(websocket: WebSocket):
                 async for message in comfy_ws:
                     if message and message.startswith("{"):
                         msgobj = json.loads(message)
-                        if not msgobj.type.startswith("crystools.monitor"):
+                        if not msgobj.get("type", "").startswith("crystools.monitor"):
                             print(f"comfy_to_client: {comfy_ws} => {message}")
                     if isinstance(message, bytes):
                         await websocket.send_bytes(message)
@@ -466,7 +466,7 @@ async def proxy_websocket(websocket: WebSocket):
                 while True:
                     active_count = await shared_dict.get.aio("active", 0)
                     print(f"Active = {active_count}, URI = {comfy_ws.request}")
-                    if comfy_ws.request.host.startswith("127.0.") and active_count>0:
+                    if comfy_ws.request.headers.Host.startswith("127.0.") and active_count>0:
                         print("Active GPU instance detected, disconnecting from CPU instance.")
                         await comfy_ws.close()
                         break
