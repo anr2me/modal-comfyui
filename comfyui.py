@@ -436,15 +436,15 @@ async def proxy_websocket(websocket: WebSocket):
                 async for message in websocket.iter_bytes():
                     if message is not None and message.startswith("{"):
                         msgobj = json.loads(message)
-                        print(f"client_to_comfy: {comfy_ws} => {message}")
+                        print(f"client_to_comfy: {message}")
                     await comfy_ws.send(message)
             except Exception as e:
-                print(repr(e))
-            finally:
-                active_count = await shared_dict.get.aio("active", 0)
-                print(f"client_to_comfy: Active = {active_count}, Request = {comfy_ws.request}")
-                if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0:
-                    await comfy_ws.close()  # ensure cleanup 
+                print("client_to_comfy: " + repr(e))
+            #finally:
+                #active_count = await shared_dict.get.aio("active", 0)
+                #print(f"client_to_comfy: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
+                #if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0:
+                #    await comfy_ws.close()  # ensure cleanup 
 
         async def comfy_to_client():
             import json
@@ -453,26 +453,26 @@ async def proxy_websocket(websocket: WebSocket):
                     if message is not None and message.startswith("{"):
                         msgobj = json.loads(message)
                         if not msgobj.get("type", "").startswith("crystools.monitor"):
-                            print(f"comfy_to_client: {comfy_ws} => {message}")
+                            print(f"comfy_to_client: {message}")
                     if isinstance(message, bytes):
                         await websocket.send_bytes(message)
                     else:
                         await websocket.send_text(message)
             except Exception as e:
-                print(repr(e))
+                print("comfy_to_client: " + repr(e))
 
         async def watch_active():
             try:
                 while True:
                     active_count = await shared_dict.get.aio("active", 0)
-                    print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
+                    #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
                     if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0:
-                        print("Active GPU instance detected, disconnecting from CPU instance.")
+                        print(f"{active_count} Active GPU instance detected, disconnecting from CPU instance.")
                         await comfy_ws.close()
                         break
                     await asyncio.sleep(1)  # poll every second
             except Exception as e:
-                print(repr(e))
+                print("watch_active: " + repr(e))
 
         import asyncio
         # Cancel both tasks when either side closes
