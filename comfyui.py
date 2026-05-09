@@ -363,6 +363,7 @@ async def proxy_prompt(request: Request):
             params=request.query_params,
             headers=dict(request.headers),
             content=body,
+            timeout=120
         )
     return JSONResponse(resp.json())
 
@@ -380,6 +381,7 @@ async def proxy_queue(request: Request):
             params=request.query_params,
             headers=dict(request.headers),
             content=body,
+            timeout=120
         )
     return JSONResponse(resp.json())
     
@@ -395,6 +397,7 @@ async def proxy_interrupt(request: Request):
             params=request.query_params,
             headers=dict(request.headers),
             content=body,
+            timeout=120
         )
     return JSONResponse(resp.json())
 
@@ -410,6 +413,7 @@ async def proxy_jobs(request: Request):
             params=request.query_params,
             headers=dict(request.headers),
             content=body,
+            timeout=120
         )
     return JSONResponse(resp.json()) 
 
@@ -510,6 +514,7 @@ async def proxy(path: str, request: Request):
             params=request.query_params,
             headers=dict(request.headers),
             content=body,
+            timeout=15
         )
     # Return raw bytes with the original content-type
     return Response(
