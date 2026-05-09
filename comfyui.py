@@ -186,7 +186,7 @@ class ComfyUI:
             "comfy launch --background -- --listen 0.0.0.0 --port 8000", shell=True
         )
         # Block here — snapshot is taken only after this returns
-        wait_for_port(8000, timeout=120)
+        wait_for_port(8000, timeout=300)
 
     @modal.enter(snap=False)
     def start_restore(self):
