@@ -403,6 +403,14 @@ async def interrupt(request: Request):
         )
     return JSONResponse(resp.json())
 
+#@web_app.get("/jobs")
+@web_app.get("/api/jobs")
+async def queue_get():
+    url = "http://127.0.0.1" #await get_remote_url("ComfyGPU")
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        resp = await client.get(f"{url}/jobs")
+    return JSONResponse(resp.json()) 
+
 @web_app.websocket("/ws")
 async def proxy_websocket(websocket: WebSocket):
     await websocket.accept()
