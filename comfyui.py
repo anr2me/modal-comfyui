@@ -406,7 +406,7 @@ async def proxy_jobs(request: Request):
     async with httpx.AsyncClient(timeout=120.0) as client:
         resp = await client.request(
             method=request.method,
-            url=f"{url}/jobs",
+            url=f"{url}/api/jobs",
             params=request.query_params,
             headers=dict(request.headers),
             content=body,
