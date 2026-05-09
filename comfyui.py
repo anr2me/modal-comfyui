@@ -465,7 +465,7 @@ async def proxy(path: str, request: Request):
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.request(
             method=request.method,
-            url=f"https://127.0.0.1:{uiport}/{path}",
+            url=f"http://127.0.0.1:{uiport}/{path}",
             content=await request.body(),
             headers=dict(request.headers),
         )
