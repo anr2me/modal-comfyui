@@ -438,8 +438,10 @@ async def proxy_websocket(websocket: WebSocket):
                     await comfy_ws.send(message)
             except Exception as e:
                 pass
-            #finally:
-            #    await comfy_ws.close()  # ensure cleanup 
+            finally:
+                active_count = await shared_dict.get.aio("active", 0)
+                if uri.startswith("ws://127.0.0.1") and active_count>0:
+                    await comfy_ws.close()  # ensure cleanup 
 
         async def comfy_to_client():
             try:
