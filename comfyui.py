@@ -425,7 +425,7 @@ async def proxy_websocket(websocket: WebSocket):
     print(f"CONNECTing to {uri}")
     async with websockets.connect(
         uri,
-        open_timeout=30,        # handshake timeout (seconds)
+        open_timeout=300,        # handshake timeout (seconds)
         close_timeout=10,       # graceful close timeout
         ping_interval=20,       # send pings every N seconds
         ping_timeout=20,        # wait N seconds for pong before closing
