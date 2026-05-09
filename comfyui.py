@@ -339,6 +339,7 @@ shared_dict = modal.Dict.from_name(app.name, create_if_missing=True)
 
 uiport = 8188
 gpuport = uiport + 1
+cpuport = uiport + 2
 
 async def get_remote_url(class_name: str) -> str:
     remote_cls = modal.Cls.from_name(app.name, class_name)
@@ -553,6 +554,44 @@ class ComfyCPU:
     @modal.enter(snap=True)
     def start_checkpoint(self):
         self.proc = subprocess.Popen(
+            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {cpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+        )
+        # Block here — snapshot is taken only after this returns
+        wait_for_port(cpuport, timeout=120)
+
+    @modal.enter(snap=False)
+    def start_restore(self):
+        print("App Restored!")
+        # On restore, sockets may need to be rebound
+        #self.proc = subprocess.Popen(
+        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        #)
+        #wait_for_port(uiport, timeout=120)
+    
+    @modal.web_server(cpuport, startup_timeout=60)
+    def web(self):
+        print("App Ready!")
+
+    @modal.exit()
+    def cleanup(self):
+        self.proc.terminate()
+        print("App CleanUp!")
+
+@app.cls(
+    max_containers=1,
+    #cpu=2.0, memory=4096,
+    volumes={"/cache": vol},
+    scaledown_window=60,  # idle 1 minutes to shutdown
+    enable_memory_snapshot=True,
+    experimental_options={"enable_gpu_snapshot": True},
+    startup_timeout=120, # container's startup timeout
+    timeout=120, # execution timeout
+)
+@modal.concurrent(max_inputs=10)
+class ComfyMix:
+    @modal.enter(snap=True)
+    def start_checkpoint(self):
+        self.proc = subprocess.Popen(
             f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
         )
         # Block here — snapshot is taken only after this returns
@@ -567,10 +606,6 @@ class ComfyCPU:
         #)
         #wait_for_port(uiport, timeout=120)
     
-    #@modal.web_server(uiport, startup_timeout=60)
-    #def web(self):
-    #    print("App Ready!")
-
     @modal.asgi_app()
     def api(self):
         print("App Ready!")
