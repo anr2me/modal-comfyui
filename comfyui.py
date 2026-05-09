@@ -423,7 +423,7 @@ async def proxy_websocket(websocket: WebSocket):
             # Create a new URL object with the updated scheme
             new_parsed = parsed._replace(scheme=scheme_map[parsed.scheme])
             url = urlunparse(new_parsed)
-        #uri = f"{url}/ws"
+        uri = f"{url}/ws"
 
     print(f"CONNECTing to {uri}")
     async with websockets.connect(
