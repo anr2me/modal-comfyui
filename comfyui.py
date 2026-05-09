@@ -440,7 +440,7 @@ async def proxy_websocket(websocket: WebSocket):
                 pass
             finally:
                 active_count = await shared_dict.get.aio("active", 0)
-                if uri.startswith("ws://127.0.0.1") and active_count>0:
+                if comfy_ws.uri.startswith("ws://127.0.0.1") and active_count>0:
                     await comfy_ws.close()  # ensure cleanup 
 
         async def comfy_to_client():
@@ -452,6 +452,10 @@ async def proxy_websocket(websocket: WebSocket):
                         await websocket.send_text(message)
             except Exception as e:
                 pass
+            finally:
+                active_count = await shared_dict.get.aio("active", 0)
+                if comfy_ws.uri.startswith("ws://127.0.0.1") and active_count>0:
+                    await comfy_ws.close()  # force closure so ComfyUI will reconnect to remote instance
 
         import asyncio
         # Cancel both tasks when either side closes
