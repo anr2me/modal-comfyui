@@ -436,7 +436,7 @@ async def proxy_websocket(websocket: WebSocket):
                 async for message in websocket.iter_bytes():
                     #if isinstance(message, str) and message.startswith("{"):
                     #    msgobj = json.loads(message)
-                    print(f"client_to_comfy: {message}")
+                    #print(f"client_to_comfy: {message}")
                     await comfy_ws.send(message)
             except Exception as e:
                 print("client_to_comfy: " + repr(e))
