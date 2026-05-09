@@ -433,7 +433,7 @@ async def proxy_websocket(websocket: WebSocket):
         async def client_to_comfy():
             try:
                 async for message in websocket.iter_bytes():
-                    if message != None:
+                    if message != "None":
                         msgobj = json.loads(message)
                         print(f"client_to_comfy: {comfy_ws} => {message}")
                     await comfy_ws.send(message)
@@ -449,9 +449,10 @@ async def proxy_websocket(websocket: WebSocket):
             import json
             try:
                 async for message in comfy_ws:
-                    msgobj = json.loads(message)
-                    if not msgobj.type.startswith("crystools.monitor"):
-                        print(f"comfy_to_client: {comfy_ws} => {message}")
+                    if message != "None":
+                        msgobj = json.loads(message)
+                        if not msgobj.type.startswith("crystools.monitor"):
+                            print(f"comfy_to_client: {comfy_ws} => {message}")
                     if isinstance(message, bytes):
                         await websocket.send_bytes(message)
                     else:
