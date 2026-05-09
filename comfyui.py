@@ -434,7 +434,7 @@ async def proxy_websocket(websocket: WebSocket):
             import json
             try:
                 async for message in websocket.iter_bytes():
-                    if message and message.startswith("{"):
+                    if message is not None and message.startswith("{"):
                         msgobj = json.loads(message)
                         print(f"client_to_comfy: {comfy_ws} => {message}")
                     await comfy_ws.send(message)
@@ -442,7 +442,7 @@ async def proxy_websocket(websocket: WebSocket):
                 print(repr(e))
             finally:
                 active_count = await shared_dict.get.aio("active", 0)
-                print(f"Active = {active_count}, Request = {comfy_ws.request}")
+                print(f"client_to_comfy: Active = {active_count}, Request = {comfy_ws.request}")
                 if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0:
                     await comfy_ws.close()  # ensure cleanup 
 
@@ -450,7 +450,7 @@ async def proxy_websocket(websocket: WebSocket):
             import json
             try:
                 async for message in comfy_ws:
-                    if message and message.startswith("{"):
+                    if message is not None and message.startswith("{"):
                         msgobj = json.loads(message)
                         if not msgobj.get("type", "").startswith("crystools.monitor"):
                             print(f"comfy_to_client: {comfy_ws} => {message}")
@@ -465,7 +465,7 @@ async def proxy_websocket(websocket: WebSocket):
             try:
                 while True:
                     active_count = await shared_dict.get.aio("active", 0)
-                    print(f"Active = {active_count}, Request = {comfy_ws.request}")
+                    print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
                     if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0:
                         print("Active GPU instance detected, disconnecting from CPU instance.")
                         await comfy_ws.close()
