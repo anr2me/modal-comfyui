@@ -431,8 +431,8 @@ async def proxy_websocket(websocket: WebSocket):
         uri,
         open_timeout=30,        # handshake timeout (seconds)
         close_timeout=10,       # graceful close timeout
-        ping_interval=20,       # send pings every N seconds
-        ping_timeout=20,        # wait N seconds for pong before closing
+        #ping_interval=20,       # send pings every N seconds
+        #ping_timeout=20,        # wait N seconds for pong before closing
     ) as comfy_ws:
         async def client_to_comfy():
             try:
