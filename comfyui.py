@@ -199,5 +199,10 @@ class ComfyUI:
     
     @modal.exit()
     def cleanup(self):
-        self.proc.terminate()
+        proc = getattr(self, "proc", None)
+        if proc is not None:
+            try:
+                proc.terminate()
+            except (ProcessLookupError, OSError):
+                pass
         print("App CleanUp!")
