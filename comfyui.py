@@ -190,6 +190,7 @@ class ComfyUI:
 
     @modal.enter(snap=False)
     def start_restore(self):
+        wait_for_port(8000, timeout=30)
         print("App Restored!")
     
     @modal.web_server(8000, startup_timeout=60)
