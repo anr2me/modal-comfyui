@@ -514,7 +514,7 @@ async def proxy(path: str, request: Request):
     scaledown_window=60,  # idle 1 minutes to shutdown
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True},
-    startup_timeout=180, # container's startup timeout
+    startup_timeout=300, # container's startup timeout
     timeout=120, # execution timeout
 )
 @modal.concurrent(max_inputs=10)
@@ -566,7 +566,7 @@ class ComfyGPU:
     scaledown_window=60,  # idle 1 minutes to shutdown
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True},
-    startup_timeout=180, # container's startup timeout
+    startup_timeout=300, # container's startup timeout
     timeout=120, # execution timeout
 )
 @modal.concurrent(max_inputs=10)
@@ -609,7 +609,7 @@ class ComfyCPU:
     scaledown_window=60,  # idle 1 minutes to shutdown
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True},
-    startup_timeout=180, # container's startup timeout
+    startup_timeout=300, # container's startup timeout
     timeout=120, # execution timeout
 )
 @modal.concurrent(max_inputs=10)
