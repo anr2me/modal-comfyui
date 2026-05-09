@@ -454,7 +454,7 @@ async def proxy_websocket(websocket: WebSocket):
                     if isinstance(message, bytes):
                         print(f"comfy_to_client(b): {message}")
                         await websocket.send_bytes(message)
-                    else:
+                    elif message is not None:
                         print_msg = True
                         if message.startswith("{"):
                             msgobj = json.loads(message)
