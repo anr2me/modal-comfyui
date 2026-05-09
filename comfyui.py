@@ -345,70 +345,72 @@ async def get_remote_url(class_name: str) -> str:
     remote_cls = modal.Cls.from_name(app.name, class_name)
     url = await remote_cls().web.get_web_url.aio()
     return url
-    
+
+
 @web_app.get("/prompt")
 @web_app.get("/api/prompt")
-async def prompt_get():
-    url = await get_remote_url("ComfyGPU")
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.get(f"{url}/prompt")
-    return JSONResponse(resp.json())
-    
 @web_app.post("/prompt")
 @web_app.post("/api/prompt")
-async def prompt_post(request: Request):
-    body = await request.json()
+async def proxy_prompt(request: Request):
+    body = await request.body()
     url = await get_remote_url("ComfyGPU")
 
     # Forward to remote ComfyUI
     async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(
-            f"{url}/prompt",
-            json=body,
-            timeout=120,
+        resp = await client.request(
+            method=request.method,
+            url=f"{url}/prompt",
+            params=request.query_params,
+            headers=dict(request.headers),
+            content=body,
         )
     return JSONResponse(resp.json())
 
 @web_app.get("/queue")
 @web_app.get("/api/queue")
-async def queue_get():
-    url = await get_remote_url("ComfyGPU")
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.get(f"{url}/queue")
-    return JSONResponse(resp.json())
-
 @web_app.post("/queue")
 @web_app.post("/api/queue")
-async def queue_post(request: Request):
-    body = await request.json()
+async def proxy_queue(request: Request):
+    body = await request.body()
     url = await get_remote_url("ComfyGPU")
     async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(
-            f"{url}/queue",
-            json=body,
-            timeout=120,
+        resp = await client.request(
+            method=request.method,
+            url=f"{url}/queue",
+            params=request.query_params,
+            headers=dict(request.headers),
+            content=body,
         )
     return JSONResponse(resp.json())
     
 @web_app.post("/interrupt")
 @web_app.post("/api/interrupt")
-async def interrupt(request: Request):
-    body = await request.json()
+async def proxy_interrupt(request: Request):
+    body = await request.body()
     url = await get_remote_url("ComfyGPU")
     async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(
-            f"{url}/interrupt",
-            json=body,
-            timeout=120,
+        resp = await client.request(
+            method=request.method,
+            url=f"{url}/interrupt",
+            params=request.query_params,
+            headers=dict(request.headers),
+            content=body,
         )
     return JSONResponse(resp.json())
 
 #@web_app.get("/jobs")
 @web_app.get("/api/jobs")
-async def queue_get():
+async def proxy_jobs(request: Request):
+    body = await request.body()
     url = "http://127.0.0.1" #await get_remote_url("ComfyGPU")
     async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.get(f"{url}/jobs")
+        resp = await client.request(
+            method=request.method,
+            url=f"{url}/jobs",
+            params=request.query_params,
+            headers=dict(request.headers),
+            content=body,
+        )
     return JSONResponse(resp.json()) 
 
 @web_app.websocket("/ws")
@@ -500,12 +502,14 @@ async def proxy_websocket(websocket: WebSocket):
 # Proxy everything else to local ComfyUI
 @web_app.api_route("/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "TRACE"])
 async def proxy(path: str, request: Request):
+    body = await request.body()
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.request(
             method=request.method,
             url=f"http://127.0.0.1:{uiport}/{path}",
-            content=await request.body(),
+            params=request.query_params,
             headers=dict(request.headers),
+            content=body,
         )
     # Return raw bytes with the original content-type
     return Response(
