@@ -425,13 +425,21 @@ async def proxy_websocket(websocket: WebSocket):
         uri = f"{url}/ws"
 
     print(f"CONNECTing to {uri}")
-    async with websockets.connect(uri) as comfy_ws:
+    async with websockets.connect(
+        uri,
+        open_timeout=30,        # handshake timeout (seconds)
+        close_timeout=10,       # graceful close timeout
+        ping_interval=20,       # send pings every N seconds
+        ping_timeout=20,        # wait N seconds for pong before closing
+    ) as comfy_ws:
         async def client_to_comfy():
             try:
                 async for message in websocket.iter_bytes():
                     await comfy_ws.send(message)
-            except Exception:
+            except Exception as e:
                 pass
+            finally:
+                await comfy_ws.close()  # ensure cleanup 
 
         async def comfy_to_client():
             try:
@@ -440,12 +448,17 @@ async def proxy_websocket(websocket: WebSocket):
                         await websocket.send_bytes(message)
                     else:
                         await websocket.send_text(message)
-            except Exception:
+            except Exception as e:
                 pass
 
         import asyncio
-        await asyncio.gather(client_to_comfy(), comfy_to_client())
-        
+        # Cancel both tasks when either side closes
+        tasks = await asyncio.gather(
+            client_to_comfy(),
+            comfy_to_client(),
+            return_exceptions=True
+        )
+
 # Proxy everything else to local ComfyUI
 @web_app.api_route("/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "TRACE"])
 async def proxy(path: str, request: Request):
