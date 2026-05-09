@@ -438,8 +438,8 @@ async def proxy_websocket(websocket: WebSocket):
                     await comfy_ws.send(message)
             except Exception as e:
                 pass
-            finally:
-                await comfy_ws.close()  # ensure cleanup 
+            #finally:
+            #    await comfy_ws.close()  # ensure cleanup 
 
         async def comfy_to_client():
             try:
