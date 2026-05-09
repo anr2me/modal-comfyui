@@ -313,10 +313,10 @@ image = image.run_commands("yolo settings sync=False")
 #shutil.copytree(COMFYUI_ROOT / "custom_nodes", base_dir / "custom_nodes", symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
 
 def wait_for_port(port: int, timeout: int = 60):
+    """Block until the port is accepting connections."""
     import time
     import socket
     
-    """Block until the port is accepting connections."""
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
@@ -519,7 +519,7 @@ class ComfyGPU:
             f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {gpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         )
         # Block here — snapshot is taken only after this returns
-        wait_for_port(gpuport, timeout=120)
+        wait_for_port(gpuport, timeout=300)
 
     @modal.enter(snap=False)
     def start_restore(self):
@@ -527,14 +527,15 @@ class ComfyGPU:
             shared_dict["active"] += 1
         else:
             shared_dict["active"] = 1
-        print("App Restored!")
+    
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
         #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {gpuport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         #)
-        #wait_for_port(gpuport, timeout=120)
+        wait_for_port(gpuport, timeout=30)
+        print("App Restored!")
     
-    @modal.web_server(gpuport, startup_timeout=60)
+    @modal.web_server(gpuport, startup_timeout=30)
     def web(self):
         print("App Ready!")
     
@@ -544,7 +545,12 @@ class ComfyGPU:
             shared_dict["active"] -= 1
         else:
             shared_dict["active"] = 0
-        self.proc.terminate()
+        proc = getattr(self, "proc", None)
+        if proc is not None:
+            try:
+                proc.terminate()
+            except (ProcessLookupError, OSError):
+                pass
         print("App CleanUp!")
 
 @app.cls(
@@ -565,24 +571,29 @@ class ComfyCPU:
             f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {cpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
         )
         # Block here — snapshot is taken only after this returns
-        wait_for_port(cpuport, timeout=120)
+        wait_for_port(cpuport, timeout=300)
 
     @modal.enter(snap=False)
     def start_restore(self):
-        print("App Restored!")
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
         #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         #)
-        #wait_for_port(uiport, timeout=120)
+        wait_for_port(cpuport, timeout=30)
+        print("App Restored!")
     
-    @modal.web_server(cpuport, startup_timeout=60)
+    @modal.web_server(cpuport, startup_timeout=30)
     def web(self):
         print("App Ready!")
 
     @modal.exit()
     def cleanup(self):
-        self.proc.terminate()
+        proc = getattr(self, "proc", None)
+        if proc is not None:
+            try:
+                proc.terminate()
+            except (ProcessLookupError, OSError):
+                pass
         print("App CleanUp!")
 
 @app.cls(
@@ -603,7 +614,7 @@ class ComfyMix:
             f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
         )
         # Block here — snapshot is taken only after this returns
-        wait_for_port(uiport, timeout=120)
+        wait_for_port(uiport, timeout=300)
 
     @modal.enter(snap=False)
     def start_restore(self):
@@ -612,7 +623,7 @@ class ComfyMix:
         #self.proc = subprocess.Popen(
         #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         #)
-        #wait_for_port(uiport, timeout=120)
+        wait_for_port(uiport, timeout=30)
     
     @modal.asgi_app()
     def api(self):
@@ -621,5 +632,10 @@ class ComfyMix:
     
     @modal.exit()
     def cleanup(self):
-        self.proc.terminate()
+        proc = getattr(self, "proc", None)
+        if proc is not None:
+            try:
+                proc.terminate()
+            except (ProcessLookupError, OSError):
+                pass
         print("App CleanUp!")
