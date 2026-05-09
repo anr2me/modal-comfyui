@@ -358,11 +358,7 @@ async def prompt_get():
 @web_app.post("/api/prompt")
 async def prompt_post(request: Request):
     body = await request.json()
-    
     url = await get_remote_url("ComfyGPU")
-
-    # Your custom logic — transform, validate, log, route
-    # ...
 
     # Forward to remote ComfyUI
     async with httpx.AsyncClient(timeout=120.0) as client:
@@ -437,6 +433,7 @@ async def proxy_websocket(websocket: WebSocket):
         async def client_to_comfy():
             try:
                 async for message in websocket.iter_bytes():
+                    print(f"client_to_comfy: {comfy_ws} => {message}")
                     await comfy_ws.send(message)
             except Exception as e:
                 pass
@@ -449,6 +446,7 @@ async def proxy_websocket(websocket: WebSocket):
         async def comfy_to_client():
             try:
                 async for message in comfy_ws:
+                    print(f"comfy_to_client: {comfy_ws} => {message}")
                     if isinstance(message, bytes):
                         await websocket.send_bytes(message)
                     else:
