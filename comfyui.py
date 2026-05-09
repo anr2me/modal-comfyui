@@ -461,7 +461,7 @@ async def proxy_websocket(websocket: WebSocket):
                 print(repr(e))
 
         async def watch_active():
-            try
+            try:
                 while True:
                     active_count = await shared_dict.get.aio("active", 0)
                     print(f"Active = {active_count}, URI = {comfy_ws.uri}")
