@@ -411,7 +411,7 @@ async def proxy_websocket(websocket: WebSocket):
     await websocket.accept()
 
     # Use active GPU instance when available, otherwise use localhost (CPU)
-    uri = f"wss://127.0.0.1:{uiport}/ws"
+    uri = f"ws://127.0.0.1:{uiport}/ws"
     active_count = await shared_dict.get.aio("active", 0)
     if active_count > 0:
         url = await get_remote_url("ComfyGPU")
