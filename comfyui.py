@@ -383,6 +383,7 @@ async def proxy_prompt(request: Request):
         content=resp.content,
         status_code=resp.status_code,
         media_type=resp.headers.get("content-type"),
+        headers=resp.headers,
     )
     try:
         new_resp = JSONResponse(resp.json())
@@ -426,6 +427,7 @@ async def proxy_queue(request: Request):
         content=resp.content,
         status_code=resp.status_code,
         media_type=resp.headers.get("content-type"),
+        headers=resp.headers,
     )
     try:
         new_resp = JSONResponse(resp.json())
@@ -467,6 +469,7 @@ async def proxy_interrupt(request: Request):
         content=resp.content,
         status_code=resp.status_code,
         media_type=resp.headers.get("content-type"),
+        headers=resp.headers,
     )
     try:
         new_resp = JSONResponse(resp.json())
@@ -506,6 +509,7 @@ async def proxy_jobs(request: Request):
         content=resp.content,
         status_code=resp.status_code,
         media_type=resp.headers.get("content-type"),
+        headers=resp.headers,
     )
     try:
         new_resp = JSONResponse(resp.json())
