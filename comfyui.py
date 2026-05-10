@@ -622,7 +622,7 @@ async def proxy(path: str, request: Request):
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True},
     startup_timeout=300, # container's startup timeout
-    timeout=120, # execution timeout
+    timeout=120, # execution timeout, this will also be websocket timeout
 )
 @modal.concurrent(max_inputs=10)
 class ComfyGPU:
@@ -674,7 +674,7 @@ class ComfyGPU:
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True},
     startup_timeout=300, # container's startup timeout
-    timeout=120, # execution timeout
+    timeout=120, # execution timeout, this will also be websocket timeout
 )
 @modal.concurrent(max_inputs=10)
 class ComfyCPU:
@@ -717,7 +717,7 @@ class ComfyCPU:
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True},
     startup_timeout=300, # container's startup timeout
-    timeout=120, # execution timeout
+    timeout=120, # execution timeout, this will also be websocket timeout
 )
 @modal.concurrent(max_inputs=10)
 class ComfyMix:
