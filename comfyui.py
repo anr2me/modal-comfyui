@@ -444,11 +444,10 @@ async def proxy_interrupt(request: Request):
         )
     return JSONResponse(resp.json())
 
-#@web_app.get("/jobs")
 @web_app.get("/api/jobs")
 async def proxy_jobs(request: Request):
     body = await request.body()
-    url = "http://127.0.0.1" #await get_remote_url("ComfyGPU")
+    url = f"http://127.0.0.1:{uiport}" #await get_remote_url("ComfyGPU")
 
     # Strip Host from headers to prevent loopback
     headers = {
