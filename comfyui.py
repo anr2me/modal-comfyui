@@ -282,7 +282,8 @@ if comfy_plugins_ext:
             if plugin_reqs.endswith(".toml"):
                 image = image.pip_install_from_pyproject(f"{nodes_dir}/{folder_name}/{plugin_reqs}") # uv_sync
             else:
-                image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_reqs}", extra_options="-r") #, uv=True # pip_install_from_requirements #, gpu=GPU_MODEL
+                #image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_reqs}", extra_options="-r") #, uv=True # pip_install_from_requirements #, gpu=GPU_MODEL
+                image = image.pip_install_from_requirements(f"{nodes_dir}/{folder_name}/{plugin_reqs}")
 
         plugin_install = plugin.get('install')
         if plugin_install and plugin_install.strip():
