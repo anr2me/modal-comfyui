@@ -386,6 +386,7 @@ async def proxy_prompt(request: Request):
         headers=resp.headers,
     )
     try:
+        # Note: resp.content might be zstd compressed, thus resp.json() might failed without decompressing first
         new_resp = JSONResponse(resp.json())
     except Exception as e:
         print(f"[{request.method}:{request.url.path}]: {e!r} => {resp}")
@@ -635,6 +636,7 @@ async def proxy(path: str, request: Request):
         content=resp.content,
         status_code=resp.status_code,
         media_type=resp.headers.get("content-type"),
+        headers=resp.headers,
     )
     
 
