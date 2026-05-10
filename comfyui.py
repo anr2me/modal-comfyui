@@ -355,13 +355,26 @@ async def proxy_prompt(request: Request):
     body = await request.body()
     url = await get_remote_url("ComfyGPU")
 
+    # Strip Host from headers to prevent loopback
+    headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in (
+            "host",
+            "content-length",
+            "x-forwarded-proto",
+            "x-forwarded-for",
+            "x-forwarded-host",
+            "x-forwarded-port",
+        )
+    }
+
     # Forward to remote ComfyUI
     async with httpx.AsyncClient(timeout=120.0) as client:
         resp = await client.request(
             method=request.method,
             url=f"{url}/prompt",
             params=request.query_params,
-            headers=dict(request.headers),
+            headers=headers,
             content=body,
             timeout=120
         )
@@ -374,12 +387,27 @@ async def proxy_prompt(request: Request):
 async def proxy_queue(request: Request):
     body = await request.body()
     url = await get_remote_url("ComfyGPU")
+
+    # Strip Host from headers to prevent loopback
+    headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in (
+            "host",
+            "content-length",
+            "x-forwarded-proto",
+            "x-forwarded-for",
+            "x-forwarded-host",
+            "x-forwarded-port",
+        )
+    }
+
+    # Forward to remote ComfyUI
     async with httpx.AsyncClient(timeout=120.0) as client:
         resp = await client.request(
             method=request.method,
             url=f"{url}/queue",
             params=request.query_params,
-            headers=dict(request.headers),
+            headers=headers,
             content=body,
             timeout=120
         )
@@ -390,12 +418,27 @@ async def proxy_queue(request: Request):
 async def proxy_interrupt(request: Request):
     body = await request.body()
     url = await get_remote_url("ComfyGPU")
+
+    # Strip Host from headers to prevent loopback
+    headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in (
+            "host",
+            "content-length",
+            "x-forwarded-proto",
+            "x-forwarded-for",
+            "x-forwarded-host",
+            "x-forwarded-port",
+        )
+    }
+
+    # Forward to remote ComfyUI
     async with httpx.AsyncClient(timeout=120.0) as client:
         resp = await client.request(
             method=request.method,
             url=f"{url}/interrupt",
             params=request.query_params,
-            headers=dict(request.headers),
+            headers=headers,
             content=body,
             timeout=120
         )
@@ -406,12 +449,26 @@ async def proxy_interrupt(request: Request):
 async def proxy_jobs(request: Request):
     body = await request.body()
     url = "http://127.0.0.1" #await get_remote_url("ComfyGPU")
+
+    # Strip Host from headers to prevent loopback
+    headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in (
+            "host",
+            "content-length",
+            "x-forwarded-proto",
+            "x-forwarded-for",
+            "x-forwarded-host",
+            "x-forwarded-port",
+        )
+    }
+
     async with httpx.AsyncClient(timeout=120.0) as client:
         resp = await client.request(
             method=request.method,
             url=f"{url}/api/jobs",
             params=request.query_params,
-            headers=dict(request.headers),
+            headers=headers,
             content=body,
             timeout=120
         )
@@ -507,12 +564,26 @@ async def proxy_websocket(websocket: WebSocket):
 @web_app.api_route("/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "TRACE"])
 async def proxy(path: str, request: Request):
     body = await request.body()
+
+    # Strip Host from headers to prevent loopback
+    headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in (
+            "host",
+            "content-length",
+            "x-forwarded-proto",
+            "x-forwarded-for",
+            "x-forwarded-host",
+            "x-forwarded-port",
+        )
+    }
+
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.request(
             method=request.method,
             url=f"http://127.0.0.1:{uiport}/{path}",
             params=request.query_params,
-            headers=dict(request.headers),
+            headers=headers,
             content=body,
             timeout=15
         )
