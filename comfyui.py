@@ -327,10 +327,11 @@ def wait_for_port(port: int, timeout: int = 60):
     raise TimeoutError(f"ComfyUI never became ready on port {port}")
 
 
-from fastapi import FastAPI, Request, Response, WebSocket
-from fastapi.responses import JSONResponse
-import httpx
-import websockets
+with image.imports():
+    from fastapi import FastAPI, Request, Response, WebSocket
+    from fastapi.responses import JSONResponse
+    import httpx
+    import websockets
 
 app = modal.App(name="modal-comfyui", image=image)
 web_app = FastAPI()
