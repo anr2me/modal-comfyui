@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 import modal
+from modal import App, Image
 
 GPU_MODEL = "L4"
 
