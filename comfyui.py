@@ -5,7 +5,6 @@ import subprocess
 from pathlib import Path
 
 import modal
-from modal import App, Image
 
 GPU_MODEL = "L4"
 
@@ -336,8 +335,9 @@ with image.imports():
     import httpx
     import websockets
 
+    web_app = FastAPI() 
+
 app = modal.App(name="modal-comfyui", image=image)
-web_app = FastAPI()
 shared_dict = modal.Dict.from_name(app.name, create_if_missing=True)
 # Reset the contents when redeployed
 shared_dict.clear()
