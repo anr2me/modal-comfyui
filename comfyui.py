@@ -379,11 +379,16 @@ async def proxy_prompt(request: Request):
             timeout=120
         )
     # Return raw bytes with the original content-type
-    return Response(
+    new_resp = Response(
         content=resp.content,
         status_code=resp.status_code,
         media_type=resp.headers.get("content-type"),
     )
+    try:
+        new_resp = JSONResponse(resp.json())
+    except Exception as e:
+        print(f"[{request.method}:{request.url.path}]: {e!r} => {resp}")
+    return new_resp
 
 @web_app.get("/queue")
 @web_app.get("/api/queue")
@@ -417,11 +422,16 @@ async def proxy_queue(request: Request):
             timeout=120
         )
     # Return raw bytes with the original content-type
-    return Response(
+    new_resp = Response(
         content=resp.content,
         status_code=resp.status_code,
         media_type=resp.headers.get("content-type"),
     )
+    try:
+        new_resp = JSONResponse(resp.json())
+    except Exception as e:
+        print(f"[{request.method}:{request.url.path}]: {e!r} => {resp}")
+    return new_resp
     
 @web_app.post("/interrupt")
 @web_app.post("/api/interrupt")
@@ -453,13 +463,18 @@ async def proxy_interrupt(request: Request):
             timeout=120
         )
     # Return raw bytes with the original content-type
-    return Response(
+    new_resp = Response(
         content=resp.content,
         status_code=resp.status_code,
         media_type=resp.headers.get("content-type"),
     )
+    try:
+        new_resp = JSONResponse(resp.json())
+    except Exception as e:
+        print(f"[{request.method}:{request.url.path}]: {e!r} => {resp}")
+    return new_resp
 
-#@web_app.get("/api/jobs")
+@web_app.get("/api/jobs")
 async def proxy_jobs(request: Request):
     body = await request.body()
     url = f"http://127.0.0.1:{uiport}" #await get_remote_url("ComfyGPU")
@@ -487,11 +502,16 @@ async def proxy_jobs(request: Request):
             timeout=120
         )
     # Return raw bytes with the original content-type
-    return Response(
+    new_resp = Response(
         content=resp.content,
         status_code=resp.status_code,
         media_type=resp.headers.get("content-type"),
     )
+    try:
+        new_resp = JSONResponse(resp.json())
+    except Exception as e:
+        print(f"[{request.method}:{request.url.path}]: {e!r} => {resp}")
+    return new_resp
 
 @web_app.websocket("/ws")
 async def proxy_websocket(websocket: WebSocket):
