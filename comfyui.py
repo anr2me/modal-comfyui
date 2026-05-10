@@ -30,7 +30,7 @@ image = (
     .add_local_python_source("models", "plugins", copy=True)
     .run_commands("apt-get update")
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "ffmpeg") #rav1e
-    .uv_pip_install("pip", "uv", "aiohttp", "fastapi", "websockets", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0", extra_options="--upgrade")
+    .uv_pip_install("pip", "uv", "aiohttp", "fastapi", "websockets", "httpx", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0", extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
     .uv_pip_install("torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec", extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
@@ -279,12 +279,9 @@ if comfy_plugins_ext:
         plugin_reqs = plugin.get('requirements') # TODO: allows more than one requirements files (space separated)
         if plugin_reqs and plugin_reqs.strip():
             plugin_reqs = plugin_reqs.strip()
-            image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_reqs}", extra_options="-r") #, uv=True #, gpu=GPU_MODEL
-            #if plugin_reqs.endswith(".toml"):
-                #image = image.pip_install_from_pyproject(f"{nodes_dir}/{folder_name}/{plugin_reqs}") # uv_sync
-            #else:
-                #image = image.pip_install_from_requirements(f"{nodes_dir}/{folder_name}/{plugin_reqs}")
-
+            image = image.uv_pip_install(plugin_reqs.split(), extra_options="-r") #, uv=True #, gpu=GPU_MODEL
+            #image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_reqs}", extra_options="-r") #, uv=True #, gpu=GPU_MODEL
+            
         plugin_install = plugin.get('install')
         if plugin_install and plugin_install.strip():
             plugin_install = plugin_install.strip()
