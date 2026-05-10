@@ -276,7 +276,7 @@ if comfy_plugins_ext:
         folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
         image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']} && cd -", volumes={"/cache": vol}) # ; exit 0 
         #image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && git submodule update --init --recursive && cd -", volumes={"/cache": vol})
-        plugin_reqs = plugin.get('requirements') # TODO: allows more than one requirements files (comma/space separated)
+        plugin_reqs = plugin.get('requirements') # TODO: allows more than one requirements files (space separated)
         if plugin_reqs and plugin_reqs.strip():
             plugin_reqs = plugin_reqs.strip()
             if plugin_reqs.endswith(".toml"):
@@ -296,7 +296,7 @@ if comfy_plugins_ext:
         plugin_deps = plugin.get('dependencies')
         if plugin_deps and plugin_deps.strip():
             plugin_deps = plugin_deps.strip()
-            image = image.uv_pip_install(plugin_deps) #, gpu=GPU_MODEL
+            image = image.uv_pip_install(plugin_deps.split()) #, gpu=GPU_MODEL
  
 # install missing dependencies or override with a compatible version
 print(f"Testing3 Global Image: {image}")
