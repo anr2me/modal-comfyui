@@ -378,7 +378,12 @@ async def proxy_prompt(request: Request):
             content=body,
             timeout=120
         )
-    return JSONResponse(resp.json())
+    # Return raw bytes with the original content-type
+    return Response(
+        content=resp.content,
+        status_code=resp.status_code,
+        media_type=resp.headers.get("content-type"),
+    )
 
 @web_app.get("/queue")
 @web_app.get("/api/queue")
@@ -411,7 +416,12 @@ async def proxy_queue(request: Request):
             content=body,
             timeout=120
         )
-    return JSONResponse(resp.json())
+    # Return raw bytes with the original content-type
+    return Response(
+        content=resp.content,
+        status_code=resp.status_code,
+        media_type=resp.headers.get("content-type"),
+    )
     
 @web_app.post("/interrupt")
 @web_app.post("/api/interrupt")
@@ -442,7 +452,12 @@ async def proxy_interrupt(request: Request):
             content=body,
             timeout=120
         )
-    return JSONResponse(resp.json())
+    # Return raw bytes with the original content-type
+    return Response(
+        content=resp.content,
+        status_code=resp.status_code,
+        media_type=resp.headers.get("content-type"),
+    )
 
 @web_app.get("/api/jobs")
 async def proxy_jobs(request: Request):
@@ -471,7 +486,12 @@ async def proxy_jobs(request: Request):
             content=body,
             timeout=120
         )
-    return JSONResponse(resp.json()) 
+    # Return raw bytes with the original content-type
+    return Response(
+        content=resp.content,
+        status_code=resp.status_code,
+        media_type=resp.headers.get("content-type"),
+    )
 
 @web_app.websocket("/ws")
 async def proxy_websocket(websocket: WebSocket):
