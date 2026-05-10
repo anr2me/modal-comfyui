@@ -269,6 +269,7 @@ if comfy_plugins:
 
 if comfy_plugins_ext:
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
+    print(f"Custom Nodes directory: {nodes_dir}")
     Path(nodes_dir).mkdir(parents=True, exist_ok=True)
     for plugin in comfy_plugins_ext:
         #download_external_plugin(plugin["url"], plugin["branch"], plugin["install"])
