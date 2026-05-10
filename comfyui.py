@@ -330,12 +330,13 @@ def wait_for_port(port: int, timeout: int = 60):
 
 
 with image.imports():
-    from fastapi import FastAPI, Request, Response, WebSocket
+    from fastapi import Request, Response, WebSocket
     from fastapi.responses import JSONResponse
     import httpx
     import websockets
 
-    web_app = FastAPI() 
+from fastapi import FastAPI
+web_app = FastAPI() 
 
 app = modal.App(name="modal-comfyui", image=image)
 shared_dict = modal.Dict.from_name(app.name, create_if_missing=True)
