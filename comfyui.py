@@ -279,7 +279,7 @@ if comfy_plugins_ext:
         plugin_reqs = plugin.get('requirements') # TODO: allows more than one requirements files (space separated)
         if plugin_reqs and plugin_reqs.strip():
             plugin_reqs = plugin_reqs.strip()
-            image = image.uv_pip_install(plugin_reqs.split(), extra_options="-r") #, uv=True #, gpu=GPU_MODEL
+            image = image.uv_pip_install(plugin_reqs.split(), extra_options="-r", cwd=f"{nodes_dir}/{folder_name}") #, uv=True #, gpu=GPU_MODEL
             #image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_reqs}", extra_options="-r") #, uv=True #, gpu=GPU_MODEL
             
         plugin_install = plugin.get('install')
