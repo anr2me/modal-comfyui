@@ -459,7 +459,7 @@ async def proxy_interrupt(request: Request):
         media_type=resp.headers.get("content-type"),
     )
 
-@web_app.get("/api/jobs")
+#@web_app.get("/api/jobs")
 async def proxy_jobs(request: Request):
     body = await request.body()
     url = f"http://127.0.0.1:{uiport}" #await get_remote_url("ComfyGPU")
