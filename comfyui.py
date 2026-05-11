@@ -279,14 +279,14 @@ if comfy_plugins_ext:
         plugin_reqs = plugin.get('requirements') # TODO: allows more than one requirements files (space separated)
         if plugin_reqs and plugin_reqs.strip():
             plugin_reqs = plugin_reqs.strip()
-            image = image.uv_pip_install(plugin_reqs.split(), extra_options="-r", cwd=f"{nodes_dir}/{folder_name}") #, uv=True #, gpu=GPU_MODEL
+            image = image.run_commands(f"cd {nodes_dir}/{folder_name}").uv_pip_install(plugin_reqs.split(), extra_options="-r") #, uv=True #, gpu=GPU_MODEL
             #image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_reqs}", extra_options="-r") #, uv=True #, gpu=GPU_MODEL
             
         plugin_install = plugin.get('install')
         if plugin_install and plugin_install.strip():
             plugin_install = plugin_install.strip()
             if plugin_install.endswith(".py"):
-                image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install} && cd -", volumes={"/cache": vol}) #, gpu=GPU_MODEL
+                image = image.run_commands(f"python {plugin_install}", volumes={"/cache": vol}, cwd=f"{nodes_dir}/{folder_name}") #, gpu=GPU_MODEL
             else:
                 print(f"Unsupported installation script: {plugin_install}")
         
