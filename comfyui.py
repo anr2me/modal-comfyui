@@ -370,8 +370,8 @@ async def proxy_prompt(request: Request):
             "x-forwarded-port",
         )
     }
-    # Enforce only encoding that will be automatically decompressed (ie. gzip/deflate)
-    headers.put("Accept-Encoding", "gzip, deflate")
+    # Enforce only encoding that will be automatically decoded (ie. gzip/deflate) by request
+    headers["Accept-Encoding"] = "gzip, deflate"
 
     # Forward to remote ComfyUI
     async with httpx.AsyncClient(timeout=120.0) as client:
@@ -680,7 +680,7 @@ class ComfyGPU:
     @modal.enter(snap=False)
     def start_restore(self):
         active_count = shared_dict.get("active", 0)
-        shared_dict.put("active", active_count + 1)
+        shared_dict["active"] = active_count + 1
     
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
@@ -700,7 +700,7 @@ class ComfyGPU:
         else:
             shared_dict["active"] = 0
         # There won't be any inference running when ComfyUI is shutting down
-        shared_dict.put("inqueue", 0)
+        shared_dict["inqueue"] = 0
         
         proc = getattr(self, "proc", None)
         if proc is not None:
