@@ -551,7 +551,7 @@ async def proxy_websocket(websocket: WebSocket):
         open_timeout=300,        # handshake timeout (seconds)
         close_timeout=10,       # graceful close timeout
         ping_interval=15,       # send pings every N seconds
-        ping_timeout=15,        # wait N seconds for pong before closing
+        ping_timeout=20,        # wait N seconds for pong before closing
     ) as comfy_ws:
         async def client_to_comfy():
             import json
@@ -639,14 +639,14 @@ async def proxy(path: str, request: Request):
         )
     }
 
-    async with httpx.AsyncClient(timeout=15.0) as client:
+    async with httpx.AsyncClient(timeout=20.0) as client:
         resp = await client.request(
             method=request.method,
             url=f"http://127.0.0.1:{uiport}/{path}",
             params=request.query_params,
             headers=headers,
             content=body,
-            timeout=15
+            timeout=20
         )
     # Return raw bytes with the original content-type
     return Response(
