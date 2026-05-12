@@ -602,11 +602,11 @@ async def proxy_websocket(websocket: WebSocket):
                         print(f"{active_count} Active GPU instance detected, disconnecting from CPU instance.")
                         await comfy_ws.close()
                         break
-                    elif inqueue_count==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                    elif active_count>0 and inqueue_count==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                         print(f"{inqueue_count} Queue remaining in GPU instance, disconnecting from GPU instance.")
                         await comfy_ws.close()
                         break
-                    await asyncio.sleep(0.5)  # poll every 500 ms
+                    await asyncio.sleep(0.5)  # poll every second
             except Exception as e:
                 print("watch_active: " + repr(e))
 
