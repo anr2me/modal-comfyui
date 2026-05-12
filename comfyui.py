@@ -371,7 +371,7 @@ async def proxy_prompt(request: Request):
         )
     }
     # Enforce only encoding that will be automatically decoded (ie. gzip/deflate) by request
-    headers["Accept-Encoding"] = "gzip, deflate"
+    headers["Accept-Encoding"] = "identity;q=1, *;q=0" #"gzip, deflate"
 
     # Forward to remote ComfyUI
     async with httpx.AsyncClient(timeout=120.0) as client:
