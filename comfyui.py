@@ -381,7 +381,7 @@ async def proxy_prompt(request: Request):
             params=request.query_params,
             headers=headers,
             content=body,
-            extensions={"decode_content": False}, 
+            #extensions={"decode_content": False}, 
         )
     # Since request automatically decode gzip/deflate/br, let's get the original raw content
     
