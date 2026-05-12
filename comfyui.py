@@ -370,8 +370,8 @@ async def proxy_prompt(request: Request):
             "x-forwarded-port",
         )
     }
-    # Enforce only encoding that will be automatically decoded (ie. gzip/deflate) by request
-    headers["Accept-Encoding"] = "identity;q=1, *;q=0" #"gzip, deflate"
+    # Enforce only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
+    headers["accept-encoding"] = "identity;q=1, *;q=0" #"gzip, deflate, br"
 
     # Forward to remote ComfyUI
     async with httpx.AsyncClient(timeout=120.0) as client:
@@ -381,17 +381,20 @@ async def proxy_prompt(request: Request):
             params=request.query_params,
             headers=headers,
             content=body,
-            timeout=120
+            extensions={"decode_content": False}, 
         )
+    # Since request automatically decode gzip/deflate/br, let's get the original raw content
+    
     # Return raw bytes with the original content-type
     new_resp = Response(
         content=resp.content,
         status_code=resp.status_code,
-        media_type=resp.headers.get("content-type"),
+        #media_type=resp.headers.get("content-type"),
         headers=resp.headers,
     )
     try:
-        # NOTE: resp.content might be zstd compressed (depends on resp.headers["Content-Encoding"]), thus resp.json() might failed without explicitly decompressing the content first
+        # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
+        #import zstandard as zstd
         #dctx = zstd.ZstdDecompressor()
         #decompressed = dctx.decompress(resp.content)
         
