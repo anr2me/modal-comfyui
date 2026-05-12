@@ -370,6 +370,8 @@ async def proxy_prompt(request: Request):
             "x-forwarded-port",
         )
     }
+    # Enforce only encoding that will be automatically decompressed (ie. gzip/deflate)
+    headers.put("Accept-Encoding", "gzip, deflate")
 
     # Forward to remote ComfyUI
     async with httpx.AsyncClient(timeout=120.0) as client:
