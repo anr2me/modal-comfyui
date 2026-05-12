@@ -484,8 +484,8 @@ async def proxy_interrupt(request: Request):
         print(f"[{request.method}:{request.url.path}]: {e!r} => {resp}")
     return new_resp
 
-@web_app.get("/api/jobs")
-async def proxy_jobs(request: Request):
+#@web_app.get("/api/jobs")
+"""async def proxy_jobs(request: Request):
     body = await request.body()
     url = f"http://127.0.0.1:{uiport}" #await get_remote_url("ComfyGPU")
 
@@ -522,7 +522,7 @@ async def proxy_jobs(request: Request):
         new_resp = JSONResponse(resp.json())
     except Exception as e:
         print(f"[{request.method}:{request.url.path}]: {e!r} => {resp}")
-    return new_resp
+    return new_resp"""
 
 @web_app.websocket("/ws")
 async def proxy_websocket(websocket: WebSocket):
