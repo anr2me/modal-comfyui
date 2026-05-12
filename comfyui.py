@@ -582,6 +582,10 @@ async def proxy_websocket(websocket: WebSocket):
                             # Ignore messages for crystools.monitor
                             if msgobj.get("type", "").startswith("crystools.monitor"):
                                 print_msg = False
+                            # Update number of inqueue when connected to GPU instance
+                            if msgobj.get("type", "").startswith("status") and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                                inqueue_count = msgobj["data"]["status"]["exec_info"]["queue_remaining"]
+                                await shared_dict.put.aio("inqueue", int(inqueue_count))
                         if print_msg:
                             print(f"comfy_to_client: {message}")
                         await websocket.send_text(message)
@@ -592,12 +596,17 @@ async def proxy_websocket(websocket: WebSocket):
             try:
                 while True:
                     active_count = await shared_dict.get.aio("active", 0)
+                    inqueue_count = await shared_dict.get.aio("inqueue", 0)
                     #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
-                    if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0:
+                    if active_count>0 and comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                         print(f"{active_count} Active GPU instance detected, disconnecting from CPU instance.")
                         await comfy_ws.close()
                         break
-                    await asyncio.sleep(1)  # poll every second
+                    elif inqueue_count==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                        print(f"{inqueue_count} Queue remaining in GPU instance, disconnecting from GPU instance.")
+                        await comfy_ws.close()
+                        break
+                    await asyncio.sleep(0.5)  # poll every 500 ms
             except Exception as e:
                 print("watch_active: " + repr(e))
 
@@ -668,10 +677,8 @@ class ComfyGPU:
 
     @modal.enter(snap=False)
     def start_restore(self):
-        if shared_dict.get("active"):
-            shared_dict["active"] += 1
-        else:
-            shared_dict["active"] = 1
+        active_count = shared_dict.get("active", 0)
+        shared_dict.put("active", active_count + 1)
     
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
@@ -686,10 +693,13 @@ class ComfyGPU:
     
     @modal.exit()
     def cleanup(self):
-        if shared_dict.get("active") and shared_dict["active"]>0:
+        if shared_dict.get("active", 0) > 0:
             shared_dict["active"] -= 1
         else:
             shared_dict["active"] = 0
+        # There won't be any inference running when ComfyUI is shutting down
+        shared_dict.put("inqueue", 0)
+        
         proc = getattr(self, "proc", None)
         if proc is not None:
             try:
