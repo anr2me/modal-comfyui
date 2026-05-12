@@ -397,7 +397,7 @@ async def proxy_prompt(request: Request):
         
         new_resp = JSONResponse(resp.json())
     except Exception as e:
-        print(f"[{request.method}:{request.url.path}]: {e!r} => {resp}")
+        print(f"[{request.method}:{request.url.path}({len(resp.content)})]: {e!r} => {resp.headers} ==> {resp}")
     return new_resp
 
 @web_app.get("/queue")
