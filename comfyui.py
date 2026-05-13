@@ -584,7 +584,7 @@ async def proxy_websocket(websocket: WebSocket):
                         active_count = await shared_dict.get.aio("active", 0)
                         inqueue_count = await shared_dict.get.aio("inqueue", 0)
                         print(f"client_to_comfy: Active = {active_count}, InQueue = {inqueue_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
-                        if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0 and inqueue_count>0:
+                        if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0:
                             await comfy_ws.close()  # ensure cleanup 
         
                 async def comfy_to_client():
@@ -625,7 +625,7 @@ async def proxy_websocket(websocket: WebSocket):
                         active_count = await shared_dict.get.aio("active", 0)
                         inqueue_count = await shared_dict.get.aio("inqueue", 0)
                         print(f"comfy_to_client: Active = {active_count}, InQueue = {inqueue_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
-                        if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0 and inqueue_count>0:
+                        if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0:
                             await comfy_ws.close()  # ensure cleanup 
         
                 async def watch_active():
@@ -634,8 +634,10 @@ async def proxy_websocket(websocket: WebSocket):
                             active_count = await shared_dict.get.aio("active", 0)
                             #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
                             if websocket.client_state == WebSocketState.DISCONNECTED:
+                                print("Disconnected EndUser Websocket State = {websocket.client_state}")
                                 break
                             if comfy_ws.closed:
+                                print("Closed Internal Websocket!")
                                 break
                             if active_count>0 and comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                                 print(f"{active_count} Active GPU instance detected, disconnecting from CPU instance.")
