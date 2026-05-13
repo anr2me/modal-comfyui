@@ -647,13 +647,14 @@ async def proxy_websocket(websocket: WebSocket):
                     except Exception as e:
                         print("watch_active Throw: " + repr(e))
     
-                    # Cancel both tasks when either side closes their internal connection
-                    tasks = await asyncio.gather(
-                        client_to_comfy(),
-                        comfy_to_client(),
-                        watch_active(),
-                        return_exceptions=True
-                    )
+                # cancel both tasks when either side closes their internal connection
+                tasks = await asyncio.gather(
+                    client_to_comfy(),
+                    comfy_to_client(),
+                    watch_active(),
+                    return_exceptions=true
+                )
+                print("internal websocket connection was closed!")
         except ConnectionClosedError as e:
             # Handles errors during active connection (e.g., ping timeout)
             print(f"Connection closed unexpectedly: {e!r}")
@@ -661,6 +662,7 @@ async def proxy_websocket(websocket: WebSocket):
             # Handles connection refused, DNS issues, or handshake failures
             print(f"Failed to connect: {e!r}")
             
+        # Exit when EndUser connection is lost
         if websocket.client_state == WebSocketState.DISCONNECTED:
             break
         await asyncio.sleep(1)  # poll every second
