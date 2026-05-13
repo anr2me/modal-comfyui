@@ -583,8 +583,8 @@ async def proxy_websocket(websocket: WebSocket):
                         # Close internal connection when there are no more messages
                         #await comfy_ws.close()
                         active_count = await shared_dict.get.aio("active", 0)
-                        inqueue_count = await shared_dict.get.aio("inqueue", 0)
-                        print(f"client_to_comfy: Active = {active_count}, InQueue = {inqueue_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
+                        #inqueue_count = await shared_dict.get.aio("inqueue", 0)
+                        #print(f"client_to_comfy: Active = {active_count}, InQueue = {inqueue_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
                         if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0:
                             await comfy_ws.close()  # ensure cleanup 
         
@@ -624,8 +624,8 @@ async def proxy_websocket(websocket: WebSocket):
                         # Close internal connection when there are no more messages
                         #await comfy_ws.close()
                         active_count = await shared_dict.get.aio("active", 0)
-                        inqueue_count = await shared_dict.get.aio("inqueue", 0)
-                        print(f"comfy_to_client: Active = {active_count}, InQueue = {inqueue_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
+                        #inqueue_count = await shared_dict.get.aio("inqueue", 0)
+                        #print(f"comfy_to_client: Active = {active_count}, InQueue = {inqueue_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
                         if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0:
                             await comfy_ws.close()  # ensure cleanup 
         
@@ -635,7 +635,7 @@ async def proxy_websocket(websocket: WebSocket):
                             active_count = await shared_dict.get.aio("active", 0)
                             #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
                             if websocket.client_state == WebSocketState.DISCONNECTED:
-                                print("Disconnected EndUser Websocket State = {websocket.client_state}")
+                                print(f"Disconnected EndUser Websocket State = {websocket.client_state}")
                                 break
                             if comfy_ws.state == State.CLOSED:
                                 print("Closed Internal Websocket!")
@@ -655,7 +655,7 @@ async def proxy_websocket(websocket: WebSocket):
                     watch_active(),
                     return_exceptions=True
                 )
-                print("internal websocket connection was closed!")
+                #print("Internal websocket connection was closed!")
         except ConnectionClosedError as e:
             # Handles errors during active connection (e.g., ping timeout)
             print(f"Connection closed unexpectedly: {e!r}")
