@@ -538,6 +538,7 @@ async def proxy_websocket(websocket: WebSocket):
     await websocket.accept()
 
     import asyncio
+    from starlette.websockets import WebSocketState
     # We should only exit the function when connection to client lost
     while True:
         # Use active GPU instance when available, otherwise use localhost (CPU)
@@ -624,7 +625,7 @@ async def proxy_websocket(websocket: WebSocket):
                     while True:
                         active_count = await shared_dict.get.aio("active", 0)
                         #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
-                        if websocket.client_state == websockets.WebSocketState.DISCONNECTED:
+                        if websocket.client_state == WebSocketState.DISCONNECTED:
                             break
                         if comfy_ws.closed:
                             break
@@ -643,7 +644,7 @@ async def proxy_websocket(websocket: WebSocket):
                     watch_active(),
                     return_exceptions=True
                 )
-        if websocket.client_state == websockets.WebSocketState.DISCONNECTED:
+        if websocket.client_state == WebSocketState.DISCONNECTED:
             break
         await asyncio.sleep(1)  # poll every second
 
