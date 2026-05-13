@@ -537,115 +537,115 @@ async def proxy_jobs(request: Request):
 async def proxy_websocket(websocket: WebSocket):
     await websocket.accept()
 
-    # Use active GPU instance when available, otherwise use localhost (CPU)
-    uri = f"ws://127.0.0.1:{uiport}/ws"
-    active_count = await shared_dict.get.aio("active", 0)
-    inqueue_count = await shared_dict.get.aio("inqueue", 0)
-    print(f"Active = {active_count}, InQueue = {inqueue_count}")
-    if active_count > 0:
-        url = await get_remote_url("ComfyGPU")
-        from urllib.parse import urlparse, urlunparse
-        scheme_map = {"http": "ws", "https": "wss"}
-        parsed = urlparse(url)
-        if parsed.scheme in scheme_map:
-            # Create a new URL object with the updated scheme
-            new_parsed = parsed._replace(scheme=scheme_map[parsed.scheme])
-            url = urlunparse(new_parsed)
-        uri = f"{url}/ws"
-
-    print(f"CONNECTing to {uri}")
-    async with websockets.connect(
-        uri,
-        open_timeout=300,        # handshake timeout (seconds)
-        close_timeout=10,       # graceful close timeout
-        ping_interval=15,       # send pings every N seconds
-        ping_timeout=20,        # wait N seconds for pong before closing
-    ) as comfy_ws:
-        async def client_to_comfy():
-            import json
-            try:
-                async for message in websocket.iter_bytes():
-                    #if isinstance(message, str) and message.startswith("{"):
-                    #    msgobj = json.loads(message)
-                    print(f"client_to_comfy: {message}")
-                    if message is not None:
-                        await comfy_ws.send(message)
-            except Exception as e:
-                print("client_to_comfy Throw: " + repr(e))
-            finally:
-                # Close internal connection when there are no more messages
-                await comfy_ws.close()
-                #active_count = await shared_dict.get.aio("active", 0)
-                #print(f"client_to_comfy: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
-                #if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0:
-                #    await comfy_ws.close()  # ensure cleanup 
-
-        async def comfy_to_client():
-            import json
-            try:
-                async for message in comfy_ws:
-                    if isinstance(message, bytes):
-                        print(f"comfy_to_client(b): {message}")
-                        await websocket.send_bytes(message)
-                    elif message is not None:
-                        print_msg = True
-                        status_updated = False
-                        inqueue_count = 0
-                        if message.startswith("{"):
-                            msgobj = json.loads(message)
-                            # Ignore messages for crystools.monitor
-                            if msgobj.get("type", "").startswith("crystools.monitor"):
-                                print_msg = False
-                            # Update number of inqueue when connected to GPU instance
-                            if msgobj.get("type", "").startswith("status") and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
-                                inqueue_count = int(msgobj["data"]["status"]["exec_info"]["queue_remaining"])
-                                await shared_dict.put.aio("inqueue", inqueue_count)
-                                status_updated = True
-                        if print_msg:
-                            print(f"comfy_to_client: {message}")
-                        await websocket.send_text(message)
-                        # Disconnect from GPU instance when there are no running inference anymore
-                        if status_updated:
-                            active_count = await shared_dict.get.aio("active", 0)
-                            if active_count>0 and inqueue_count==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
-                                print(f"{inqueue_count} Queue remaining in GPU instance, disconnecting from GPU instance.")
-                                await comfy_ws.close()
-            except Exception as e:
-                print("comfy_to_client Throw: " + repr(e))
-            finally:
-                # Close internal connection when there are no more messages
-                await comfy_ws.close() 
-
-        async def watch_active():
-            try:
-                while True:
-                    active_count = await shared_dict.get.aio("active", 0)
-                    #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
-                    if websocket.client_state == WebSocketState.DISCONNECTED:
-                        break
-                    if comfy_ws.closed:
-                        break
-                    if active_count>0 and comfy_ws.request.headers.get("Host", "").startswith("127.0."):
-                        print(f"{active_count} Active GPU instance detected, disconnecting from CPU instance.")
-                        await comfy_ws.close()
-                        break
-                    await asyncio.sleep(1)  # poll every second
-            except Exception as e:
-                print("watch_active Throw: " + repr(e))
-
-        import asyncio
-        # We should only exit the function when connection to client lost
-        while True:
-            # Cancel both tasks when either side closes their internal connection
-            tasks = await asyncio.gather(
-                client_to_comfy(),
-                comfy_to_client(),
-                watch_active(),
-                return_exceptions=True
-            )
-            if websocket.client_state == WebSocketState.DISCONNECTED:
-                break
-            await asyncio.sleep(1)  # poll every second
+    import asyncio
+    # We should only exit the function when connection to client lost
+    while True:
+        # Use active GPU instance when available, otherwise use localhost (CPU)
+        uri = f"ws://127.0.0.1:{uiport}/ws"
+        active_count = await shared_dict.get.aio("active", 0)
+        inqueue_count = await shared_dict.get.aio("inqueue", 0)
+        print(f"Active = {active_count}, InQueue = {inqueue_count}")
+        if active_count > 0:
+            url = await get_remote_url("ComfyGPU")
+            from urllib.parse import urlparse, urlunparse
+            scheme_map = {"http": "ws", "https": "wss"}
+            parsed = urlparse(url)
+            if parsed.scheme in scheme_map:
+                # Create a new URL object with the updated scheme
+                new_parsed = parsed._replace(scheme=scheme_map[parsed.scheme])
+                url = urlunparse(new_parsed)
+            uri = f"{url}/ws"
+    
+        print(f"CONNECTing to {uri}")
+        async with websockets.connect(
+            uri,
+            open_timeout=300,        # handshake timeout (seconds)
+            close_timeout=10,       # graceful close timeout
+            ping_interval=15,       # send pings every N seconds
+            ping_timeout=20,        # wait N seconds for pong before closing
+        ) as comfy_ws:
+            async def client_to_comfy():
+                import json
+                try:
+                    async for message in websocket.iter_bytes():
+                        #if isinstance(message, str) and message.startswith("{"):
+                        #    msgobj = json.loads(message)
+                        print(f"client_to_comfy: {message}")
+                        if message is not None:
+                            await comfy_ws.send(message)
+                except Exception as e:
+                    print("client_to_comfy Throw: " + repr(e))
+                finally:
+                    # Close internal connection when there are no more messages
+                    await comfy_ws.close()
+                    #active_count = await shared_dict.get.aio("active", 0)
+                    #print(f"client_to_comfy: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
+                    #if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0:
+                    #    await comfy_ws.close()  # ensure cleanup 
+    
+            async def comfy_to_client():
+                import json
+                try:
+                    async for message in comfy_ws:
+                        if isinstance(message, bytes):
+                            print(f"comfy_to_client(b): {message}")
+                            await websocket.send_bytes(message)
+                        elif message is not None:
+                            print_msg = True
+                            status_updated = False
+                            inqueue_count = 0
+                            if message.startswith("{"):
+                                msgobj = json.loads(message)
+                                # Ignore messages for crystools.monitor
+                                if msgobj.get("type", "").startswith("crystools.monitor"):
+                                    print_msg = False
+                                # Update number of inqueue when connected to GPU instance
+                                if msgobj.get("type", "").startswith("status") and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                                    inqueue_count = int(msgobj["data"]["status"]["exec_info"]["queue_remaining"])
+                                    await shared_dict.put.aio("inqueue", inqueue_count)
+                                    status_updated = True
+                            if print_msg:
+                                print(f"comfy_to_client: {message}")
+                            await websocket.send_text(message)
+                            # Disconnect from GPU instance when there are no running inference anymore
+                            if status_updated:
+                                active_count = await shared_dict.get.aio("active", 0)
+                                if active_count>0 and inqueue_count==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                                    print(f"{inqueue_count} Queue remaining in GPU instance, disconnecting from GPU instance.")
+                                    await comfy_ws.close()
+                except Exception as e:
+                    print("comfy_to_client Throw: " + repr(e))
+                finally:
+                    # Close internal connection when there are no more messages
+                    await comfy_ws.close() 
+    
+            async def watch_active():
+                try:
+                    while True:
+                        active_count = await shared_dict.get.aio("active", 0)
+                        #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
+                        if websocket.client_state == WebSocketState.DISCONNECTED:
+                            break
+                        if comfy_ws.closed:
+                            break
+                        if active_count>0 and comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                            print(f"{active_count} Active GPU instance detected, disconnecting from CPU instance.")
+                            await comfy_ws.close()
+                            break
+                        await asyncio.sleep(1)  # poll every second
+                except Exception as e:
+                    print("watch_active Throw: " + repr(e))
+    
+                # Cancel both tasks when either side closes their internal connection
+                tasks = await asyncio.gather(
+                    client_to_comfy(),
+                    comfy_to_client(),
+                    watch_active(),
+                    return_exceptions=True
+                )
+        if websocket.client_state == WebSocketState.DISCONNECTED:
+            break
+        await asyncio.sleep(1)  # poll every second
 
 # Proxy everything else to local ComfyUI
 @web_app.api_route("/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "TRACE"])
