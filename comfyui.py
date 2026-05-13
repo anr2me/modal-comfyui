@@ -624,7 +624,7 @@ async def proxy_websocket(websocket: WebSocket):
                     while True:
                         active_count = await shared_dict.get.aio("active", 0)
                         #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
-                        if websocket.client_state == WebSocketState.DISCONNECTED:
+                        if websocket.client_state == websockets.WebSocketState.DISCONNECTED:
                             break
                         if comfy_ws.closed:
                             break
@@ -643,7 +643,7 @@ async def proxy_websocket(websocket: WebSocket):
                     watch_active(),
                     return_exceptions=True
                 )
-        if websocket.client_state == WebSocketState.DISCONNECTED:
+        if websocket.client_state == websockets.WebSocketState.DISCONNECTED:
             break
         await asyncio.sleep(1)  # poll every second
 
