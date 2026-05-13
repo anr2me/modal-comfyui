@@ -540,7 +540,8 @@ async def proxy_websocket(websocket: WebSocket):
     # Use active GPU instance when available, otherwise use localhost (CPU)
     uri = f"ws://127.0.0.1:{uiport}/ws"
     active_count = await shared_dict.get.aio("active", 0)
-    print(f"Active = {active_count}")
+    inqueue_count = await shared_dict.get.aio("inqueue", 0)
+    print(f"Active = {active_count}, InQueue = {inqueue_count}")
     if active_count > 0:
         url = await get_remote_url("ComfyGPU")
         from urllib.parse import urlparse, urlunparse
@@ -570,8 +571,10 @@ async def proxy_websocket(websocket: WebSocket):
                     if message is not None:
                         await comfy_ws.send(message)
             except Exception as e:
-                print("client_to_comfy: " + repr(e))
-            #finally:
+                print("client_to_comfy Throw: " + repr(e))
+            finally:
+                # Close internal connection when there are no more messages
+                await comfy_ws.close()
                 #active_count = await shared_dict.get.aio("active", 0)
                 #print(f"client_to_comfy: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
                 #if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0:
@@ -608,34 +611,41 @@ async def proxy_websocket(websocket: WebSocket):
                                 print(f"{inqueue_count} Queue remaining in GPU instance, disconnecting from GPU instance.")
                                 await comfy_ws.close()
             except Exception as e:
-                print("comfy_to_client: " + repr(e))
+                print("comfy_to_client Throw: " + repr(e))
+            finally:
+                # Close internal connection when there are no more messages
+                await comfy_ws.close() 
 
         async def watch_active():
             try:
                 while True:
                     active_count = await shared_dict.get.aio("active", 0)
-                    #inqueue_count = await shared_dict.get.aio("inqueue", 0)
                     #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
+                    if websocket.client_state == WebSocketState.DISCONNECTED:
+                        break
+                    if comfy_ws.closed:
+                        break
                     if active_count>0 and comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                         print(f"{active_count} Active GPU instance detected, disconnecting from CPU instance.")
                         await comfy_ws.close()
                         break
-                    #elif active_count>0 and inqueue_count==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
-                    #    print(f"{inqueue_count} Queue remaining in GPU instance, disconnecting from GPU instance.")
-                    #    await comfy_ws.close()
-                    #    break
-                    await asyncio.sleep(0.5)  # poll every second
+                    await asyncio.sleep(1)  # poll every second
             except Exception as e:
-                print("watch_active: " + repr(e))
+                print("watch_active Throw: " + repr(e))
 
         import asyncio
-        # Cancel both tasks when either side closes
-        tasks = await asyncio.gather(
-            client_to_comfy(),
-            comfy_to_client(),
-            watch_active(),
-            return_exceptions=True
-        )
+        # We should only exit the function when connection to client lost
+        while True:
+            # Cancel both tasks when either side closes their internal connection
+            tasks = await asyncio.gather(
+                client_to_comfy(),
+                comfy_to_client(),
+                watch_active(),
+                return_exceptions=True
+            )
+            if websocket.client_state == WebSocketState.DISCONNECTED:
+                break
+            await asyncio.sleep(1)  # poll every second
 
 # Proxy everything else to local ComfyUI
 @web_app.api_route("/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "TRACE"])
