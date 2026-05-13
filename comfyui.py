@@ -586,6 +586,8 @@ async def proxy_websocket(websocket: WebSocket):
                         await websocket.send_bytes(message)
                     elif message is not None:
                         print_msg = True
+                        status_updated = False
+                        inqueue_count = 0
                         if message.startswith("{"):
                             msgobj = json.loads(message)
                             # Ignore messages for crystools.monitor
@@ -593,11 +595,18 @@ async def proxy_websocket(websocket: WebSocket):
                                 print_msg = False
                             # Update number of inqueue when connected to GPU instance
                             if msgobj.get("type", "").startswith("status") and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
-                                inqueue_count = msgobj["data"]["status"]["exec_info"]["queue_remaining"]
-                                await shared_dict.put.aio("inqueue", int(inqueue_count))
+                                inqueue_count = int(msgobj["data"]["status"]["exec_info"]["queue_remaining"])
+                                await shared_dict.put.aio("inqueue", inqueue_count)
+                                status_updated = True
                         if print_msg:
                             print(f"comfy_to_client: {message}")
                         await websocket.send_text(message)
+                        # Disconnect from GPU instance when there are no running inference anymore
+                        if status_updated:
+                            active_count = await shared_dict.get.aio("active", 0)
+                            if active_count>0 and inqueue_count==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                                print(f"{inqueue_count} Queue remaining in GPU instance, disconnecting from GPU instance.")
+                                await comfy_ws.close()
             except Exception as e:
                 print("comfy_to_client: " + repr(e))
 
@@ -605,16 +614,16 @@ async def proxy_websocket(websocket: WebSocket):
             try:
                 while True:
                     active_count = await shared_dict.get.aio("active", 0)
-                    inqueue_count = await shared_dict.get.aio("inqueue", 0)
+                    #inqueue_count = await shared_dict.get.aio("inqueue", 0)
                     #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
                     if active_count>0 and comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                         print(f"{active_count} Active GPU instance detected, disconnecting from CPU instance.")
                         await comfy_ws.close()
                         break
-                    elif active_count>0 and inqueue_count==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
-                        print(f"{inqueue_count} Queue remaining in GPU instance, disconnecting from GPU instance.")
-                        await comfy_ws.close()
-                        break
+                    #elif active_count>0 and inqueue_count==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                    #    print(f"{inqueue_count} Queue remaining in GPU instance, disconnecting from GPU instance.")
+                    #    await comfy_ws.close()
+                    #    break
                     await asyncio.sleep(0.5)  # poll every second
             except Exception as e:
                 print("watch_active: " + repr(e))
