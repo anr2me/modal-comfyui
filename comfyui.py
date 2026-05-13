@@ -652,7 +652,7 @@ async def proxy_websocket(websocket: WebSocket):
                     client_to_comfy(),
                     comfy_to_client(),
                     watch_active(),
-                    return_exceptions=true
+                    return_exceptions=True
                 )
                 print("internal websocket connection was closed!")
         except ConnectionClosedError as e:
