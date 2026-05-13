@@ -580,11 +580,12 @@ async def proxy_websocket(websocket: WebSocket):
                         print("client_to_comfy Throw: " + repr(e))
                     finally:
                         # Close internal connection when there are no more messages
-                        await comfy_ws.close()
-                        #active_count = await shared_dict.get.aio("active", 0)
-                        #print(f"client_to_comfy: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
-                        #if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0:
-                        #    await comfy_ws.close()  # ensure cleanup 
+                        #await comfy_ws.close()
+                        active_count = await shared_dict.get.aio("active", 0)
+                        inqueue_count = await shared_dict.get.aio("inqueue", 0)
+                        print(f"client_to_comfy: Active = {active_count}, InQueue = {inqueue_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
+                        if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0 and inqueue_count>0:
+                            await comfy_ws.close()  # ensure cleanup 
         
                 async def comfy_to_client():
                     import json
@@ -620,7 +621,12 @@ async def proxy_websocket(websocket: WebSocket):
                         print("comfy_to_client Throw: " + repr(e))
                     finally:
                         # Close internal connection when there are no more messages
-                        await comfy_ws.close() 
+                        #await comfy_ws.close()
+                        active_count = await shared_dict.get.aio("active", 0)
+                        inqueue_count = await shared_dict.get.aio("inqueue", 0)
+                        print(f"comfy_to_client: Active = {active_count}, InQueue = {inqueue_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
+                        if comfy_ws.request.headers.get("Host", "").startswith("127.0.") and active_count>0 and inqueue_count>0:
+                            await comfy_ws.close()  # ensure cleanup 
         
                 async def watch_active():
                     try:
