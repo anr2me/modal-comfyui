@@ -370,7 +370,7 @@ async def proxy_prompt(request: Request):
             "x-forwarded-port",
         )
     }
-    # Enforce only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
+    # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
     headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
 
     # Forward to remote ComfyUI
@@ -421,6 +421,8 @@ async def proxy_queue(request: Request):
             "x-forwarded-port",
         )
     }
+    # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
+    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
 
     # Forward to remote ComfyUI
     async with httpx.AsyncClient(timeout=120.0) as client:
@@ -430,13 +432,13 @@ async def proxy_queue(request: Request):
             params=request.query_params,
             headers=headers,
             content=body,
-            timeout=120
+            #extensions={"decode_content": False},
         )
     # Return raw bytes with the original content-type
     new_resp = Response(
         content=resp.content,
         status_code=resp.status_code,
-        media_type=resp.headers.get("content-type"),
+        #media_type=resp.headers.get("content-type"),
         headers=resp.headers,
     )
     try:
@@ -463,6 +465,8 @@ async def proxy_interrupt(request: Request):
             "x-forwarded-port",
         )
     }
+    # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
+    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
 
     # Forward to remote ComfyUI
     async with httpx.AsyncClient(timeout=120.0) as client:
@@ -472,13 +476,13 @@ async def proxy_interrupt(request: Request):
             params=request.query_params,
             headers=headers,
             content=body,
-            timeout=120
+            #extensions={"decode_content": False},
         )
     # Return raw bytes with the original content-type
     new_resp = Response(
         content=resp.content,
         status_code=resp.status_code,
-        media_type=resp.headers.get("content-type"),
+        #media_type=resp.headers.get("content-type"),
         headers=resp.headers,
     )
     try:
@@ -487,8 +491,8 @@ async def proxy_interrupt(request: Request):
         print(f"[{request.method}:{request.url.path}]: {e!r} => {resp}")
     return new_resp
 
-#@web_app.get("/api/jobs")
-"""async def proxy_jobs(request: Request):
+@web_app.get("/api/jobs")
+async def proxy_jobs(request: Request):
     body = await request.body()
     url = f"http://127.0.0.1:{uiport}" #await get_remote_url("ComfyGPU")
 
@@ -504,6 +508,8 @@ async def proxy_interrupt(request: Request):
             "x-forwarded-port",
         )
     }
+    # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
+    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
 
     async with httpx.AsyncClient(timeout=120.0) as client:
         resp = await client.request(
@@ -512,20 +518,20 @@ async def proxy_interrupt(request: Request):
             params=request.query_params,
             headers=headers,
             content=body,
-            timeout=120
+            #extensions={"decode_content": False},
         )
     # Return raw bytes with the original content-type
     new_resp = Response(
         content=resp.content,
         status_code=resp.status_code,
-        media_type=resp.headers.get("content-type"),
+        #media_type=resp.headers.get("content-type"),
         headers=resp.headers,
     )
     try:
         new_resp = JSONResponse(resp.json())
     except Exception as e:
         print(f"[{request.method}:{request.url.path}]: {e!r} => {resp}")
-    return new_resp"""
+    return new_resp
 
 @web_app.websocket("/ws")
 async def proxy_websocket(websocket: WebSocket):
@@ -639,6 +645,8 @@ async def proxy(path: str, request: Request):
             "x-forwarded-port",
         )
     }
+    # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
+    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
 
     async with httpx.AsyncClient(timeout=20.0) as client:
         resp = await client.request(
@@ -647,13 +655,13 @@ async def proxy(path: str, request: Request):
             params=request.query_params,
             headers=headers,
             content=body,
-            timeout=20
+            #extensions={"decode_content": False},
         )
     # Return raw bytes with the original content-type
     return Response(
         content=resp.content,
         status_code=resp.status_code,
-        media_type=resp.headers.get("content-type"),
+        #media_type=resp.headers.get("content-type"),
         headers=resp.headers,
     )
     
