@@ -163,7 +163,7 @@ if comfy_plugins_ext:
         plugin_reqs = plugin.get("requirements", "").strip()
         if plugin_reqs:
             formatted_reqs = " ".join(f"-r {file}" for file in plugin_reqs.split())
-            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && uv pip install --system --compile-bytecode {formatted_reqs}")
+            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && uv pip install --python $(command -v python) --compile-bytecode {formatted_reqs}")
 
         # run installation script (usually install.py or setup.py)
         plugin_install = plugin.get("install", "").strip()
