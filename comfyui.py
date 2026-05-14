@@ -158,7 +158,7 @@ if comfy_plugins_ext:
     for plugin in comfy_plugins_ext:
         folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
         # clone the repository, including it's submodules
-        image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']}", volumes={"/cache": vol})
+        image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']}")
         # install dependencies from one or more requirements files (usually .txt or .toml files, but can support any extension)
         plugin_reqs = plugin.get("requirements", "").strip()
         if plugin_reqs:
@@ -168,7 +168,7 @@ if comfy_plugins_ext:
         plugin_install = plugin.get("install", "").strip()
         if plugin_install:
             if plugin_install.endswith(".py"):
-                image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install}", volumes={"/cache": vol})
+                image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install}")
             else:
                 print(f"Unsupported installation script: {plugin_install}")
 
