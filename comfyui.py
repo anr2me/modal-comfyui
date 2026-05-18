@@ -6,7 +6,7 @@ from pathlib import Path
 
 import modal
 
-GPU_MODEL = "L4"
+GPU_MODEL = os.getenv("MODAL_GPU", "L4")
 
 from models import models, models_ext
 from plugins import comfy_plugins, comfy_plugins_ext
