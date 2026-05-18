@@ -358,6 +358,22 @@ async def proxy_prompt(request: Request):
     body = await request.body()
     url = await get_remote_url("ComfyGPU")
 
+    # spin-up GPU instance
+    import socket
+    socket.create_connection((url, 443), timeout=300)
+    #worker = ComfyGPU() # Instantiate the GPU class
+    #worker.web.remote(gpuport)
+    
+    # wait until websocket is connected to GPU instance
+    import time
+    deadline = time.time() + 300
+    while time.time() < deadline:
+        try:
+            if not await shared_dict.get.aio("ws_host", "").startswith("127.0."):
+                return  # websocket is connected to GPU instance
+        except OSError:
+            time.sleep(0.1)
+            
     # Strip Host from headers to prevent loopback
     headers = {
         k: v for k, v in request.headers.items()
