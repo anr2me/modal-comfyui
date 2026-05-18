@@ -653,7 +653,7 @@ async def proxy_websocket(websocket: WebSocket):
                             if websocket.client_state == WebSocketState.DISCONNECTED:
                                 print(f"Disconnected EndUser Websocket State = {websocket.client_state}")
                                 break
-                            if await comfy_ws.state == State.CLOSED:
+                            if comfy_ws.state == State.CLOSED:
                                 print("Closed Internal Websocket!")
                                 break
                             if active_count>0 and comfy_ws.request.headers.get("Host", "").startswith("127.0."):
