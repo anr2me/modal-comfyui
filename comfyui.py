@@ -362,7 +362,7 @@ async def proxy_prompt(request: Request):
     #import socket
     #socket.create_connection((host, 443), timeout=300)
     worker = ComfyGPU() # Instantiate the GPU class
-    #worker.web.remote(gpuport)
+    worker.web.remote(gpuport)
     
     # wait until websocket is connected to GPU instance
     import time
