@@ -408,8 +408,10 @@ async def proxy_prompt(request: Request):
     await shared_dict.put.aio("pending_prompt", pending_prompt + 1)
 
     # spin-up GPU instance
-    async with httpx.AsyncClient(timeout=300) as client:
-        await client.get(url)
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count == 0:
+        async with httpx.AsyncClient(timeout=300) as client:
+            await client.get(url)
     
     # wait until websocket is connected to GPU instance
     import time
@@ -421,7 +423,7 @@ async def proxy_prompt(request: Request):
         except OSError:
             time.sleep(0.1)
         
-    # Forward request to GPU instance
+    # Forward request
     new_resp = await forward_httpx(url, request)
     
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
@@ -434,131 +436,30 @@ async def proxy_prompt(request: Request):
 @web_app.post("/queue")
 @web_app.post("/api/queue")
 async def proxy_queue(request: Request):
-    body = await request.body()
     url = await get_remote_url("ComfyGPU")
 
-    # Strip Host from headers to prevent loopback
-    headers = {
-        k: v for k, v in request.headers.items()
-        if k.lower() not in (
-            "host",
-            "content-length",
-            "x-forwarded-proto",
-            "x-forwarded-for",
-            "x-forwarded-host",
-            "x-forwarded-port",
-        )
-    }
-    # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
-    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
-
-    # Forward to remote ComfyUI
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.request(
-            method=request.method,
-            url=f"{url}/queue",
-            params=request.query_params,
-            headers=headers,
-            content=body,
-            #extensions={"decode_content": False},
-        )
-    # Return raw bytes with the original content-type
-    new_resp = Response(
-        content=resp.content,
-        status_code=resp.status_code,
-        #media_type=resp.headers.get("content-type"),
-        headers=resp.headers,
-    )
-    try:
-        new_resp = JSONResponse(resp.json())
-    except Exception as e:
-        print(f"[{request.method}:{request.url.path}]: {e!r} => {resp}")
+    # Forward request
+    new_resp = await forward_httpx(url, request)
+ 
     return new_resp
     
 @web_app.post("/interrupt")
 @web_app.post("/api/interrupt")
 async def proxy_interrupt(request: Request):
-    body = await request.body()
     url = await get_remote_url("ComfyGPU")
 
-    # Strip Host from headers to prevent loopback
-    headers = {
-        k: v for k, v in request.headers.items()
-        if k.lower() not in (
-            "host",
-            "content-length",
-            "x-forwarded-proto",
-            "x-forwarded-for",
-            "x-forwarded-host",
-            "x-forwarded-port",
-        )
-    }
-    # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
-    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
-
-    # Forward to remote ComfyUI
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.request(
-            method=request.method,
-            url=f"{url}/interrupt",
-            params=request.query_params,
-            headers=headers,
-            content=body,
-            #extensions={"decode_content": False},
-        )
-    # Return raw bytes with the original content-type
-    new_resp = Response(
-        content=resp.content,
-        status_code=resp.status_code,
-        #media_type=resp.headers.get("content-type"),
-        headers=resp.headers,
-    )
-    try:
-        new_resp = JSONResponse(resp.json())
-    except Exception as e:
-        print(f"[{request.method}:{request.url.path}]: {e!r} => {resp}")
+    # Forward request
+    new_resp = await forward_httpx(url, request)
+ 
     return new_resp
 
 @web_app.get("/api/jobs")
 async def proxy_jobs(request: Request):
-    body = await request.body()
     url = f"http://127.0.0.1:{uiport}" #await get_remote_url("ComfyGPU")
 
-    # Strip Host from headers to prevent loopback
-    headers = {
-        k: v for k, v in request.headers.items()
-        if k.lower() not in (
-            "host",
-            "content-length",
-            "x-forwarded-proto",
-            "x-forwarded-for",
-            "x-forwarded-host",
-            "x-forwarded-port",
-        )
-    }
-    # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
-    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
-
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.request(
-            method=request.method,
-            url=f"{url}/api/jobs",
-            params=request.query_params,
-            headers=headers,
-            content=body,
-            #extensions={"decode_content": False},
-        )
-    # Return raw bytes with the original content-type
-    new_resp = Response(
-        content=resp.content,
-        status_code=resp.status_code,
-        #media_type=resp.headers.get("content-type"),
-        headers=resp.headers,
-    )
-    try:
-        new_resp = JSONResponse(resp.json())
-    except Exception as e:
-        print(f"[{request.method}:{request.url.path}]: {e!r} => {resp}")
+    # Forward request
+    new_resp = await forward_httpx(url, request)
+ 
     return new_resp
 
 @web_app.websocket("/ws")
@@ -694,8 +595,8 @@ async def proxy_websocket(websocket: WebSocket):
 # Proxy everything else to local ComfyUI
 @web_app.api_route("/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "TRACE"])
 async def proxy(request: Request, path: str):
-    body = await request.body()
-
+    url = f"http://127.0.0.1:{uiport}"
+    
     # Strip Host from headers to prevent loopback
     headers = {
         k: v for k, v in request.headers.items()
@@ -711,10 +612,11 @@ async def proxy(request: Request, path: str):
     # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
     headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
 
+    body = await request.body()
     async with httpx.AsyncClient(timeout=20.0) as client:
         resp = await client.request(
             method=request.method,
-            url=f"http://127.0.0.1:{uiport}/{path}",
+            url=f"{url}/{path}",
             params=request.query_params,
             headers=headers,
             content=body,
