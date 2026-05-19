@@ -358,6 +358,9 @@ async def proxy_prompt(request: Request):
     body = await request.body()
     url = await get_remote_url("ComfyGPU")
 
+    pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
+    await shared_dict.put.aio("pending_prompt", pending_prompt + 1)
+
     # spin-up GPU instance
     async with httpx.AsyncClient(timeout=300) as client:
         await client.get(url)
@@ -368,10 +371,10 @@ async def proxy_prompt(request: Request):
     while time.time() < deadline:
         try:
             if not (await shared_dict.get.aio("ws_host", "")).startswith("127.0."):
-                return  # websocket is connected to GPU instance
+                break  # websocket is connected to GPU instance
         except OSError:
             time.sleep(0.1)
-            
+        
     # Strip Host from headers to prevent loopback
     headers = {
         k: v for k, v in request.headers.items()
@@ -413,6 +416,10 @@ async def proxy_prompt(request: Request):
         new_resp = JSONResponse(resp.json())
     except Exception as e:
         print(f"[{request.method}:{request.url.path}({len(resp.content)})]: {e!r} => {resp.headers} ==> {resp}")
+
+    pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
+    if pending_prompt > 0:
+        await shared_dict.put.aio("pending_prompt", pending_prompt - 1)
     return new_resp
 
 @web_app.get("/queue")
@@ -629,7 +636,8 @@ async def proxy_websocket(websocket: WebSocket):
                                 # Disconnect from GPU instance when there are no running inference anymore
                                 if status_updated:
                                     active_count = await shared_dict.get.aio("active", 0)
-                                    if active_count>0 and inqueue_count==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                                    pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
+                                    if active_count>0 and inqueue_count==0 and pending_prompt==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                                         print(f"{inqueue_count} Queue remaining in GPU instance, disconnecting from GPU instance.")
                                         await comfy_ws.close()
                     except Exception as e:
