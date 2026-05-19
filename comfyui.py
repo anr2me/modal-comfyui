@@ -462,6 +462,17 @@ async def proxy_jobs(request: Request):
  
     return new_resp
 
+# Proxy other API routes
+@web_app.get("/api/{path:path}")
+async def proxy_api(request: Request, path: str):
+    url = f"http://127.0.0.1:{uiport}" #await get_remote_url("ComfyGPU")
+
+    # Forward request
+    new_resp = await forward_httpx(url, request)
+ 
+    return new_resp
+
+# Proxy websocket
 @web_app.websocket("/ws")
 async def proxy_websocket(websocket: WebSocket):
     await websocket.accept()
