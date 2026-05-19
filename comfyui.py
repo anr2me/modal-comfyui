@@ -657,7 +657,7 @@ async def proxy_websocket(websocket: WebSocket):
                             if active_count>0 and comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                                 print(f"{active_count} Active GPU instance detected, disconnecting from CPU instance.")
                                 #await comfy_ws.close()
-                                break
+                                #break
                             await asyncio.sleep(1)  # poll every second
                     except Exception as e:
                         print("watch_active Throw: " + repr(e))
