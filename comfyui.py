@@ -569,6 +569,9 @@ async def proxy_websocket(websocket: WebSocket):
                             #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
                             if websocket.client_state == WebSocketState.DISCONNECTED:
                                 print(f"Disconnected EndUser Websocket State = {websocket.client_state}")
+                                # Disconnect internal websocket too
+                                if comfy_ws.state != State.CLOSED:
+                                    await comfy_ws.close()
                                 break
                             if comfy_ws.state == State.CLOSED:
                                 print("Closed Internal Websocket!")
