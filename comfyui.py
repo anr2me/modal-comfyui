@@ -349,13 +349,59 @@ async def get_remote_url(class_name: str) -> str:
     url = await remote_cls().web.get_web_url.aio()
     return url
 
+async def forward_httpx(url: str, request: Request, timeout: int = 120) -> Response:
+    # Strip Host from headers to prevent loopback
+    headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in (
+            "host",
+            "content-length",
+            "x-forwarded-proto",
+            "x-forwarded-for",
+            "x-forwarded-host",
+            "x-forwarded-port",
+        )
+    }
+    # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
+    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
+
+    # Forward to remote ComfyUI
+    body = await request.body()
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        resp = await client.request(
+            method=request.method,
+            url=f"{url}{request.url.path}",
+            params=request.query_params,
+            headers=headers,
+            content=body,
+            #extensions={"decode_content": False}, 
+        )
+    # Return raw bytes with the original content-type
+    new_resp = Response(
+        content=resp.content,
+        status_code=resp.status_code,
+        #media_type=resp.headers.get("content-type"),
+        headers=resp.headers,
+    )
+    try:
+        # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
+        #import zstandard as zstd
+        #dctx = zstd.ZstdDecompressor()
+        #decompressed = dctx.decompress(resp.content)
+        
+        #new_resp = 
+        JSONResponse(resp.json())
+    except Exception as e:
+        print(f"[{request.method}:{request.url.path}({len(resp.content)})]: {e!r} => {resp.headers} ==> {resp}")
+
+    return new_resp
+    
 
 @web_app.get("/prompt")
 @web_app.get("/api/prompt")
 @web_app.post("/prompt")
 @web_app.post("/api/prompt")
 async def proxy_prompt(request: Request):
-    body = await request.body()
     url = await get_remote_url("ComfyGPU")
 
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
@@ -375,48 +421,9 @@ async def proxy_prompt(request: Request):
         except OSError:
             time.sleep(0.1)
         
-    # Strip Host from headers to prevent loopback
-    headers = {
-        k: v for k, v in request.headers.items()
-        if k.lower() not in (
-            "host",
-            "content-length",
-            "x-forwarded-proto",
-            "x-forwarded-for",
-            "x-forwarded-host",
-            "x-forwarded-port",
-        )
-    }
-    # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
-    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
-
-    # Forward to remote ComfyUI
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.request(
-            method=request.method,
-            url=f"{url}/prompt",
-            params=request.query_params,
-            headers=headers,
-            content=body,
-            #extensions={"decode_content": False}, 
-        )
-    # Return raw bytes with the original content-type
-    new_resp = Response(
-        content=resp.content,
-        status_code=resp.status_code,
-        #media_type=resp.headers.get("content-type"),
-        headers=resp.headers,
-    )
-    try:
-        # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
-        #import zstandard as zstd
-        #dctx = zstd.ZstdDecompressor()
-        #decompressed = dctx.decompress(resp.content)
-        
-        new_resp = JSONResponse(resp.json())
-    except Exception as e:
-        print(f"[{request.method}:{request.url.path}({len(resp.content)})]: {e!r} => {resp.headers} ==> {resp}")
-
+    # Forward request to GPU instance
+    new_resp = await forward_httpx(url, request)
+    
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
     if pending_prompt > 0:
         await shared_dict.put.aio("pending_prompt", pending_prompt - 1)
