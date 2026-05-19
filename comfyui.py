@@ -569,7 +569,7 @@ async def proxy_websocket(websocket: WebSocket):
         active_count = await shared_dict.get.aio("active", 0)
         inqueue_count = await shared_dict.get.aio("inqueue", 0)
         print(f"Active = {active_count}, InQueue = {inqueue_count}")
-        if active_count > 0:
+        if True: #active_count > 0:
             url = await get_remote_url("ComfyGPU")
             from urllib.parse import urlparse, urlunparse
             scheme_map = {"http": "ws", "https": "wss"}
@@ -635,7 +635,7 @@ async def proxy_websocket(websocket: WebSocket):
                                     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
                                     if active_count>0 and inqueue_count==0 and pending_prompt==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                                         print(f"{inqueue_count} Queue remaining in GPU instance, disconnecting from GPU instance.")
-                                        await comfy_ws.close()
+                                        #await comfy_ws.close()
                     except Exception as e:
                         print("comfy_to_client Throw: " + repr(e))
                     finally:
@@ -656,7 +656,7 @@ async def proxy_websocket(websocket: WebSocket):
                                 break
                             if active_count>0 and comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                                 print(f"{active_count} Active GPU instance detected, disconnecting from CPU instance.")
-                                await comfy_ws.close()
+                                #await comfy_ws.close()
                                 break
                             await asyncio.sleep(1)  # poll every second
                     except Exception as e:
