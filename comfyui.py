@@ -389,8 +389,8 @@ async def forward_httpx(url: str, request: Request, timeout: int = 120) -> Respo
         #dctx = zstd.ZstdDecompressor()
         #decompressed = dctx.decompress(resp.content)
         
-        #new_resp = 
-        JSONResponse(resp.json())
+        #new_resp = JSONResponse(resp.json())
+        print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {body} ==> {resp.content} <==")
     except Exception as e:
         print(f"[{request.method}:{request.url.path}({len(resp.content)})]: {e!r} => {resp.headers} ==> {resp}")
 
