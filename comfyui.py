@@ -737,7 +737,7 @@ async def proxy(request: Request, path: str):
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True},
     startup_timeout=300, # container's startup timeout
-    timeout=120, # execution timeout, this will also be websocket timeout
+    timeout=3600, # execution timeout, this will also be websocket timeout
 )
 @modal.concurrent(max_inputs=10)
 class ComfyGPU:
@@ -778,6 +778,7 @@ class ComfyGPU:
         if proc is not None:
             try:
                 proc.terminate()
+                proc.wait()
             except (ProcessLookupError, OSError):
                 pass
         print("App CleanUp!")
@@ -790,7 +791,7 @@ class ComfyGPU:
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True},
     startup_timeout=300, # container's startup timeout
-    timeout=120, # execution timeout, this will also be websocket timeout
+    timeout=3600, # execution timeout, this will also be websocket timeout
 )
 @modal.concurrent(max_inputs=10)
 class ComfyCPU:
@@ -821,6 +822,7 @@ class ComfyCPU:
         if proc is not None:
             try:
                 proc.terminate()
+                proc.wait()
             except (ProcessLookupError, OSError):
                 pass
         print("App CleanUp!")
@@ -833,7 +835,7 @@ class ComfyCPU:
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True},
     startup_timeout=300, # container's startup timeout
-    timeout=120, # execution timeout, this will also be websocket timeout
+    timeout=3600, # execution timeout, this will also be websocket timeout
 )
 @modal.concurrent(max_inputs=10)
 class ComfyMix:
@@ -865,6 +867,7 @@ class ComfyMix:
         if proc is not None:
             try:
                 proc.terminate()
+                proc.wait()
             except (ProcessLookupError, OSError):
                 pass
         print("App CleanUp!")
