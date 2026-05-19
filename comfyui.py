@@ -693,7 +693,7 @@ async def proxy_websocket(websocket: WebSocket):
 
 # Proxy everything else to local ComfyUI
 @web_app.api_route("/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "TRACE"])
-async def proxy(path: str, request: Request):
+async def proxy(request: Request, path: str):
     body = await request.body()
 
     # Strip Host from headers to prevent loopback
