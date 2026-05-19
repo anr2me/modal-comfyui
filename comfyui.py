@@ -455,7 +455,8 @@ async def proxy_interrupt(request: Request):
 
 @web_app.get("/api/jobs")
 async def proxy_jobs(request: Request):
-    url = f"http://127.0.0.1:{uiport}" #await get_remote_url("ComfyGPU")
+    #url = f"http://127.0.0.1:{uiport}"
+    url = await get_remote_url("ComfyGPU")
 
     # Forward request
     new_resp = await forward_httpx(url, request)
