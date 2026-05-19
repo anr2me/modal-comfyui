@@ -397,10 +397,10 @@ async def forward_httpx(url: str, request: Request, timeout: int = 120) -> Respo
     return new_resp
     
 
-@web_app.get("/prompt")
-@web_app.get("/api/prompt")
 @web_app.post("/prompt")
 @web_app.post("/api/prompt")
+@web_app.post("/queue")
+@web_app.post("/api/queue")
 async def proxy_prompt(request: Request):
     url = await get_remote_url("ComfyGPU")
 
@@ -409,7 +409,7 @@ async def proxy_prompt(request: Request):
 
     # spin-up GPU instance
     active_count = await shared_dict.get.aio("active", 0)
-    if active_count == 0:
+    if True: #active_count == 0:
         async with httpx.AsyncClient(timeout=300) as client:
             await client.get(url)
     
@@ -431,12 +431,15 @@ async def proxy_prompt(request: Request):
         await shared_dict.put.aio("pending_prompt", pending_prompt - 1)
     return new_resp
 
+@web_app.get("/prompt")
+@web_app.get("/api/prompt")
 @web_app.get("/queue")
 @web_app.get("/api/queue")
-@web_app.post("/queue")
-@web_app.post("/api/queue")
 async def proxy_queue(request: Request):
-    url = await get_remote_url("ComfyGPU")
+    url = f"http://127.0.0.1:{uiport}"
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        url = await get_remote_url("ComfyGPU")
 
     # Forward request
     new_resp = await forward_httpx(url, request)
@@ -446,7 +449,10 @@ async def proxy_queue(request: Request):
 @web_app.post("/interrupt")
 @web_app.post("/api/interrupt")
 async def proxy_interrupt(request: Request):
-    url = await get_remote_url("ComfyGPU")
+    url = f"http://127.0.0.1:{uiport}"
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        url = await get_remote_url("ComfyGPU")
 
     # Forward request
     new_resp = await forward_httpx(url, request)
@@ -456,8 +462,10 @@ async def proxy_interrupt(request: Request):
 #@web_app.get("/api/view")
 @web_app.get("/api/jobs")
 async def proxy_jobs(request: Request):
-    #url = f"http://127.0.0.1:{uiport}"
-    url = await get_remote_url("ComfyGPU")
+    url = f"http://127.0.0.1:{uiport}"
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        url = await get_remote_url("ComfyGPU")
 
     # Forward request
     new_resp = await forward_httpx(url, request)
@@ -469,8 +477,10 @@ async def proxy_jobs(request: Request):
 @web_app.patch("/internal/logs{path:path}")
 #@web_app.get("/api/{path:path}")
 async def proxy_api(request: Request, path: str):
-    #url = f"http://127.0.0.1:{uiport}"
-    url = await get_remote_url("ComfyGPU")
+    url = f"http://127.0.0.1:{uiport}"
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        url = await get_remote_url("ComfyGPU")
 
     # Forward request
     new_resp = await forward_httpx(url, request)
@@ -493,7 +503,7 @@ async def proxy_websocket(websocket: WebSocket):
         active_count = await shared_dict.get.aio("active", 0)
         inqueue_count = await shared_dict.get.aio("inqueue", 0)
         print(f"Active = {active_count}, InQueue = {inqueue_count}")
-        if True: #active_count > 0:
+        if active_count > 0:
             url = await get_remote_url("ComfyGPU")
             from urllib.parse import urlparse, urlunparse
             scheme_map = {"http": "ws", "https": "wss"}
@@ -559,7 +569,7 @@ async def proxy_websocket(websocket: WebSocket):
                                     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
                                     if active_count>0 and inqueue_count==0 and pending_prompt==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                                         print(f"{inqueue_count} Queue remaining in GPU instance, disconnecting from GPU instance.")
-                                        #await comfy_ws.close()
+                                        await comfy_ws.close()
                     except Exception as e:
                         print("comfy_to_client Throw: " + repr(e))
                     finally:
@@ -578,13 +588,14 @@ async def proxy_websocket(websocket: WebSocket):
                                 if comfy_ws.state != State.CLOSED:
                                     await comfy_ws.close()
                                 break
-                            if comfy_ws.state == State.CLOSED:
-                                print("Closed Internal Websocket!")
-                                break
                             if active_count>0 and comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                                 print(f"{active_count} Active GPU instance detected, disconnecting from CPU instance.")
-                                #await comfy_ws.close()
-                                #break
+                                if comfy_ws.state != State.CLOSED:
+                                    await comfy_ws.close()
+                                break
+                            if comfy_ws.state == State.CLOSED:
+                                print("Closed Internal Websocket!")
+                                break 
                             await asyncio.sleep(1)  # poll every second
                     except Exception as e:
                         print("watch_active Throw: " + repr(e))
