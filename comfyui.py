@@ -297,8 +297,8 @@ image = (
     # Detect pytorch version and install wheels inside the container
     .run_function(install_wheels)
     #.uv_pip_install("tokenizers~=0.19.1", extra_options="--only-binary=tokenizers --no-deps", pre=True) # needed for transformers<4.43
-    .uv_pip_install("transformers~=4.42.4") # extra_options="--no-deps --no-build-isolation" # Fix KeyError: 'default' issue on bytedance Lance
-    .uv_pip_install("peft~=0.10.0") # compatible peft version for transformers 4.40–4.42 (fix nunchaku issue)
+    #.uv_pip_install("transformers~=4.42.4") # extra_options="--no-deps --no-build-isolation" # Fix KeyError: 'default' issue on bytedance Lance
+    #.uv_pip_install("peft~=0.10.0") # compatible peft version for transformers 4.40–4.42
 )
 print("Done install missing dependencies.")
 
