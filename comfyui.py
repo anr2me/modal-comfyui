@@ -163,7 +163,7 @@ if comfy_plugins_ext:
         plugin_reqs = plugin.get("requirements", "").strip()
         if plugin_reqs:
             formatted_reqs = " ".join(f"-r {file}" for file in plugin_reqs.split())
-            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && uv pip install --no-deps --no-build-isolation --python $(command -v python) --compile-bytecode {formatted_reqs}")
+            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && uv pip install --no-deps --python $(command -v python) --compile-bytecode {formatted_reqs}")
 
         # run installation script (usually install.py or setup.py)
         plugin_install = plugin.get("install", "").strip()
@@ -176,7 +176,7 @@ if comfy_plugins_ext:
         # install optional packages or packages that got dependency issue with other custom nodes due to pinned to an incompatible version
         plugin_deps = plugin.get("dependencies", "").strip()
         if plugin_deps:
-            image = image.uv_pip_install(plugin_deps.split(), extra_options="--no-deps --no-build-isolation")
+            image = image.uv_pip_install(plugin_deps.split(), extra_options="--no-deps")
 
 def wait_for_port(port: int, timeout: int = 60):
     """Block until the port is accepting connections."""
