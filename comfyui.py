@@ -281,10 +281,10 @@ def install_wheels():
     import torch, subprocess, sys
     ver = ".".join(torch.__version__.split(".")[:2])
     # nunchaku
-    url = f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{ver}-cp311-cp311-linux_x86_64.whl"
+    url = f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{ver}-cp312-cp312-linux_x86_64.whl"
     subprocess.check_call([sys.executable, "-m", "uv", "pip", "install", "--no-deps", url])
     # flash-attn
-    url = f"https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.9.0/flash_attn-2.8.3+cu130torch{ver}-cp311-cp311-linux_x86_64.whl"
+    url = f"https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.9.0/flash_attn-2.8.3+cu130torch{ver}-cp312-cp312-linux_x86_64.whl"
     subprocess.check_call([sys.executable, "-m", "uv", "pip", "install", "--no-deps", url])
     
 image = (
