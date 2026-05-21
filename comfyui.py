@@ -17,6 +17,8 @@ base_dir = Path("/cache/ComfyUI")
 input_dir = Path("/cache/ComfyUI/input")
 output_dir = Path("/cache/ComfyUI/output")
 user_dir = Path("/cache/ComfyUI/user")
+models_dir = Path("/cache/ComfyUI/models")
+cusnodes_dir = Path("/cache/ComfyUI/custom_nodes")
 
 COMFYUI_ROOT = Path("/root/comfy/ComfyUI")
 COMFY_MODELS_ROOT = Path(COMFYUI_ROOT / "models")
@@ -214,6 +216,8 @@ extra_file_path = Path(__file__).parent / "extra_model_paths.yaml"
 Path(base_dir).mkdir(parents=True, exist_ok=True)
 Path(input_dir).mkdir(parents=True, exist_ok=True)
 Path(output_dir).mkdir(parents=True, exist_ok=True)
+Path(cusnodes_dir).mkdir(parents=True, exist_ok=True)
+Path(models_dir).mkdir(parents=True, exist_ok=True)
 Path(str(user_dir / "default/workflows")).mkdir(parents=True, exist_ok=True)
 #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
 if extra_file_path.exists():
