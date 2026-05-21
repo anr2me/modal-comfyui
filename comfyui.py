@@ -279,15 +279,16 @@ image = (
     image
     .uv_pip_install("sageattention~=2.2.0", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3
     .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130") #flash-attn-4[cu13]
-    .run_commands(
-        # Detect version and install nunchaku inside the container
-        'python -c "'
-        'import torch, subprocess, sys; '
-        'ver = \".\".join(torch.__version__.split(\".\")[:2]); '
-        'url = f\"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{ver}-cp313-cp313-linux_x86_64.whl\"; '
-        'subprocess.check_call([sys.executable, \"-m\", \"uv\", \"pip\", \"install\", url])'
-        '"'
-    )
+    # Detect version and install nunchaku inside the container
+    .run_commands("""python - << 'EOF'
+        import torch, subprocess, sys
+
+        ver = ".".join(torch.__version__.split(".")[:2])
+        url = f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{ver}-cp313-cp313-linux_x86_64.whl"
+
+        print(f"Installing nunchaku for PyTorch {ver}: {url}")
+        subprocess.check_call([sys.executable, "-m", "uv", "pip", "install", url])
+    EOF""")
 )
 print("Done install missing dependencies.")
 
