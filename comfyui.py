@@ -296,7 +296,7 @@ image = (
     .uv_pip_install("flash-attn-4[cu13]", extra_options="--no-build-isolation", pre=True) # use dependencies
     # Detect pytorch version and install wheels inside the container
     .run_function(install_wheels)
-    #.uv_pip_install("transformers<4.43", extra_options="--no-deps --no-build-isolation") # Fix KeyError: 'default' issue on bytedance Lance
+    .uv_pip_install("transformers<4.43", extra_options="--no-build-isolation") # --no-deps  # Fix KeyError: 'default' issue on bytedance Lance
 )
 print("Done install missing dependencies.")
 
