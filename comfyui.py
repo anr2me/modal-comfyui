@@ -269,18 +269,19 @@ if comfy_plugins_ext:
         if plugin_deps and plugin_deps.strip():
             plugin_deps = plugin_deps.strip()
             image = image.uv_pip_install(plugin_deps.split()) #, gpu=GPU_MODEL
- 
-# install missing dependencies or override with a compatible version
-import torch
-full_pytorch_version = torch.__version__
-pytorch_version_number = ".".join(full_pytorch_version.split(" ")[0].split(".")[:2])
-print(f"PyTorch Ver = {pytorch_version_number}")
-image = (
-    image.uv_pip_install("sageattention~=2.2.0", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3 
-    .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130") #flash-attn-4[cu13]
-    .uv_pip_install(f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
-)
-print("Done install missing dependencies.")
+
+with image.imports():
+    # install missing dependencies or override with a compatible version
+    import torch
+    full_pytorch_version = torch.__version__
+    pytorch_version_number = ".".join(full_pytorch_version.split(" ")[0].split(".")[:2])
+    print(f"PyTorch Ver = {pytorch_version_number}")
+    image = (
+        image.uv_pip_install("sageattention~=2.2.0", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3 
+        .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130") #flash-attn-4[cu13]
+        .uv_pip_install(f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
+    )
+    print("Done install missing dependencies.")
 
 # Disable ultralytics' Anonymized Google Analytics
 image = image.run_commands("yolo settings sync=False")
