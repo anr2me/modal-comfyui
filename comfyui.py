@@ -168,6 +168,15 @@ def download_external_plugin(url: str, branch: str, install: str):
 
 
 def download_all():
+    # prepare base directory
+    Path(base_dir).mkdir(parents=True, exist_ok=True)
+    Path(input_dir).mkdir(parents=True, exist_ok=True)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    Path(cusnodes_dir).mkdir(parents=True, exist_ok=True)
+    Path(models_dir).mkdir(parents=True, exist_ok=True)
+    Path(str(user_dir / "default/workflows")).mkdir(parents=True, exist_ok=True)
+    #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
+
     for model in models:
         hf_download(model["repo_id"], model["filename"], model["model_dir"])
 
@@ -211,15 +220,8 @@ def _hf_secrets() -> list[modal.Secret]:
         return [modal.Secret.from_dict({"HF_TOKEN": token})]
 
 
-# prepare base directory
+# use extra model paths when available
 extra_file_path = Path(__file__).parent / "extra_model_paths.yaml"
-Path(base_dir).mkdir(parents=True, exist_ok=True)
-Path(input_dir).mkdir(parents=True, exist_ok=True)
-Path(output_dir).mkdir(parents=True, exist_ok=True)
-Path(cusnodes_dir).mkdir(parents=True, exist_ok=True)
-Path(models_dir).mkdir(parents=True, exist_ok=True)
-Path(str(user_dir / "default/workflows")).mkdir(parents=True, exist_ok=True)
-#subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
 if extra_file_path.exists():
     image = image.add_local_file(
         extra_file_path, 
