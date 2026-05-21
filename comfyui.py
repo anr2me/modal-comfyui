@@ -288,7 +288,8 @@ image = (
     image
     .uv_pip_install("sageattention~=2.2.0", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3
     .uv_pip_install("flash-attn", extra_options="--no-build-isolation")
-    .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130") #flash-attn-4[cu13]
+    .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130")
+    .uv_pip_install("flash-attn-4[cu13]", extra_options="--no-build-isolation")
     # Detect version and install nunchaku inside the container
     .run_function(install_nunchaku)
 )
