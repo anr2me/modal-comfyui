@@ -277,22 +277,25 @@ if comfy_plugins_ext:
             image = image.uv_pip_install(plugin_deps.split()) #, gpu=GPU_MODEL
 
 # install missing dependencies or override with a compatible version
-def install_nunchaku():
+def install_wheels():
     import torch, subprocess, sys
     ver = ".".join(torch.__version__.split(".")[:2])
+    # nunchaku
     url = f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{ver}-cp313-cp313-linux_x86_64.whl"
-    print(f"Installing nunchaku for PyTorch {ver}: {url}")
+    subprocess.check_call([sys.executable, "-m", "uv", "pip", "install", url])
+    # flash-attn
+    url = f"https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.9.0/flash_attn-2.8.3+cu130torch{ver}-cp313-cp313-linux_x86_64.whl"
     subprocess.check_call([sys.executable, "-m", "uv", "pip", "install", url])
     
 image = (
     image
     .uv_pip_install("sageattention~=2.2.0", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels")
     .uv_pip_install("sageattn3", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels")
-    .uv_pip_install("flash-attn", extra_options="--no-build-isolation")
+    #.uv_pip_install("flash-attn", extra_options="--no-build-isolation") # need to build with nvcc
     .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130")
     .uv_pip_install("flash-attn-4[cu13]", extra_options="--no-build-isolation")
-    # Detect version and install nunchaku inside the container
-    .run_function(install_nunchaku)
+    # Detect pytorch version and install wheels inside the container
+    .run_function(install_wheels)
 )
 print("Done install missing dependencies.")
 
