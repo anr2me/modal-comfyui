@@ -254,26 +254,26 @@ if comfy_plugins_ext:
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
     Path(nodes_dir).mkdir(parents=True, exist_ok=True)
     for plugin in comfy_plugins_ext:
-        #download_external_plugin(plugin["url"], plugin["branch"], plugin["install"])
         folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
-        image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']} && cd -", volumes={"/cache": vol}) # ; exit 0 
-        #image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && git submodule update --init --recursive && cd -", volumes={"/cache": vol})
-        plugin_reqs = plugin.get('requirements') # TODO: allows more than one requirements files (space separated)
-        if plugin_reqs and plugin_reqs.strip():
-            plugin_reqs = plugin_reqs.strip()
-            image.run_commands(f"cd {nodes_dir}/{folder_name} && uv pip install -r {plugin_reqs.split()}") #, gpu=GPU_MODEL
-            
-        plugin_install = plugin.get('install')
-        if plugin_install and plugin_install.strip():
-            plugin_install = plugin_install.strip()
+        # clone the repository, including it's submodules
+        image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']}")
+        # install dependencies from one or more requirements files (usually .txt or .toml files, but can support any extension)
+        plugin_reqs = plugin.get("requirements", "").strip()
+        if plugin_reqs:
+            formatted_reqs = " ".join(f"-r {file}" for file in plugin_reqs.split())
+            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && uv pip install --python $(command -v python) --compile-bytecode {formatted_reqs}")
+
+        # run installation script (usually install.py or setup.py)
+        plugin_install = plugin.get("install", "").strip()
+        if plugin_install:
             if plugin_install.endswith(".py"):
-                image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install}", volumes={"/cache": vol}) #, gpu=GPU_MODEL
+                image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install}")
             else:
                 print(f"Unsupported installation script: {plugin_install}")
-        
-        plugin_deps = plugin.get('dependencies')
-        if plugin_deps and plugin_deps.strip():
-            plugin_deps = plugin_deps.strip()
+
+        # install optional packages or packages that got dependency issue with other custom nodes due to pinned to an incompatible version
+        plugin_deps = plugin.get("dependencies", "").strip()
+        if plugin_deps:
             image = image.uv_pip_install(plugin_deps.split()) #, gpu=GPU_MODEL
 
 # install missing dependencies or override with a compatible version
