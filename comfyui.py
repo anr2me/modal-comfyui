@@ -166,26 +166,6 @@ def download_external_plugin(url: str, branch: str, install: str):
 
 
 def download_all():
-    global image
-    
-    # prepare base directory
-    print(f"Testing2 Global Image: {image}")
-    extra_file_path = Path(__file__).parent / "extra_model_paths.yaml"
-    Path(base_dir).mkdir(parents=True, exist_ok=True)
-    Path(input_dir).mkdir(parents=True, exist_ok=True)
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-    Path(str(user_dir / "default/workflows")).mkdir(parents=True, exist_ok=True)
-    
-    #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
-    if extra_file_path.exists():
-        image = image.add_local_file(
-            extra_file_path, 
-            str(COMFYUI_ROOT / "extra_model_paths.yaml"), 
-            copy=True
-        )
-    else:
-        print(f"Extra Model Paths file ({extra_file_path}) Not Found!")
-
     for model in models:
         hf_download(model["repo_id"], model["filename"], model["model_dir"])
 
@@ -211,25 +191,6 @@ def download_all():
     #shutil.copytree(COMFYUI_ROOT / "models", base_dir / "models", copy_function=copy_if_not_exists, symlinks=False, ignore_dangling_symlinks=True, dirs_exist_ok=True)
 
 
-def install_missing_deps():
-    import torch
-    full_pytorch_version = torch.__version__
-    pytorch_version_number = ".".join(full_pytorch_version.split(" ")[0].split(".")[:2])
-    print(f"PyTorch Ver = {pytorch_version_number}")
-    
-    global image
-    print(f"Testing4 Global Image: {image}")
-    image = image.uv_pip_install("cupy-cuda13x", "this_should_fail")
-    #image = image.run_commands("pip install sageattention==2.2.0 --no-build-isolation --extra-index-url https://comfy-org.github.io/wheels; exit 1")
-    #image = image.pip_install("sageattention==2.*", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3 
-    #raise ValueError("Break! Testing purpose.")
-    #image = image.uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130") #flash-attn-4[cu13]
-    #image = image.uv_pip_install(f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
-    
-    image = image.run_commands("uv pip show cupy-cuda13x sageattention flash-attn-3 nunchaku; exit 1")
-    print("Done install missing dependencies.")
-
-
 def _hf_secrets() -> list[modal.Secret]:
     """Prefer Modal Secret 'huggingface-secret'; fall back to local HF_TOKEN
     env. Public models work even when both are absent (warned)."""
@@ -247,8 +208,24 @@ def _hf_secrets() -> list[modal.Secret]:
             )
         return [modal.Secret.from_dict({"HF_TOKEN": token})]
 
+
+# prepare base directory
+extra_file_path = Path(__file__).parent / "extra_model_paths.yaml"
+Path(base_dir).mkdir(parents=True, exist_ok=True)
+Path(input_dir).mkdir(parents=True, exist_ok=True)
+Path(output_dir).mkdir(parents=True, exist_ok=True)
+Path(str(user_dir / "default/workflows")).mkdir(parents=True, exist_ok=True)
+#subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
+if extra_file_path.exists():
+    image = image.add_local_file(
+        extra_file_path, 
+        str(COMFYUI_ROOT / "extra_model_paths.yaml"), 
+        copy=True
+    )
+else:
+    print(f"Extra Model Paths file ({extra_file_path}) Not Found!")
+
 # download models
-print(f"Testing1 Global Image: {image}")
 image = image.env(
     {"HF_HUB_ENABLE_HF_TRANSFER": "1", "HF_XET_HIGH_PERFORMANCE": "1"}
 ).run_function(download_all, volumes={"/cache": vol}, secrets=_hf_secrets())
@@ -269,7 +246,6 @@ if comfy_plugins:
 
 if comfy_plugins_ext:
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
-    print(f"Custom Nodes directory: {nodes_dir}")
     Path(nodes_dir).mkdir(parents=True, exist_ok=True)
     for plugin in comfy_plugins_ext:
         #download_external_plugin(plugin["url"], plugin["branch"], plugin["install"])
@@ -295,12 +271,16 @@ if comfy_plugins_ext:
             image = image.uv_pip_install(plugin_deps.split()) #, gpu=GPU_MODEL
  
 # install missing dependencies or override with a compatible version
-print(f"Testing3 Global Image: {image}")
-image = image.run_function(
-    install_missing_deps, 
-    volumes={"/cache": vol},
-    #gpu=GPU_MODEL
+import torch
+full_pytorch_version = torch.__version__
+pytorch_version_number = ".".join(full_pytorch_version.split(" ")[0].split(".")[:2])
+print(f"PyTorch Ver = {pytorch_version_number}")
+image = (
+    image.uv_pip_install("sageattention~=2.2.0", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3 
+    .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130") #flash-attn-4[cu13]
+    .uv_pip_install(f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
 )
+print("Done install missing dependencies.")
 
 # Disable ultralytics' Anonymized Google Analytics
 image = image.run_commands("yolo settings sync=False")
