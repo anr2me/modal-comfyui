@@ -293,7 +293,7 @@ image = (
     .uv_pip_install("sageattn3", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels")
     #.uv_pip_install("flash-attn", extra_options="--no-build-isolation") # need to build with nvcc
     .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130")
-    .uv_pip_install("flash-attn-4[cu13]", extra_options="--no-build-isolation")
+    .uv_pip_install("flash-attn-4[cu13]", extra_options="--no-build-isolation", pre=True)
     # Detect pytorch version and install wheels inside the container
     .run_function(install_wheels)
 )
