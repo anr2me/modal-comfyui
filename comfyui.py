@@ -392,7 +392,7 @@ async def forward_httpx(url: str, request: Request, timeout: int = 120) -> Respo
         #new_resp = JSONResponse(resp.json())
         print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {body} ==> {resp.content} <==")
     except Exception as e:
-        print(f"[{request.method}:{request.url.path}({len(resp.content)})]: {e!r} => {resp.headers} ==> {resp}")
+        print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
 
     return new_resp
     
@@ -427,9 +427,10 @@ async def proxy_prompt(request: Request):
             if ws_ready and not ws_host.startswith("127.0."):
                 print("GPU websocket is Ready!")
                 break # websocket is connected to GPU instance
-        except Exception:
-            pass
-        await asyncio.sleep(0.1)
+        except Exception as e:
+            print(f"Waiting GPU Throw: {e!r}")
+        print(f"Time = {time.time()}")
+        await asyncio.sleep(1)
     else:
         print("GPU instance Timeout!")
         
@@ -544,7 +545,7 @@ async def proxy_websocket(websocket: WebSocket):
                             if message is not None:
                                 await comfy_ws.send(message)
                     except Exception as e:
-                        print("client_to_comfy Throw: " + repr(e))
+                        print(f"client_to_comfy Throw: {e!r}")
                     finally:
                         # Close internal connection when there are no more messages
                         #await comfy_ws.close()
@@ -594,7 +595,7 @@ async def proxy_websocket(websocket: WebSocket):
                                         await shared_dict.put.aio("ws_ready", False)
                                         print("Internal websocket is Not Ready!")
                     except Exception as e:
-                        print("comfy_to_client Throw: " + repr(e))
+                        print(f"comfy_to_client Throw: {e!r}"))
                     finally:
                         # Close internal connection when there are no more messages
                         #await comfy_ws.close()
@@ -627,7 +628,7 @@ async def proxy_websocket(websocket: WebSocket):
                                 break 
                             await asyncio.sleep(1)  # poll every second
                     except Exception as e:
-                        print("watch_active Throw: " + repr(e))
+                        print(f"watch_active Throw: {e!r}"))
 
                 ws_host = comfy_ws.request.headers.get("Host", "")
                 await shared_dict.put.aio("ws_host", ws_host)
