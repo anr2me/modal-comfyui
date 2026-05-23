@@ -417,6 +417,7 @@ async def proxy_prompt(request: Request):
     # wait until websocket is connected to GPU instance
     print("Waiting for GPU websocket to be Ready...")
     import time
+    import asyncio
     deadline = time.time() + 300
     while time.time() < deadline:
         try:
@@ -425,7 +426,7 @@ async def proxy_prompt(request: Request):
                 print("GPU websocket is Ready!")
                 break  # websocket is connected to GPU instance
         except OSError:
-            time.sleep(0.1)
+            await asyncio.sleep(0.1) # time.sleep(0.1)
         
     # Forward request
     print(f"Forwarding {request.method}:{request.url.path} to GPU instance...")
