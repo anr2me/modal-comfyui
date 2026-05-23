@@ -595,7 +595,7 @@ async def proxy_websocket(websocket: WebSocket):
                                         await shared_dict.put.aio("ws_ready", False)
                                         print("Internal websocket is Not Ready!")
                     except Exception as e:
-                        print(f"comfy_to_client Throw: {e!r}"))
+                        print(f"comfy_to_client Throw: {e!r}")
                     finally:
                         # Close internal connection when there are no more messages
                         #await comfy_ws.close()
