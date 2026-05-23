@@ -430,7 +430,7 @@ async def proxy_prompt(request: Request):
         except Exception as e:
             print(f"Waiting GPU Throw: {e!r}")
         #print(f"Time = {time.time()}")
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.1)
     else:
         print("GPU instance Timeout!")
         
