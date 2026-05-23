@@ -628,7 +628,7 @@ async def proxy_websocket(websocket: WebSocket):
                                 break 
                             await asyncio.sleep(1)  # poll every second
                     except Exception as e:
-                        print(f"watch_active Throw: {e!r}"))
+                        print(f"watch_active Throw: {e!r}")
 
                 ws_host = comfy_ws.request.headers.get("Host", "")
                 await shared_dict.put.aio("ws_host", ws_host)
