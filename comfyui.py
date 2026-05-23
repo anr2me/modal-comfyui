@@ -415,11 +415,12 @@ async def proxy_prompt(request: Request):
             await client.get(url)
     
     # wait until websocket is connected to GPU instance
-    print("Waiting websocket to be Ready...")
+    print("Waiting for GPU websocket to be Ready...")
     import time
     deadline = time.time() + 300
     while time.time() < deadline:
         try:
+            shared_dict.hydrate()
             if (await shared_dict.get.aio("ws_ready", False)) and not (await shared_dict.get.aio("ws_host", "")).startswith("127.0."):
                 print("GPU websocket is Ready!")
                 break  # websocket is connected to GPU instance
