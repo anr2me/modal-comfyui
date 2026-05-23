@@ -514,8 +514,9 @@ async def proxy_websocket(websocket: WebSocket):
         uri = f"ws://127.0.0.1:{uiport}/ws"
         active_count = await shared_dict.get.aio("active", 0)
         inqueue_count = await shared_dict.get.aio("inqueue", 0)
+        pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
         print(f"Active = {active_count}, InQueue = {inqueue_count}")
-        if active_count > 0:
+        if active_count > 0 and (inqueue_count>0 or pending_prompt>0):
             url = await get_remote_url("ComfyGPU")
             from urllib.parse import urlparse, urlunparse
             scheme_map = {"http": "ws", "https": "wss"}
