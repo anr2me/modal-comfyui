@@ -422,11 +422,16 @@ async def proxy_prompt(request: Request):
     while time.time() < deadline:
         try:
             #shared_dict.hydrate()
-            if (await shared_dict.get.aio("ws_ready", False)) and not (await shared_dict.get.aio("ws_host", "")).startswith("127.0."):
+            ws_ready = await shared_dict.get.aio("ws_ready", False)
+            ws_host  = await shared_dict.get.aio("ws_host", "")
+            if ws_ready and not ws_host.startswith("127.0."):
                 print("GPU websocket is Ready!")
-                break  # websocket is connected to GPU instance
-        except OSError:
-            await asyncio.sleep(0.1) # time.sleep(0.1)
+                break # websocket is connected to GPU instance
+        except Exception:
+            pass
+        await asyncio.sleep(0.1)
+    else:
+        print("GPU instance Timeout!")
         
     # Forward request
     print(f"Forwarding {request.method}:{request.url.path} to GPU instance...")
