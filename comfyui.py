@@ -422,9 +422,10 @@ async def proxy_prompt(request: Request):
     while time.time() < deadline:
         try:
             #shared_dict.hydrate()
+            active_count = await shared_dict.get.aio("active", 0)
             ws_ready = await shared_dict.get.aio("ws_ready", False)
             ws_host  = await shared_dict.get.aio("ws_host", "")
-            if ws_ready and not ws_host.startswith("127.0."):
+            if active_count>0 and ws_ready and not ws_host.startswith("127.0."):
                 print("GPU websocket is Ready!")
                 break # websocket is connected to GPU instance
         except Exception as e:
@@ -515,7 +516,7 @@ async def proxy_websocket(websocket: WebSocket):
         active_count = await shared_dict.get.aio("active", 0)
         inqueue_count = await shared_dict.get.aio("inqueue", 0)
         pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
-        print(f"Active = {active_count}, InQueue = {inqueue_count}")
+        print(f"Active = {active_count}, InQueue = {inqueue_count}, PendingPrompt = {pending_prompt}")
         if active_count > 0 and (inqueue_count>0 or pending_prompt>0):
             url = await get_remote_url("ComfyGPU")
             from urllib.parse import urlparse, urlunparse
