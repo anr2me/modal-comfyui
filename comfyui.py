@@ -429,7 +429,7 @@ async def proxy_prompt(request: Request):
                 break # websocket is connected to GPU instance
         except Exception as e:
             print(f"Waiting GPU Throw: {e!r}")
-        print(f"Time = {time.time()}")
+        #print(f"Time = {time.time()}")
         await asyncio.sleep(1)
     else:
         print("GPU instance Timeout!")
@@ -639,7 +639,7 @@ async def proxy_websocket(websocket: WebSocket):
                     watch_active(),
                     return_exceptions=True
                 )
-                #print("Internal websocket connection was closed!")
+                print("Internal websocket connection was closed!")
         except ConnectionClosedError as e:
             # Handles errors during active connection (e.g., ping timeout)
             print(f"Connection closed unexpectedly: {e!r}")
