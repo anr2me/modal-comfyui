@@ -565,7 +565,7 @@ async def proxy_websocket(websocket: WebSocket):
                                 ws_ready = await shared_dict.get.aio("ws_ready", False)
                                 if not ws_ready and comfy_ws.state != State.CLOSED:
                                     await shared_dict.put.aio("ws_ready", True)
-                                    print("Internal websocket is Ready!")
+                                    print("Internal websocket is Ready(b)!")
                             elif message is not None:
                                 print_msg = True
                                 status_updated = False
@@ -595,7 +595,7 @@ async def proxy_websocket(websocket: WebSocket):
                                         print(f"{inqueue_count}(+{pending_prompt}) Queue remaining in GPU instance, disconnecting from GPU instance.")
                                         await comfy_ws.close()
                                         await shared_dict.put.aio("ws_ready", False)
-                                        print("Internal websocket is Not Ready!")
+                                        print("Internal websocket is Not Ready anymore!")
                     except Exception as e:
                         print(f"comfy_to_client Throw: {e!r}")
                     finally:
