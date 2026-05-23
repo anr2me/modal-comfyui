@@ -427,7 +427,7 @@ async def proxy_prompt(request: Request):
             time.sleep(0.1)
         
     # Forward request
-    print(f"Forwarding {request.url.path} to GPU instance...")
+    print(f"Forwarding {request.method}:{request.url.path} to GPU instance...")
     new_resp = await forward_httpx(url, request)
     
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
