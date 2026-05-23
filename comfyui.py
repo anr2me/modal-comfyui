@@ -561,7 +561,7 @@ async def proxy_websocket(websocket: WebSocket):
                                 print(f"comfy_to_client(b): {message}")
                                 await websocket.send_bytes(message)
                                 ws_ready = await shared_dict.get.aio("ws_ready", False)
-                                if not ws_ready:
+                                if not ws_ready and comfy_ws.state != State.CLOSED:
                                     await shared_dict.put.aio("ws_ready", True)
                                     print("Internal websocket is Ready!")
                             elif message is not None:
@@ -582,7 +582,7 @@ async def proxy_websocket(websocket: WebSocket):
                                     print(f"comfy_to_client: {message}")
                                 await websocket.send_text(message)
                                 ws_ready = await shared_dict.get.aio("ws_ready", False)
-                                if not ws_ready:
+                                if not ws_ready and comfy_ws.state != State.CLOSED:
                                     await shared_dict.put.aio("ws_ready", True)
                                     print("Internal websocket is Ready!")
                                 # Disconnect from GPU instance when there are no running inference anymore
