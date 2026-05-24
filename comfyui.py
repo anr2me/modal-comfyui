@@ -416,6 +416,7 @@ async def proxy_prompt(request: Request):
 
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
     await shared_dict.put.aio("pending_prompt", pending_prompt + 1)
+    print(f"Increasing Pending Prompt to: {pending_prompt + 1}")
 
     # spin-up GPU instance
     active_count = await shared_dict.get.aio("active", 0)
@@ -439,11 +440,11 @@ async def proxy_prompt(request: Request):
             if active_count>0 and ws_ready and not ws_host.startswith("127.0."):
                 print(f"GPU websocket is Ready! (active:{active_count}, ready:{ws_ready}, host: {ws_host})")
                 break # websocket is connected to GPU instance
-            print(f"Wait: Time = {time.time()}, (active:{active_count}, ready:{ws_ready}, host: {ws_host})")
+            #print(f"Wait: Time = {time.time()}, (active:{active_count}, ready:{ws_ready}, host: {ws_host})")
         except Exception as e:
             print(f"Waiting GPU Throw: {e!r}")
         
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.1)
     else:
         print("GPU instance Timeout!")
         
@@ -454,6 +455,7 @@ async def proxy_prompt(request: Request):
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
     if pending_prompt > 0:
         await shared_dict.put.aio("pending_prompt", pending_prompt - 1)
+        print(f"Decreasing Pending Prompt to: {pending_prompt - 1}")
     return new_resp
 
 @web_app.get("/prompt")
@@ -602,6 +604,7 @@ async def proxy_websocket(websocket: WebSocket):
                                 if not ws_ready and comfy_ws.state != State.CLOSED:
                                     await shared_dict.put.aio("ws_ready", True)
                                     print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
+                                    # TODO: Investigate why "pending_prompt" switched from 1 to 0 after this message shows up in the logs (before "Waiting for GPU" message)
                                 # Disconnect from GPU instance when there are no running inference anymore
                                 if status_updated:
                                     active_count = await shared_dict.get.aio("active", 0)
@@ -648,7 +651,7 @@ async def proxy_websocket(websocket: WebSocket):
                                 print("Closed Internal Websocket!")
                                 break
                             import time
-                            print(f"Watch: Time = {time.time()}, (active:{active_count}, inqueue:{inqueue_count}, pending:{pending_prompt}, host: {comfy_ws.request.headers.get("Host", "")})")
+                            print(f"Watch: Time = {time.time()}, (Active:{active_count}, InQueue:{inqueue_count}, PendingPrompt:{pending_prompt}, Host: {comfy_ws.request.headers.get("Host", "")})")
                             await asyncio.sleep(1)  # poll interval
                     except Exception as e:
                         print(f"watch_active Throw: {e!r}")
