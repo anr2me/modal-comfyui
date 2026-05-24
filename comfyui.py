@@ -305,6 +305,15 @@ print("Done install missing dependencies.")
 # Disable ultralytics' Anonymized Google Analytics
 image = image.run_commands("yolo settings sync=False")
 
+# Testing for vulnerability on custom nodes
+nodes_dir = str(get_comfyui_path() / "custom_nodes")
+image = image.run_commands(
+    f"python -m venv /tmp/temp_venv && "
+    f"/tmp/temp_venv/bin/pip install bandit && "
+    f"/tmp/temp_venv/bin/bandit -r {nodes_dir} && "
+    f"rm -rf /tmp/temp_venv" # Cleanup ensures venv is not in the final layer
+,volumes={"/cache": vol})
+
 # copy custom nodes to base_dir
 #import shutil
 #print("Copying custom_nodes structure...")
