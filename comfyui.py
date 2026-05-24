@@ -432,7 +432,7 @@ async def proxy_prompt(request: Request):
     deadline = time.time() + 300
     while time.time() < deadline:
         try:
-            #shared_dict.hydrate()
+            shared_dict.hydrate()
             active_count = await shared_dict.get.aio("active", 0)
             ws_ready = await shared_dict.get.aio("ws_ready", False)
             ws_host  = await shared_dict.get.aio("ws_host", "127.0.")
