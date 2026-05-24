@@ -424,6 +424,9 @@ async def proxy_prompt(request: Request):
         print("Spinning Up GPU instance...")
         async with httpx.AsyncClient(timeout=300) as client:
             await client.get(url)
+            # Testing for pending_prompt value
+            pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
+            print(f"Rechecked pending_prompt: {pending_prompt}")
 
     # TODO: ws_host, ws_ready, inqueue, pending_prompt should be created per EndUser's client_id (ie. ws_ready[client_id])
     # wait until websocket is connected to GPU instance
@@ -433,12 +436,12 @@ async def proxy_prompt(request: Request):
     deadline = time.time() + 300
     while time.time() < deadline:
         try:
-            shared_dict.hydrate()
+            #shared_dict.hydrate()
             active_count = await shared_dict.get.aio("active", 0)
             ws_ready = await shared_dict.get.aio("ws_ready", False)
             ws_host  = await shared_dict.get.aio("ws_host", "127.0.")
             if active_count>0 and ws_ready and not ws_host.startswith("127.0."):
-                print(f"GPU websocket is Ready! (active:{active_count}, ready:{ws_ready}, host: {ws_host})")
+                print(f"GPU websocket is Ready! (Active:{active_count}, Ready:{ws_ready}, Host: {ws_host})")
                 break # websocket is connected to GPU instance
             #print(f"Wait: Time = {time.time()}, (active:{active_count}, ready:{ws_ready}, host: {ws_host})")
         except Exception as e:
@@ -529,7 +532,7 @@ async def proxy_websocket(websocket: WebSocket):
     while True:
         # Use active GPU instance when available, otherwise use localhost (CPU)
         uri = f"ws://127.0.0.1:{uiport}/ws"
-        shared_dict.hydrate()
+        #shared_dict.hydrate()
         active_count = await shared_dict.get.aio("active", 0)
         inqueue_count = await shared_dict.get.aio("inqueue", 0)
         pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
@@ -627,7 +630,7 @@ async def proxy_websocket(websocket: WebSocket):
                 async def watch_active():
                     try:
                         while True:
-                            shared_dict.hydrate()
+                            #shared_dict.hydrate()
                             active_count = await shared_dict.get.aio("active", 0)
                             inqueue_count = await shared_dict.get.aio("inqueue", 0)
                             pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
