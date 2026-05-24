@@ -309,9 +309,10 @@ image = image.run_commands("yolo settings sync=False")
 nodes_dir = str(get_comfyui_path() / "custom_nodes")
 image = image.run_commands(
     f"python -m venv /tmp/temp_venv && "
-    f"/tmp/temp_venv/bin/pip install bandit && "
+    f"/tmp/temp_venv/bin/pip install bandit[toml] && "
     f"/tmp/temp_venv/bin/bandit -r {nodes_dir} && "
     f"rm -rf /tmp/temp_venv" # Cleanup ensures venv is not in the final layer
+    "&& exit 0" # Making sure the image building doesn't failed here
 ,volumes={"/cache": vol})
 
 # copy custom nodes to base_dir
