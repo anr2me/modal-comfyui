@@ -527,6 +527,7 @@ async def proxy_websocket(websocket: WebSocket):
     while True:
         # Use active GPU instance when available, otherwise use localhost (CPU)
         uri = f"ws://127.0.0.1:{uiport}/ws"
+        shared_dict.hydrate()
         active_count = await shared_dict.get.aio("active", 0)
         inqueue_count = await shared_dict.get.aio("inqueue", 0)
         pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
@@ -622,6 +623,7 @@ async def proxy_websocket(websocket: WebSocket):
                 async def watch_active():
                     try:
                         while True:
+                            shared_dict.hydrate()
                             active_count = await shared_dict.get.aio("active", 0)
                             inqueue_count = await shared_dict.get.aio("inqueue", 0)
                             pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
@@ -651,6 +653,7 @@ async def proxy_websocket(websocket: WebSocket):
                 ws_host = comfy_ws.request.headers.get("Host", "127.0.0.")
                 #if ws_host == "127.0.0.":
                 #    print("WARNING: Host not found in request!")
+                print(f"Connected WebSocket Host: {ws_host}")
                 await shared_dict.put.aio("ws_host", ws_host)
                 # cancel both tasks when either side closes their internal connection
                 # Create named tasks so we can cancel them
