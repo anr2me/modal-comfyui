@@ -606,6 +606,7 @@ async def proxy_websocket(websocket: WebSocket):
                                 if status_updated:
                                     active_count = await shared_dict.get.aio("active", 0)
                                     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
+                                    #inqueue_count = await shared_dict.get.aio("inqueue", 0)
                                     if active_count>0 and inqueue_count==0 and pending_prompt==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                                         print(f"{inqueue_count}(+{pending_prompt}) Queue remaining in GPU instance, disconnecting from GPU instance.")
                                         await comfy_ws.close()
@@ -645,15 +646,16 @@ async def proxy_websocket(websocket: WebSocket):
                                 break
                             if comfy_ws.state == State.CLOSED:
                                 print("Closed Internal Websocket!")
-                                break 
-                            await asyncio.sleep(0.1)  # poll interval
+                                break
+                            print(f"Watch: Time = {time.time()}, (active:{active_count}, inqueue:{inqueue_count}, pending:{pending_prompt}, host: {comfy_ws.request.headers.get("Host", "")})")
+                            await asyncio.sleep(1)  # poll interval
                     except Exception as e:
                         print(f"watch_active Throw: {e!r}")
 
                 ws_host = comfy_ws.request.headers.get("Host", "127.0.0.")
                 #if ws_host == "127.0.0.":
                 #    print("WARNING: Host not found in request!")
-                print(f"Connected WebSocket Host: {ws_host}")
+                print(f"Connected Internal WebSocket Host: {ws_host}")
                 await shared_dict.put.aio("ws_host", ws_host)
                 # cancel both tasks when either side closes their internal connection
                 # Create named tasks so we can cancel them
