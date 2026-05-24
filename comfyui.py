@@ -647,6 +647,7 @@ async def proxy_websocket(websocket: WebSocket):
                             if comfy_ws.state == State.CLOSED:
                                 print("Closed Internal Websocket!")
                                 break
+                            import time
                             print(f"Watch: Time = {time.time()}, (active:{active_count}, inqueue:{inqueue_count}, pending:{pending_prompt}, host: {comfy_ws.request.headers.get("Host", "")})")
                             await asyncio.sleep(1)  # poll interval
                     except Exception as e:
