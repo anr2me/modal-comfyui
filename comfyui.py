@@ -431,7 +431,7 @@ async def proxy_prompt(request: Request):
     deadline = time.time() + 300
     while time.time() < deadline:
         try:
-            shared_dict.hydrate()
+            #shared_dict.hydrate()
             active_count = await shared_dict.get.aio("active", 0)
             ws_ready = await shared_dict.get.aio("ws_ready", False)
             ws_host  = await shared_dict.get.aio("ws_host", "127.0.")
@@ -497,13 +497,15 @@ async def proxy_jobs(request: Request):
 
 # Proxy other API routes
 @web_app.get("/internal/logs{path:path}")
-@web_app.patch("/internal/logs{path:path}")
+#@web_app.patch("/internal/logs{path:path}")
 #@web_app.get("/api/{path:path}")
 async def proxy_api(request: Request, path: str):
     url = f"http://127.0.0.1:{uiport}"
     active_count = await shared_dict.get.aio("active", 0)
     if active_count > 0:
         url = await get_remote_url("ComfyGPU")
+
+    # TODO: replace client_id
 
     # Forward request
     new_resp = await forward_httpx(url, request)
