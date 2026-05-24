@@ -423,7 +423,8 @@ async def proxy_prompt(request: Request):
         print("Spinning Up GPU instance...")
         async with httpx.AsyncClient(timeout=300) as client:
             await client.get(url)
-    
+
+    # TODO: ws_host, ws_ready, inqueue, pending_prompt should be created per EndUser's client_id (ie. ws_ready[client_id])
     # wait until websocket is connected to GPU instance
     print("Waiting for GPU websocket to be Ready...")
     import time
@@ -438,10 +439,11 @@ async def proxy_prompt(request: Request):
             if active_count>0 and ws_ready and not ws_host.startswith("127.0."):
                 print(f"GPU websocket is Ready! (active:{active_count}, ready:{ws_ready}, host: {ws_host})")
                 break # websocket is connected to GPU instance
+            print(f"Wait: Time = {time.time()}, (active:{active_count}, ready:{ws_ready}, host: {ws_host})")
         except Exception as e:
             print(f"Waiting GPU Throw: {e!r}")
-        #print(f"Time = {time.time()}")
-        await asyncio.sleep(0.1)
+        
+        await asyncio.sleep(1)
     else:
         print("GPU instance Timeout!")
         
@@ -496,8 +498,8 @@ async def proxy_jobs(request: Request):
     return new_resp
 
 # Proxy other API routes
-@web_app.get("/internal/logs{path:path}")
-#@web_app.patch("/internal/logs{path:path}")
+#@web_app.get("/internal/logs{path:path}")
+@web_app.patch("/internal/logs{path:path}")
 #@web_app.get("/api/{path:path}")
 async def proxy_api(request: Request, path: str):
     url = f"http://127.0.0.1:{uiport}"
@@ -577,7 +579,7 @@ async def proxy_websocket(websocket: WebSocket):
                                 ws_ready = await shared_dict.get.aio("ws_ready", False)
                                 if not ws_ready and comfy_ws.state != State.CLOSED:
                                     await shared_dict.put.aio("ws_ready", True)
-                                    print("Internal websocket is Ready(b)!")
+                                    print(f"Internal websocket is Ready[b]!({comfy_ws.request.headers.get("Host", "")})")
                             elif message is not None:
                                 print_msg = True
                                 status_updated = False
@@ -598,7 +600,7 @@ async def proxy_websocket(websocket: WebSocket):
                                 ws_ready = await shared_dict.get.aio("ws_ready", False)
                                 if not ws_ready and comfy_ws.state != State.CLOSED:
                                     await shared_dict.put.aio("ws_ready", True)
-                                    print("Internal websocket is Ready!")
+                                    print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
                                 # Disconnect from GPU instance when there are no running inference anymore
                                 if status_updated:
                                     active_count = await shared_dict.get.aio("active", 0)
@@ -642,13 +644,13 @@ async def proxy_websocket(websocket: WebSocket):
                             if comfy_ws.state == State.CLOSED:
                                 print("Closed Internal Websocket!")
                                 break 
-                            await asyncio.sleep(1)  # poll every second
+                            await asyncio.sleep(0.1)  # poll interval
                     except Exception as e:
                         print(f"watch_active Throw: {e!r}")
 
                 ws_host = comfy_ws.request.headers.get("Host", "127.0.0.")
-                if ws_host == "127.0.0.":
-                    print("Warning: Host not found in request!")
+                #if ws_host == "127.0.0.":
+                #    print("WARNING: Host not found in request!")
                 await shared_dict.put.aio("ws_host", ws_host)
                 # cancel both tasks when either side closes their internal connection
                 # Create named tasks so we can cancel them
