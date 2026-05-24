@@ -608,6 +608,7 @@ async def proxy_websocket(websocket: WebSocket):
                                     await shared_dict.put.aio("ws_ready", True)
                                     print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
                                     # TODO: Investigate why "pending_prompt" switched from 1 to 0 after this message shows up in the logs (before "Waiting for GPU" message)
+                                    print(f"The message = >>> {message} <<<")
                                 pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
                                 print(f"Checked pending_prompt: {pending_prompt}")
                                 # Disconnect from GPU instance when there are no running inference anymore
