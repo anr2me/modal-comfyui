@@ -434,7 +434,7 @@ async def proxy_prompt(request: Request):
             shared_dict.hydrate()
             active_count = await shared_dict.get.aio("active", 0)
             ws_ready = await shared_dict.get.aio("ws_ready", False)
-            ws_host  = await shared_dict.get.aio("ws_host", "")
+            ws_host  = await shared_dict.get.aio("ws_host", "127.0.")
             if active_count>0 and ws_ready and not ws_host.startswith("127.0."):
                 print(f"GPU websocket is Ready! (active:{active_count}, ready:{ws_ready}, host: {ws_host})")
                 break # websocket is connected to GPU instance
@@ -644,7 +644,9 @@ async def proxy_websocket(websocket: WebSocket):
                     except Exception as e:
                         print(f"watch_active Throw: {e!r}")
 
-                ws_host = comfy_ws.request.headers.get("Host", "")
+                ws_host = comfy_ws.request.headers.get("Host", "127.0.0.")
+                if ws_host == "127.0.0.":
+                    print("Warning: Host not found in request!")
                 await shared_dict.put.aio("ws_host", ws_host)
                 # cancel both tasks when either side closes their internal connection
                 # Create named tasks so we can cancel them
