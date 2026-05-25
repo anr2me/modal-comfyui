@@ -624,7 +624,8 @@ async def proxy_websocket(websocket: WebSocket):
                                         print("Internal websocket is Not Ready anymore!")
                     except Exception as e:
                         print(f"comfy_to_client Throw: {e!r}")
-                        # NOTE: ConnectionClosedError(None, Close(code=<CloseCode.PROTOCOL_ERROR: 1002> could mean the remote ComfyUI (GPU instance) crashed!
+                        # NOTE: ConnectionClosedError(None, Close(code=<CloseCode.PROTOCOL_ERROR: 1002> could mean the remote ComfyUI (GPU instance) got SIGKILLed/crashed! (and didn't reached App CleanUp stage!)
+                        # TODO: Update "active" with the actual number
                     finally:
                         # Close internal connection when there are no more messages
                         #await comfy_ws.close()
@@ -741,6 +742,7 @@ async def proxy(request: Request, path: str):
 @app.cls(
     max_containers=1,
     gpu=GPU_MODEL,
+    memory=(128, 262144), # (request, limit) in MiB, set hard limit to avoid high cost when memory leaks occurred
     volumes={"/cache": vol},
     scaledown_window=60,  # idle 1 minutes to shutdown
     enable_memory_snapshot=True,
