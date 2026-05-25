@@ -449,8 +449,9 @@ async def proxy_prompt(request: Request):
 
     # Testing
     import asyncio
-    GpuClass = modal.Cls.from_name(app.name, "ComfyGPU")
-    active_count = (await asyncio.to_thread(GpuClass.get_current_stats)).num_total_runners
+    gpu_function = modal.Function.from_name(app.name, "ComfyGPU.web")
+    stats = await asyncio.to_thread(gpu_function.get_current_stats)
+    active_count = stats.num_total_runners
     await shared_dict.put.aio("active", active_count)
     print(f"Detected Active GPU instance(s): {active_count}")
 
