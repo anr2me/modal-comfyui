@@ -528,6 +528,20 @@ async def proxy_websocket(websocket: WebSocket):
     from starlette.websockets import WebSocketState
     from websockets.connection import State
     from websockets.exceptions import ConnectionClosedError
+
+    # Strip Host from headers to prevent loopback
+    headers = {
+        k: v for k, v in websocket.headers.items()
+        if k.lower() not in (
+            "host",
+            "content-length",
+            "x-forwarded-proto",
+            "x-forwarded-for",
+            "x-forwarded-host",
+            "x-forwarded-port",
+        )
+    }
+    
     # We should only exit the function when connection to client lost
     while True:
         # Use active GPU instance when available, otherwise use localhost (CPU)
@@ -552,6 +566,7 @@ async def proxy_websocket(websocket: WebSocket):
             print(f"CONNECTing to {uri}")
             async with websockets.connect(
                 uri,
+                additional_headers=headers, 
                 open_timeout=300,        # handshake timeout (seconds)
                 close_timeout=10,       # graceful close timeout
                 ping_interval=15,       # send pings every N seconds
