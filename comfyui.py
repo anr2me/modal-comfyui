@@ -359,6 +359,25 @@ async def get_remote_url(class_name: str) -> str:
     url = await remote_cls().web.get_web_url.aio()
     return url
 
+async def wait_websocket_ready():
+    import time
+    import asyncio
+    print("Waiting for Internal websocket to be Ready...")
+    deadline = time.time() + 300
+    while time.time() < deadline:
+        try:
+            ws_ready = await shared_dict.get.aio("ws_ready", False)
+            if ws_ready:
+                #print(f"Internal websocket is Ready!")
+                break # websocket is connected to GPU instance
+            #print(f"Wait: Time = {time.time()}, (active:{active_count}, ready:{ws_ready}, host: {ws_host})")
+        except Exception as e:
+            print(f"Waiting websocket Throw: {e!r}")
+        
+        await asyncio.sleep(0.1)
+    else:
+        print("Internal Websocket Timeout!")
+
 async def forward_httpx(url: str, request: Request, timeout: int = 120) -> Response:
     # Strip Host from headers to prevent loopback
     headers = {
@@ -497,6 +516,9 @@ async def proxy_jobs(request: Request):
     if active_count > 0:
         url = await get_remote_url("ComfyGPU")
 
+    # wait until internal websocket is connected and ready
+    await wait_websocket_ready()
+    
     # Forward request
     new_resp = await forward_httpx(url, request)
  
@@ -511,6 +533,9 @@ async def proxy_api(request: Request, path: str):
     active_count = await shared_dict.get.aio("active", 0)
     if active_count > 0:
         url = await get_remote_url("ComfyGPU")
+
+    # wait until internal websocket is connected and ready
+    await wait_websocket_ready()
 
     # TODO: replace client_id
 
