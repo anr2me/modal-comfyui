@@ -883,6 +883,8 @@ class ComfyMix:
 if __name__ == "__main__":
     # Clear the dict before deploying new logic
     with app.run():
+        print("Clearing shared_dict ...")
         shared_dict.clear() # Removes all items
-    
+
+    print(f"Deploying App({app.name}) ...")
     app.deploy(app.name)
