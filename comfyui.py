@@ -961,5 +961,6 @@ if __name__ == "__main__":
             print("Clearing shared_dict ...")
             shared_dict.clear() # Removes all items
 
+        # Alternative to: modal deploy comfyui.py
         print(f"Deploying App({app.name}) ...")
         app.deploy()
