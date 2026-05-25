@@ -503,9 +503,9 @@ async def proxy_jobs(request: Request):
     return new_resp
 
 # Proxy other API routes
-@web_app.get("/internal/logs{path:path}")
 @web_app.patch("/internal/logs{path:path}")
-#@web_app.get("/api/{path:path}")
+#@web_app.get("/internal/logs{path:path}")
+@web_app.get("/api/{path:path}")
 async def proxy_api(request: Request, path: str):
     url = f"http://127.0.0.1:{uiport}"
     active_count = await shared_dict.get.aio("active", 0)
