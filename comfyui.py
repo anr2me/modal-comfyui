@@ -540,7 +540,7 @@ async def proxy_jobs(request: Request):
 
 # Proxy Logs API routes
 @web_app.patch("/internal/logs{path:path}")
-#@web_app.get("/internal/logs{path:path}")
+@web_app.get("/internal/logs{path:path}")
 async def proxy_logs(request: Request, path: str):
     url = f"http://127.0.0.1:{uiport}"
     active_count = await shared_dict.get.aio("active", 0)
@@ -559,6 +559,7 @@ async def proxy_logs(request: Request, path: str):
 
 # Proxy other API routes
 @web_app.get("/api/{path:path}")
+@web_app.get("/internal/{path:path}")
 async def proxy_api(request: Request, path: str):
     url = f"http://127.0.0.1:{uiport}"
     active_count = await shared_dict.get.aio("active", 0)
