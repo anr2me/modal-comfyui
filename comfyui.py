@@ -355,7 +355,7 @@ gpuport = uiport + 1
 cpuport = uiport + 2
 
 async def fix_gpu_active_count():
-    # Fix active count, in the case where the GPU container got SIGKILLed (which couldn't reached App.exit stage)
+    # Fix active count, in the case where the GPU container got SIGKILLed (which couldn't reached @modal.exit stage)
     GpuClass = modal.Cls.from_name(app.name, "ComfyGPU")
     stats = await GpuClass().web.get_current_stats.aio()
     active_count = stats.num_total_runners
@@ -823,11 +823,14 @@ async def proxy(request: Request, path: str):
 class ComfyGPU:
     @modal.enter(snap=True)
     def start_checkpoint(self):
-        self.proc = subprocess.Popen(
-            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {gpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
-        )
-        # Block here — snapshot is taken only after this returns
-        wait_for_port(gpuport, timeout=300)
+        try:
+            self.proc = subprocess.Popen(
+                f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {gpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+            )
+            # Block here — snapshot is taken only after this returns
+            wait_for_port(gpuport, timeout=300)
+        except Exception as e:
+            print(f"ComfyGPU Throw: {e!r}")
 
     @modal.enter(snap=False)
     def start_restore(self):
@@ -877,11 +880,14 @@ class ComfyGPU:
 class ComfyCPU:
     @modal.enter(snap=True)
     def start_checkpoint(self):
-        self.proc = subprocess.Popen(
-            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {cpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
-        )
-        # Block here — snapshot is taken only after this returns
-        wait_for_port(cpuport, timeout=300)
+        try:
+            self.proc = subprocess.Popen(
+                f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {cpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+            )
+            # Block here — snapshot is taken only after this returns
+            wait_for_port(cpuport, timeout=300)
+        except Exception as e:
+            print(f"ComfyCPU Throw: {e!r}")
 
     @modal.enter(snap=False)
     def start_restore(self):
@@ -921,11 +927,14 @@ class ComfyCPU:
 class ComfyMix:
     @modal.enter(snap=True)
     def start_checkpoint(self):
-        self.proc = subprocess.Popen(
-            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
-        )
-        # Block here — snapshot is taken only after this returns
-        wait_for_port(uiport, timeout=300)
+        try:
+            self.proc = subprocess.Popen(
+                f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+            )
+            # Block here — snapshot is taken only after this returns
+            wait_for_port(uiport, timeout=300)
+        except Exception as e:
+            print(f"ComfyMix Throw: {e!r}")
 
     @modal.enter(snap=False)
     def start_restore(self):
