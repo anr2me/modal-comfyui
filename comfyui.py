@@ -880,11 +880,13 @@ class ComfyMix:
                 pass
         print("App CleanUp!")
 
+# This will get executed by: python comfyui.py
 if __name__ == "__main__":
-    # Clear the dict before deploying new logic
-    with app.run():
-        print("Clearing shared_dict ...")
-        shared_dict.clear() # Removes all items
+    with modal.enable_output():
+        # Clear the dict before deploying new logic
+        with app.run():
+            print("Clearing shared_dict ...")
+            shared_dict.clear() # Removes all items
 
-    print(f"Deploying App({app.name}) ...")
-    app.deploy(app.name)
+        print(f"Deploying App({app.name}) ...")
+        app.deploy()
