@@ -424,9 +424,9 @@ async def proxy_prompt(request: Request):
         print("Spinning Up GPU instance...")
         async with httpx.AsyncClient(timeout=300) as client:
             await client.get(url)
-            # Testing for pending_prompt value
-            pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
-            print(f"Rechecked pending_prompt: {pending_prompt}")
+            # Testing for pending_prompt value as spinning up GPU instance could reset the shared_dict
+            #pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
+            #print(f"Rechecked pending_prompt: {pending_prompt}")
 
     # TODO: ws_host, ws_ready, inqueue, pending_prompt should be created per EndUser's client_id (ie. ws_ready[client_id])
     # wait until websocket is connected to GPU instance
@@ -503,7 +503,7 @@ async def proxy_jobs(request: Request):
     return new_resp
 
 # Proxy other API routes
-#@web_app.get("/internal/logs{path:path}")
+@web_app.get("/internal/logs{path:path}")
 @web_app.patch("/internal/logs{path:path}")
 #@web_app.get("/api/{path:path}")
 async def proxy_api(request: Request, path: str):
@@ -607,11 +607,11 @@ async def proxy_websocket(websocket: WebSocket):
                                 if not ws_ready and comfy_ws.state != State.CLOSED:
                                     await shared_dict.put.aio("ws_ready", True)
                                     print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
-                                    # TODO: Investigate why "pending_prompt" switched from 1 to 0 after this message shows up in the logs (before "Waiting for GPU" message)
-                                    print(f"The message = >>> {message} <<<")
-                                    pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
-                                    ws_host = await shared_dict.get.aio("ws_host", "127.")
-                                    print(f"Testing pending_prompt: {pending_prompt}, ws_host: {ws_host}")
+                                    # Logging to investigate why "pending_prompt" switched from 1 to 0 after this message shows up in the logs (before "Waiting for GPU" message)
+                                    #print(f"The message = >>> {message} <<<")
+                                    #pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
+                                    #ws_host = await shared_dict.get.aio("ws_host", "127.")
+                                    #print(f"Testing pending_prompt: {pending_prompt}, ws_host: {ws_host}")
                                 # Disconnect from GPU instance when there are no running inference anymore
                                 if status_updated:
                                     active_count = await shared_dict.get.aio("active", 0)
