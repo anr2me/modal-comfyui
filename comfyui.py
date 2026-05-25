@@ -447,6 +447,13 @@ async def proxy_prompt(request: Request):
             #pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
             #print(f"Rechecked pending_prompt: {pending_prompt}")
 
+    # Testing
+    GpuClass = modal.Cls.from_name(app.name, "ComfyGPU")
+    gpuObj = GpuClass() # model_version="3.5"
+    active_count = (await gpuObj.get_current_stats.aio()).num_total_runners
+    await shared_dict.put.aio("active", active_count)
+    print(f"Detected Active GPU instance(s): {active_count}")
+
     # TODO: ws_host, ws_ready, inqueue, pending_prompt should be created per EndUser's client_id (ie. ws_ready[client_id])
     # wait until websocket is connected to GPU instance
     print("Waiting for GPU websocket to be Ready...")
@@ -490,6 +497,9 @@ async def proxy_queue(request: Request):
     if active_count > 0:
         url = await get_remote_url("ComfyGPU")
 
+    # wait until internal websocket is connected and ready
+    await wait_websocket_ready()
+    
     # Forward request
     new_resp = await forward_httpx(url, request)
  
@@ -503,6 +513,9 @@ async def proxy_interrupt(request: Request):
     if active_count > 0:
         url = await get_remote_url("ComfyGPU")
 
+    # wait until internal websocket is connected and ready
+    await wait_websocket_ready()
+    
     # Forward request
     new_resp = await forward_httpx(url, request)
  
@@ -666,9 +679,9 @@ async def proxy_websocket(websocket: WebSocket):
                         print(f"comfy_to_client Throw: {e!r}")
                         # NOTE: ConnectionClosedError(None, Close(code=<CloseCode.PROTOCOL_ERROR: 1002> could mean the remote ComfyUI (GPU instance) got SIGKILLed/crashed! (and didn't reached App CleanUp stage!)
                         # Update "active" with the actual number
-                        GpuClass = modal.Cls.from_name("my-app", "MyClass")
+                        GpuClass = modal.Cls.from_name(app.name, "ComfyGPU")
                         gpuObj = GpuClass() # model_version="3.5"
-                        active_count = gpuObj.get_current_stats().num_total_runners
+                        active_count = (await gpuObj.get_current_stats.aio()).num_total_runners
                         await shared_dict.put.aio("active", active_count)
                         print(f"Detected Active GPU instance(s): {active_count}")
                     finally:
