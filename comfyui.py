@@ -537,7 +537,8 @@ async def proxy_jobs(request: Request):
     # Forward request
     new_resp = await forward_httpx(url, request)
  
-    return JSONResponse(new_resp.json()) #new_resp
+    import json
+    return JSONResponse(json.loads(new_resp.body)) #new_resp
 
 # Proxy Logs API routes
 @web_app.patch("/internal/logs{path:path}")
@@ -556,7 +557,8 @@ async def proxy_logs(request: Request, path: str):
     # Forward request
     new_resp = await forward_httpx(url, request)
  
-    return JSONResponse(new_resp.json()) # new_resp
+    import json
+    return JSONResponse(json.loads(new_resp.body)) # new_resp
 
 # Proxy other API routes
 @web_app.get("/api/{path:path}")
@@ -570,7 +572,8 @@ async def proxy_api(request: Request, path: str):
     # Forward request
     new_resp = await forward_httpx(url, request)
  
-    return new_resp
+    import json
+    return JSONResponse(json.loads(new_resp.body)) #new_resp
 
 # Proxy websocket
 @web_app.websocket("/ws")
