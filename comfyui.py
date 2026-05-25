@@ -624,6 +624,7 @@ async def proxy_websocket(websocket: WebSocket):
                                         print("Internal websocket is Not Ready anymore!")
                     except Exception as e:
                         print(f"comfy_to_client Throw: {e!r}")
+                        # NOTE: ConnectionClosedError(None, Close(code=<CloseCode.PROTOCOL_ERROR: 1002> could mean the remote ComfyUI (GPU instance) crashed!
                     finally:
                         # Close internal connection when there are no more messages
                         #await comfy_ws.close()
