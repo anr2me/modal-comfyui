@@ -449,7 +449,8 @@ async def proxy_prompt(request: Request):
 
     # Testing
     import asyncio
-    gpu_function = modal.Function.from_name(app.name, "ComfyGPU.web")
+    GpuClass = modal.Cls.from_name(app.name, "ComfyGPU")
+    gpu_function = GpuClass.web
     stats = await asyncio.to_thread(gpu_function.get_current_stats)
     active_count = stats.num_total_runners
     await shared_dict.put.aio("active", active_count)
@@ -692,8 +693,9 @@ async def proxy_websocket(websocket: WebSocket):
                         print(f"comfy_to_client Throw: {e!r}")
                         # NOTE: ConnectionClosedError(None, Close(code=<CloseCode.PROTOCOL_ERROR: 1002> could mean the remote ComfyUI (GPU instance) got SIGKILLed/crashed! (and didn't reached App CleanUp stage!)
                         # Update "active" with the actual number
-                        GpuClass = modal.Cls.from_name(app.name, "ComfyGPU")
-                        active_count = (await asyncio.to_thread(GpuClass.get_current_stats)).num_total_runners
+                        gpu_function = modal.Function.from_name(app.name, "ComfyGPU.web")
+                        stats = await asyncio.to_thread(gpu_function.get_current_stats)
+                        active_count = stats.num_total_runners
                         await shared_dict.put.aio("active", active_count)
                         print(f"Detected Active GPU instance(s): {active_count}")
                     finally:
