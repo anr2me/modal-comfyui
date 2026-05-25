@@ -19,6 +19,7 @@ output_dir = Path("/cache/ComfyUI/output")
 user_dir = Path("/cache/ComfyUI/user")
 models_dir = Path("/cache/ComfyUI/models")
 cusnodes_dir = Path("/cache/ComfyUI/custom_nodes")
+temp_dir = Path("/cache/ComfyUI/temp")
 
 COMFYUI_ROOT = Path("/root/comfy/ComfyUI")
 COMFY_MODELS_ROOT = Path(COMFYUI_ROOT / "models")
