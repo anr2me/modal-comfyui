@@ -346,8 +346,8 @@ web_app = FastAPI()
 
 app = modal.App(name="modal-comfyui", image=image)
 shared_dict = modal.Dict.from_name(app.name, create_if_missing=True)
-# Reset the contents when redeployed
-shared_dict.clear()
+# Reset the contents when redeployed, but doing it here will cleared it during spin up!
+#shared_dict.clear()
 
 
 uiport = 8188
@@ -879,3 +879,10 @@ class ComfyMix:
             except (ProcessLookupError, OSError):
                 pass
         print("App CleanUp!")
+
+if __name__ == "__main__":
+    # Clear the dict before deploying new logic
+    with app.run():
+        shared_dict.clear() # Removes all items
+    
+    app.deploy(app.name)
