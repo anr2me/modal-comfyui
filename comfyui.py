@@ -625,7 +625,12 @@ async def proxy_websocket(websocket: WebSocket):
                     except Exception as e:
                         print(f"comfy_to_client Throw: {e!r}")
                         # NOTE: ConnectionClosedError(None, Close(code=<CloseCode.PROTOCOL_ERROR: 1002> could mean the remote ComfyUI (GPU instance) got SIGKILLed/crashed! (and didn't reached App CleanUp stage!)
-                        # TODO: Update "active" with the actual number
+                        # Update "active" with the actual number
+                        GpuClass = modal.Cls.from_name("my-app", "MyClass")
+                        gpuObj = GpuClass() # model_version="3.5"
+                        active_count = gpuObj.get_current_stats().num_total_runners
+                        await shared_dict.put.aio("active", active_count)
+                        print(f"Detected Active GPU instance(s): {active_count}")
                     finally:
                         # Close internal connection when there are no more messages
                         #await comfy_ws.close()
