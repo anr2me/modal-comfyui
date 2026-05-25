@@ -450,7 +450,7 @@ async def proxy_prompt(request: Request):
     # Testing
     GpuClass = modal.Cls.from_name(app.name, "ComfyGPU")
     gpuObj = GpuClass() # model_version="3.5"
-    active_count = (await gpuObj.get_current_stats.aio()).num_total_runners
+    active_count = gpuObj.get_current_stats().num_total_runners # (await asyncio.to_thread(gpuObj.get_current_stats))
     await shared_dict.put.aio("active", active_count)
     print(f"Detected Active GPU instance(s): {active_count}")
 
@@ -693,7 +693,7 @@ async def proxy_websocket(websocket: WebSocket):
                         # Update "active" with the actual number
                         GpuClass = modal.Cls.from_name(app.name, "ComfyGPU")
                         gpuObj = GpuClass() # model_version="3.5"
-                        active_count = (await gpuObj.get_current_stats.aio()).num_total_runners
+                        active_count = gpuObj.get_current_stats().num_total_runners # (await asyncio.to_thread(gpuObj.get_current_stats))
                         await shared_dict.put.aio("active", active_count)
                         print(f"Detected Active GPU instance(s): {active_count}")
                     finally:
