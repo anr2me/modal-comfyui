@@ -354,6 +354,14 @@ uiport = 8188
 gpuport = uiport + 1
 cpuport = uiport + 2
 
+async def fix_gpu_active_count():
+    # Fix active count, in the case where the GPU container got SIGKILLed (which couldn't reached App.exit stage)
+    GpuClass = modal.Cls.from_name(app.name, "ComfyGPU")
+    stats = await GpuClass().web.get_current_stats.aio()
+    active_count = stats.num_total_runners
+    await shared_dict.put.aio("active", active_count)
+    print(f"Detected Active GPU instance(s): {active_count}")
+    
 async def get_remote_url(class_name: str) -> str:
     remote_cls = modal.Cls.from_name(app.name, class_name)
     url = await remote_cls().web.get_web_url.aio()
@@ -435,7 +443,7 @@ async def proxy_prompt(request: Request):
 
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
     await shared_dict.put.aio("pending_prompt", pending_prompt + 1)
-    print(f"Increasing Pending Prompt to: {pending_prompt + 1}")
+    #print(f"Increasing Pending Prompt to: {pending_prompt + 1}")
 
     # spin-up GPU instance
     active_count = await shared_dict.get.aio("active", 0)
@@ -446,15 +454,6 @@ async def proxy_prompt(request: Request):
             # Testing for pending_prompt value as spinning up GPU instance could reset the shared_dict
             #pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
             #print(f"Rechecked pending_prompt: {pending_prompt}")
-
-    # Testing
-    import asyncio
-    GpuClass = modal.Cls.from_name(app.name, "ComfyGPU")
-    #stats = await asyncio.to_thread(GpuClass().web.get_current_stats)
-    stats = await GpuClass().web.get_current_stats.aio()
-    active_count = stats.num_total_runners
-    await shared_dict.put.aio("active", active_count)
-    print(f"Detected Active GPU instance(s): {active_count}")
 
     # TODO: ws_host, ws_ready, inqueue, pending_prompt should be created per EndUser's client_id (ie. ws_ready[client_id])
     # wait until websocket is connected to GPU instance
@@ -486,7 +485,7 @@ async def proxy_prompt(request: Request):
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
     if pending_prompt > 0:
         await shared_dict.put.aio("pending_prompt", pending_prompt - 1)
-        print(f"Decreasing Pending Prompt to: {pending_prompt - 1}")
+        #print(f"Decreasing Pending Prompt to: {pending_prompt - 1}")
     return new_resp
 
 @web_app.get("/prompt")
@@ -635,6 +634,8 @@ async def proxy_websocket(websocket: WebSocket):
                                 await comfy_ws.send(message)
                     except Exception as e:
                         print(f"client_to_comfy Throw: {e!r}")
+                        # Update "active" with the actual number
+                        await fix_gpu_active_count()
                     finally:
                         # Close internal connection when there are no more messages
                         #await comfy_ws.close()
@@ -693,11 +694,7 @@ async def proxy_websocket(websocket: WebSocket):
                         print(f"comfy_to_client Throw: {e!r}")
                         # NOTE: ConnectionClosedError(None, Close(code=<CloseCode.PROTOCOL_ERROR: 1002> could mean the remote ComfyUI (GPU instance) got SIGKILLed/crashed! (and didn't reached App CleanUp stage!)
                         # Update "active" with the actual number
-                        gpu_function = modal.Function.from_name(app.name, "ComfyGPU.web")
-                        stats = await asyncio.to_thread(gpu_function.get_current_stats)
-                        active_count = stats.num_total_runners
-                        await shared_dict.put.aio("active", active_count)
-                        print(f"Detected Active GPU instance(s): {active_count}")
+                        await fix_gpu_active_count()
                     finally:
                         # Close internal connection when there are no more messages
                         #await comfy_ws.close()
