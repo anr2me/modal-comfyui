@@ -301,10 +301,17 @@ image = (
     #.uv_pip_install("transformers~=4.42.4") # extra_options="--no-deps --no-build-isolation" # Fix KeyError: 'default' issue on bytedance Lance
     #.uv_pip_install("peft~=0.10.0") # compatible peft version for transformers 4.40–4.42
 )
-print("Done install missing dependencies.")
+#print("Done install missing dependencies.")
 
 # Disable ultralytics' Anonymized Google Analytics
 image = image.run_commands("yolo settings sync=False")
+
+# Install GreenBoost
+image = image.run_commands(
+    "git clone https://github.com/lining79355504/fork_greenboost.git",
+    "cd fork_greenboost",
+    "sudo ./greenboost_setup.sh",
+)
 
 # Testing for vulnerability on custom nodes
 nodes_dir = str(get_comfyui_path() / "custom_nodes")
