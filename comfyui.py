@@ -387,7 +387,7 @@ async def wait_websocket_ready():
     else:
         print("Internal Websocket Timeout!")
 
-async def forward_httpx(url: str, request: Request, timeout: int = 120) -> Response:
+async def forward_httpx(url: str, request: Request, try_json: bool = False, timeout: int = 120) -> Response:
     # Strip Host from headers to prevent loopback
     headers = {
         k: v for k, v in request.headers.items()
@@ -421,16 +421,17 @@ async def forward_httpx(url: str, request: Request, timeout: int = 120) -> Respo
         #media_type=resp.headers.get("content-type"),
         headers=resp.headers,
     )
-    try:
-        # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
-        #import zstandard as zstd
-        #dctx = zstd.ZstdDecompressor()
-        #decompressed = dctx.decompress(resp.content)
+    if try_json:
+        try:
+            # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
+            #import zstandard as zstd
+            #dctx = zstd.ZstdDecompressor()
+            #decompressed = dctx.decompress(resp.content)
         
-        #new_resp = JSONResponse(resp.json())
-        print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {body} ==> {resp.content} <==")
-    except Exception as e:
-        print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
+            new_resp = JSONResponse(resp.json()) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code) 
+            print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {body} ==> {resp.content} <==")
+        except Exception as e: # (json.JSONDecodeError, UnicodeDecodeError):
+            print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
 
     return new_resp
     
@@ -481,14 +482,14 @@ async def proxy_prompt(request: Request):
         
     # Forward request
     print(f"Forwarding {request.method}:{request.url.path} to GPU instance...")
-    new_resp = await forward_httpx(url, request)
+    new_resp = await forward_httpx(url, request, True)
     
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
     if pending_prompt > 0:
         await shared_dict.put.aio("pending_prompt", pending_prompt - 1)
         #print(f"Decreasing Pending Prompt to: {pending_prompt - 1}")
-    import json
-    return JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code) if new_resp.body else new_resp
+    
+    return new_resp
 
 @web_app.get("/prompt")
 @web_app.get("/api/prompt")
@@ -504,10 +505,9 @@ async def proxy_queue(request: Request):
     await wait_websocket_ready()
     
     # Forward request
-    new_resp = await forward_httpx(url, request)
+    new_resp = await forward_httpx(url, request, True)
  
-    import json
-    return JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code) if new_resp.body else new_resp
+    return new_resp
     
 @web_app.post("/interrupt")
 @web_app.post("/api/interrupt")
@@ -521,10 +521,9 @@ async def proxy_interrupt(request: Request):
     await wait_websocket_ready()
     
     # Forward request
-    new_resp = await forward_httpx(url, request)
+    new_resp = await forward_httpx(url, request, True)
  
-    import json
-    return JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code) if new_resp.body else new_resp
+    return new_resp
 
 #@web_app.get("/api/view")
 @web_app.get("/api/jobs")
@@ -538,10 +537,9 @@ async def proxy_jobs(request: Request):
     await wait_websocket_ready()
     
     # Forward request
-    new_resp = await forward_httpx(url, request)
+    new_resp = await forward_httpx(url, request, True)
  
-    import json
-    return JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code) if new_resp.body else new_resp
+    return new_resp
 
 # Proxy Logs API routes
 @web_app.patch("/internal/logs{path:path}")
@@ -558,10 +556,9 @@ async def proxy_logs(request: Request, path: str):
     # TODO: replace client_id
 
     # Forward request
-    new_resp = await forward_httpx(url, request)
+    new_resp = await forward_httpx(url, request, True)
  
-    import json
-    return JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code) if new_resp.body else new_resp
+    return new_resp
 
 # Proxy other API routes
 @web_app.get("/api/{path:path}")
@@ -573,10 +570,9 @@ async def proxy_api(request: Request, path: str):
         url = await get_remote_url("ComfyGPU")
 
     # Forward request
-    new_resp = await forward_httpx(url, request)
+    new_resp = await forward_httpx(url, request, True)
  
-    import json
-    return JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code) if new_resp.body else new_resp
+    return new_resp
 
 # Proxy websocket
 @web_app.websocket("/ws")
