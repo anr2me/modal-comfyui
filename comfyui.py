@@ -427,9 +427,9 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
             #import zstandard as zstd
             #dctx = zstd.ZstdDecompressor()
             #decompressed = dctx.decompress(resp.content)
-        
-            new_resp = JSONResponse(resp.json()) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code) 
+
             print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {body} ==> {resp.content} <==")
+            new_resp = JSONResponse(resp.json()) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
         except Exception as e: # (json.JSONDecodeError, UnicodeDecodeError):
             print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
 
@@ -525,7 +525,6 @@ async def proxy_interrupt(request: Request):
  
     return new_resp
 
-#@web_app.get("/api/view")
 @web_app.get("/api/jobs")
 async def proxy_jobs(request: Request):
     url = f"http://127.0.0.1:{uiport}"
@@ -538,6 +537,21 @@ async def proxy_jobs(request: Request):
     
     # Forward request
     new_resp = await forward_httpx(url, request, True)
+ 
+    return new_resp
+
+@web_app.get("/api/view")
+async def proxy_view(request: Request):
+    url = f"http://127.0.0.1:{uiport}"
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        url = await get_remote_url("ComfyGPU")
+
+    # wait until internal websocket is connected and ready
+    await wait_websocket_ready()
+    
+    # Forward request
+    new_resp = await forward_httpx(url, request, False)
  
     return new_resp
 
