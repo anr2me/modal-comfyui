@@ -6,7 +6,7 @@ from pathlib import Path
 
 import modal
 
-GPU_MODEL = "L4"
+GPU_MODEL = os.getenv("MODAL_GPU", "L4")
 
 from models import models, models_ext
 from plugins import comfy_plugins, comfy_plugins_ext
@@ -17,6 +17,9 @@ base_dir = Path("/cache/ComfyUI")
 input_dir = Path("/cache/ComfyUI/input")
 output_dir = Path("/cache/ComfyUI/output")
 user_dir = Path("/cache/ComfyUI/user")
+models_dir = Path("/cache/ComfyUI/models")
+cusnodes_dir = Path("/cache/ComfyUI/custom_nodes")
+temp_dir = Path("/cache/ComfyUI/temp")
 
 COMFYUI_ROOT = Path("/root/comfy/ComfyUI")
 COMFY_MODELS_ROOT = Path(COMFYUI_ROOT / "models")
@@ -26,14 +29,14 @@ vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True, version=2)
 
 # construct images and install deps/custom nodes
 image = (
-    modal.Image.debian_slim(python_version="3.13")
+    modal.Image.debian_slim(python_version="3.12")
     .add_local_python_source("models", "plugins", copy=True)
     .run_commands("apt-get update")
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "ffmpeg") #rav1e
-    .uv_pip_install("pip", "uv", "aiohttp", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0", extra_options="--upgrade")
+    .uv_pip_install(["pip", "uv", "aiohttp", "fastapi", "websockets", "httpx", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
-    .uv_pip_install("torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec", extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
+    .uv_pip_install(["torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec~=0.10.0"], extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
     .uv_pip_install("cupy-cuda13x")
     .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
     #.run_commands("git config --global core.fileMode false")
@@ -166,25 +169,14 @@ def download_external_plugin(url: str, branch: str, install: str):
 
 
 def download_all():
-    global image
-    
     # prepare base directory
-    print(f"Testing2 Global Image: {image}")
-    extra_file_path = Path(__file__).parent / "extra_model_paths.yaml"
     Path(base_dir).mkdir(parents=True, exist_ok=True)
     Path(input_dir).mkdir(parents=True, exist_ok=True)
     Path(output_dir).mkdir(parents=True, exist_ok=True)
+    Path(cusnodes_dir).mkdir(parents=True, exist_ok=True)
+    Path(models_dir).mkdir(parents=True, exist_ok=True)
     Path(str(user_dir / "default/workflows")).mkdir(parents=True, exist_ok=True)
-    
     #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
-    if extra_file_path.exists():
-        image = image.add_local_file(
-            extra_file_path, 
-            str(COMFYUI_ROOT / "extra_model_paths.yaml"), 
-            copy=True
-        )
-    else:
-        print(f"Extra Model Paths file ({extra_file_path}) Not Found!")
 
     for model in models:
         hf_download(model["repo_id"], model["filename"], model["model_dir"])
@@ -211,25 +203,6 @@ def download_all():
     #shutil.copytree(COMFYUI_ROOT / "models", base_dir / "models", copy_function=copy_if_not_exists, symlinks=False, ignore_dangling_symlinks=True, dirs_exist_ok=True)
 
 
-def install_missing_deps():
-    import torch
-    full_pytorch_version = torch.__version__
-    pytorch_version_number = ".".join(full_pytorch_version.split(" ")[0].split(".")[:2])
-    print(f"PyTorch Ver = {pytorch_version_number}")
-    
-    global image
-    print(f"Testing4 Global Image: {image}")
-    image = image.uv_pip_install("cupy-cuda13x", "this_should_fail")
-    #image = image.run_commands("pip install sageattention==2.2.0 --no-build-isolation --extra-index-url https://comfy-org.github.io/wheels; exit 1")
-    #image = image.pip_install("sageattention==2.*", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") #sageattn3 
-    #raise ValueError("Break! Testing purpose.")
-    #image = image.uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130") #flash-attn-4[cu13]
-    #image = image.uv_pip_install(f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{pytorch_version_number}-cp313-cp313-linux_x86_64.whl")
-    
-    image = image.run_commands("uv pip show cupy-cuda13x sageattention flash-attn-3 nunchaku; exit 1")
-    print("Done install missing dependencies.")
-
-
 def _hf_secrets() -> list[modal.Secret]:
     """Prefer Modal Secret 'huggingface-secret'; fall back to local HF_TOKEN
     env. Public models work even when both are absent (warned)."""
@@ -247,8 +220,19 @@ def _hf_secrets() -> list[modal.Secret]:
             )
         return [modal.Secret.from_dict({"HF_TOKEN": token})]
 
+
+# use extra model paths when available
+extra_file_path = Path(__file__).parent / "extra_model_paths.yaml"
+if extra_file_path.exists():
+    image = image.add_local_file(
+        extra_file_path, 
+        str(COMFYUI_ROOT / "extra_model_paths.yaml"), 
+        copy=True
+    )
+else:
+    print(f"Extra Model Paths file ({extra_file_path}) Not Found!")
+
 # download models
-print(f"Testing1 Global Image: {image}")
 image = image.env(
     {"HF_HUB_ENABLE_HF_TRANSFER": "1", "HF_XET_HIGH_PERFORMANCE": "1"}
 ).run_function(download_all, volumes={"/cache": vol}, secrets=_hf_secrets())
@@ -271,41 +255,66 @@ if comfy_plugins_ext:
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
     Path(nodes_dir).mkdir(parents=True, exist_ok=True)
     for plugin in comfy_plugins_ext:
-        #download_external_plugin(plugin["url"], plugin["branch"], plugin["install"])
         folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
-        image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']} && cd -", volumes={"/cache": vol}) # ; exit 0 
-        #image = image.run_commands(f"cd {nodes_dir}/{folder_name} && git pull && git submodule update --init --recursive && cd -", volumes={"/cache": vol})
-        plugin_reqs = plugin.get('requirements') # TODO: allows more than one requirements files (comma/space separated)
-        if plugin_reqs and plugin_reqs.strip():
-            plugin_reqs = plugin_reqs.strip()
-            if plugin_reqs.endswith(".toml"):
-                image = image.pip_install_from_pyproject(f"{nodes_dir}/{folder_name}/{plugin_reqs}") # uv_sync
-            else:
-                image = image.uv_pip_install(f"{nodes_dir}/{folder_name}/{plugin_reqs}", extra_options="-r") #, uv=True # pip_install_from_requirements #, gpu=GPU_MODEL
+        # clone the repository, including it's submodules
+        image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']}")
+        # install dependencies from one or more requirements files (usually .txt or .toml files, but can support any extension)
+        plugin_reqs = plugin.get("requirements", "").strip()
+        if plugin_reqs:
+            formatted_reqs = " ".join(f"-r {file}" for file in plugin_reqs.split())
+            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && uv pip install --no-deps --python $(command -v python) --compile-bytecode {formatted_reqs}")
 
-        plugin_install = plugin.get('install')
-        if plugin_install and plugin_install.strip():
-            plugin_install = plugin_install.strip()
+        # run installation script (usually install.py or setup.py)
+        plugin_install = plugin.get("install", "").strip()
+        if plugin_install:
             if plugin_install.endswith(".py"):
-                image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install} && cd -", volumes={"/cache": vol}) #, gpu=GPU_MODEL
+                image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install}")
             else:
                 print(f"Unsupported installation script: {plugin_install}")
-        
-        plugin_deps = plugin.get('dependencies')
-        if plugin_deps and plugin_deps.strip():
-            plugin_deps = plugin_deps.strip()
-            image = image.uv_pip_install(plugin_deps) #, gpu=GPU_MODEL
- 
+
+        # install optional packages or packages that got dependency issue with other custom nodes due to pinned to an incompatible version
+        plugin_deps = plugin.get("dependencies", "").strip()
+        if plugin_deps:
+            image = image.uv_pip_install(plugin_deps.split(), extra_options="--no-deps") #, gpu=GPU_MODEL
+
 # install missing dependencies or override with a compatible version
-print(f"Testing3 Global Image: {image}")
-image = image.run_function(
-    install_missing_deps, 
-    volumes={"/cache": vol},
-    #gpu=GPU_MODEL
+def install_wheels():
+    import torch, subprocess, sys
+    ver = ".".join(torch.__version__.split(".")[:2])
+    # nunchaku
+    url = f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{ver}-cp312-cp312-linux_x86_64.whl"
+    subprocess.check_call([sys.executable, "-m", "uv", "pip", "install", "--no-deps", url])
+    # flash-attn
+    url = f"https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.9.0/flash_attn-2.8.3+cu130torch{ver}-cp312-cp312-linux_x86_64.whl"
+    subprocess.check_call([sys.executable, "-m", "uv", "pip", "install", "--no-deps", url])
+    
+image = (
+    image
+    .uv_pip_install("sageattention~=2.2.0", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels")
+    .uv_pip_install("sageattn3", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels")
+    #.uv_pip_install("flash-attn", extra_options="--no-build-isolation") # need to build with nvcc
+    .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130")
+    .uv_pip_install("flash-attn-4[cu13]", extra_options="--no-build-isolation", pre=True) # use dependencies
+    # Detect pytorch version and install wheels inside the container
+    .run_function(install_wheels)
+    #.uv_pip_install("tokenizers~=0.19.1", extra_options="--only-binary=tokenizers --no-deps", pre=True) # needed for transformers<4.43
+    #.uv_pip_install("transformers~=4.42.4") # extra_options="--no-deps --no-build-isolation" # Fix KeyError: 'default' issue on bytedance Lance
+    #.uv_pip_install("peft~=0.10.0") # compatible peft version for transformers 4.40–4.42
 )
+print("Done install missing dependencies.")
 
 # Disable ultralytics' Anonymized Google Analytics
 image = image.run_commands("yolo settings sync=False")
+
+# Testing for vulnerability on custom nodes
+nodes_dir = str(get_comfyui_path() / "custom_nodes")
+image = image.run_commands(
+    f"python -m venv /tmp/temp_venv && "
+    f"/tmp/temp_venv/bin/pip install bandit[toml] && "
+    f"/tmp/temp_venv/bin/bandit -r {nodes_dir} -n 3 --severity-level=high && " # only shows 3 lines of high-severity issue # " -f json "
+    f"rm -rf /tmp/temp_venv" # Cleanup ensures venv is not in the final layer
+    "; exit 0" # Making sure the image building doesn't failed here
+,volumes={"/cache": vol})
 
 # copy custom nodes to base_dir
 #import shutil
@@ -313,10 +322,10 @@ image = image.run_commands("yolo settings sync=False")
 #shutil.copytree(COMFYUI_ROOT / "custom_nodes", base_dir / "custom_nodes", symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
 
 def wait_for_port(port: int, timeout: int = 60):
+    """Block until the port is accepting connections."""
     import time
     import socket
     
-    """Block until the port is accepting connections."""
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
@@ -327,43 +336,554 @@ def wait_for_port(port: int, timeout: int = 60):
     raise TimeoutError(f"ComfyUI never became ready on port {port}")
 
 
+with image.imports():
+    from fastapi import Request, Response, WebSocket
+    from fastapi.responses import JSONResponse
+    import httpx
+    import websockets
+
+from fastapi import FastAPI
+web_app = FastAPI() 
+
 app = modal.App(name="modal-comfyui", image=image)
+shared_dict = modal.Dict.from_name(app.name, create_if_missing=True)
+# Reset the contents when redeployed, but doing it here will cleared it during spin up!
+#shared_dict.clear()
+
 
 uiport = 8188
+gpuport = uiport + 1
+cpuport = uiport + 2
+
+async def fix_gpu_active_count():
+    # Fix active count, in the case where the GPU container got SIGKILLed (which couldn't reached @modal.exit stage)
+    GpuClass = modal.Cls.from_name(app.name, "ComfyGPU")
+    stats = await GpuClass().web.get_current_stats.aio()
+    active_count = stats.num_total_runners
+    await shared_dict.put.aio("active", active_count)
+    print(f"Detected Active GPU instance(s): {active_count}")
+    
+async def get_remote_url(class_name: str) -> str:
+    remote_cls = modal.Cls.from_name(app.name, class_name)
+    url = await remote_cls().web.get_web_url.aio()
+    return url
+
+async def wait_websocket_ready():
+    import time
+    import asyncio
+    print("Waiting for Internal websocket to be Ready...")
+    deadline = time.time() + 300
+    while time.time() < deadline:
+        try:
+            ws_ready = await shared_dict.get.aio("ws_ready", False)
+            if ws_ready:
+                #print(f"Internal websocket is Ready!")
+                break # websocket is connected to GPU instance
+            #print(f"Wait: Time = {time.time()}, (active:{active_count}, ready:{ws_ready}, host: {ws_host})")
+        except Exception as e:
+            print(f"Waiting websocket Throw: {e!r}")
+        
+        await asyncio.sleep(0.1)
+    else:
+        print("Internal Websocket Timeout!")
+
+async def forward_httpx(url: str, request: Request, try_json: bool = False, timeout: int = 120) -> Response:
+    # Strip Host from headers to prevent loopback
+    headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in (
+            "host",
+            "content-length",
+            "x-forwarded-proto",
+            "x-forwarded-for",
+            "x-forwarded-host",
+            "x-forwarded-port",
+        )
+    }
+    # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
+    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
+
+    # Forward to remote ComfyUI
+    body = await request.body()
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        resp = await client.request(
+            method=request.method,
+            url=f"{url}{request.url.path}",
+            params=request.query_params,
+            headers=headers,
+            content=body,
+            #extensions={"decode_content": False}, 
+        )
+    # Return raw bytes with the original content-type
+    new_resp = Response(
+        content=resp.content,
+        status_code=resp.status_code,
+        #media_type=resp.headers.get("content-type"),
+        headers=resp.headers,
+    )
+    if try_json:
+        try:
+            # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
+            #import zstandard as zstd
+            #dctx = zstd.ZstdDecompressor()
+            #decompressed = dctx.decompress(resp.content)
+
+            print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {body} ==> {resp.content} <==")
+            new_resp = JSONResponse(resp.json()) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
+        except Exception as e: # (json.JSONDecodeError, UnicodeDecodeError):
+            print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
+
+    return new_resp
+    
+
+@web_app.post("/prompt")
+@web_app.post("/api/prompt")
+@web_app.post("/queue")
+@web_app.post("/api/queue")
+async def proxy_prompt(request: Request):
+    url = await get_remote_url("ComfyGPU")
+
+    pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
+    await shared_dict.put.aio("pending_prompt", pending_prompt + 1)
+    #print(f"Increasing Pending Prompt to: {pending_prompt + 1}")
+
+    # spin-up GPU instance
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count == 0:
+        print("Spinning Up GPU instance...")
+        async with httpx.AsyncClient(timeout=300) as client:
+            await client.get(url)
+            # Testing for pending_prompt value as spinning up GPU instance could reset the shared_dict
+            #pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
+            #print(f"Rechecked pending_prompt: {pending_prompt}")
+
+    # TODO: ws_host, ws_ready, inqueue, pending_prompt should be created per EndUser's client_id (ie. ws_ready[client_id])
+    # wait until websocket is connected to GPU instance
+    print("Waiting for GPU websocket to be Ready...")
+    import time
+    import asyncio
+    deadline = time.time() + 300
+    while time.time() < deadline:
+        try:
+            #shared_dict.hydrate()
+            active_count = await shared_dict.get.aio("active", 0)
+            ws_ready = await shared_dict.get.aio("ws_ready", False)
+            ws_host  = await shared_dict.get.aio("ws_host", "127.0.")
+            if active_count>0 and ws_ready and not ws_host.startswith("127.0."):
+                print(f"GPU websocket is Ready! (Active:{active_count}, Ready:{ws_ready}, Host: {ws_host})")
+                break # websocket is connected to GPU instance
+            #print(f"Wait: Time = {time.time()}, (active:{active_count}, ready:{ws_ready}, host: {ws_host})")
+        except Exception as e:
+            print(f"Waiting GPU Throw: {e!r}")
+        
+        await asyncio.sleep(0.1)
+    else:
+        print("GPU instance Timeout!")
+        
+    # Forward request
+    print(f"Forwarding {request.method}:{request.url.path} to GPU instance...")
+    new_resp = await forward_httpx(url, request, True)
+    
+    pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
+    if pending_prompt > 0:
+        await shared_dict.put.aio("pending_prompt", pending_prompt - 1)
+        #print(f"Decreasing Pending Prompt to: {pending_prompt - 1}")
+    
+    return new_resp
+
+@web_app.get("/prompt")
+@web_app.get("/api/prompt")
+@web_app.get("/queue")
+@web_app.get("/api/queue")
+async def proxy_queue(request: Request):
+    url = f"http://127.0.0.1:{uiport}"
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        url = await get_remote_url("ComfyGPU")
+
+    # wait until internal websocket is connected and ready
+    await wait_websocket_ready()
+    
+    # Forward request
+    new_resp = await forward_httpx(url, request, True)
+ 
+    return new_resp
+    
+@web_app.post("/interrupt")
+@web_app.post("/api/interrupt")
+async def proxy_interrupt(request: Request):
+    url = f"http://127.0.0.1:{uiport}"
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        url = await get_remote_url("ComfyGPU")
+
+    # wait until internal websocket is connected and ready
+    await wait_websocket_ready()
+    
+    # Forward request
+    new_resp = await forward_httpx(url, request, True)
+ 
+    return new_resp
+
+@web_app.get("/api/jobs")
+async def proxy_jobs(request: Request):
+    url = f"http://127.0.0.1:{uiport}"
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        url = await get_remote_url("ComfyGPU")
+
+    # wait until internal websocket is connected and ready
+    await wait_websocket_ready()
+    
+    # Forward request
+    new_resp = await forward_httpx(url, request, True)
+ 
+    return new_resp
+
+@web_app.get("/api/view")
+async def proxy_view(request: Request):
+    url = f"http://127.0.0.1:{uiport}"
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        url = await get_remote_url("ComfyGPU")
+
+    # wait until internal websocket is connected and ready
+    await wait_websocket_ready()
+    
+    # Forward request
+    new_resp = await forward_httpx(url, request, False)
+ 
+    return new_resp
+
+# Proxy Logs API routes
+@web_app.patch("/internal/logs{path:path}")
+@web_app.get("/internal/logs{path:path}")
+async def proxy_logs(request: Request, path: str):
+    url = f"http://127.0.0.1:{uiport}"
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        url = await get_remote_url("ComfyGPU")
+
+    # wait until internal websocket is connected and ready
+    await wait_websocket_ready()
+
+    # TODO: replace client_id
+
+    # Forward request
+    new_resp = await forward_httpx(url, request, True)
+ 
+    return new_resp
+
+# Proxy other API routes
+@web_app.get("/api/{path:path}")
+@web_app.get("/internal/{path:path}")
+async def proxy_api(request: Request, path: str):
+    url = f"http://127.0.0.1:{uiport}"
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        url = await get_remote_url("ComfyGPU")
+
+    # Forward request
+    new_resp = await forward_httpx(url, request, True)
+ 
+    return new_resp
+
+# Proxy websocket
+@web_app.websocket("/ws")
+async def proxy_websocket(websocket: WebSocket):
+    await websocket.accept()
+
+    import asyncio
+    from starlette.websockets import WebSocketState
+    from websockets.connection import State
+    from websockets.exceptions import ConnectionClosedError
+
+    # Strip Host from headers to prevent loopback
+    headers = {
+        k: v for k, v in websocket.headers.items()
+        if k.lower() not in (
+            "host",
+            "content-length",
+            "x-forwarded-proto",
+            "x-forwarded-for",
+            "x-forwarded-host",
+            "x-forwarded-port",
+        )
+    }
+    # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
+    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0"
+    
+    # We should only exit the function when connection to client lost
+    while True:
+        # Use active GPU instance when available, otherwise use localhost (CPU)
+        uri = f"ws://127.0.0.1:{uiport}/ws"
+        #shared_dict.hydrate()
+        active_count = await shared_dict.get.aio("active", 0)
+        inqueue_count = await shared_dict.get.aio("inqueue", 0)
+        pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
+        print(f"Active = {active_count}, InQueue = {inqueue_count}, PendingPrompt = {pending_prompt}")
+        if active_count > 0 and (inqueue_count>0 or pending_prompt>0):
+            url = await get_remote_url("ComfyGPU")
+            from urllib.parse import urlparse, urlunparse
+            scheme_map = {"http": "ws", "https": "wss"}
+            parsed = urlparse(url)
+            if parsed.scheme in scheme_map:
+                # Create a new URL object with the updated scheme
+                new_parsed = parsed._replace(scheme=scheme_map[parsed.scheme])
+                url = urlunparse(new_parsed)
+            uri = f"{url}/ws"
+
+        try:
+            print(f"CONNECTing to {uri}")
+            async with websockets.connect(
+                uri,
+                additional_headers=headers, 
+                open_timeout=300,        # handshake timeout (seconds)
+                close_timeout=10,       # graceful close timeout
+                ping_interval=15,       # send pings every N seconds
+                ping_timeout=20,        # wait N seconds for pong before closing
+            ) as comfy_ws:
+                async def client_to_comfy():
+                    import json
+                    try:
+                        async for message in websocket.iter_bytes():
+                            #if isinstance(message, str) and message.startswith("{"):
+                            #    msgobj = json.loads(message)
+                            print(f"client_to_comfy: {message}")
+                            if message is not None:
+                                await comfy_ws.send(message)
+                    except Exception as e:
+                        print(f"client_to_comfy Throw: {e!r}")
+                        # Update "active" with the actual number
+                        await fix_gpu_active_count()
+                    finally:
+                        # Close internal connection when there are no more messages
+                        #await comfy_ws.close()
+                        #await shared_dict.put.aio("ws_ready", False)
+                        #print("Internal websocket is Not Ready!")
+                        pass
+                        
+                async def comfy_to_client():
+                    import json
+                    try:
+                        async for message in comfy_ws:
+                            if isinstance(message, bytes):
+                                print(f"comfy_to_client(b): {message}")
+                                await websocket.send_bytes(message)
+                                ws_ready = await shared_dict.get.aio("ws_ready", False)
+                                if not ws_ready and comfy_ws.state != State.CLOSED:
+                                    await shared_dict.put.aio("ws_ready", True)
+                                    print(f"Internal websocket is Ready[b]!({comfy_ws.request.headers.get("Host", "")})")
+                            elif message is not None:
+                                print_msg = True
+                                status_updated = False
+                                inqueue_count = 0
+                                if message.startswith("{"):
+                                    msgobj = json.loads(message)
+                                    # Don't logs messages for crystools.monitor, since it can flood the logs
+                                    if msgobj.get("type", "").startswith("crystools.monitor"):
+                                        print_msg = False
+                                    # Update number of inqueue when connected to GPU instance
+                                    if msgobj.get("type", "").startswith("status") and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                                        inqueue_count = int(msgobj["data"]["status"]["exec_info"]["queue_remaining"])
+                                        await shared_dict.put.aio("inqueue", inqueue_count)
+                                        status_updated = True
+                                if print_msg:
+                                    print(f"comfy_to_client: {message}")
+                                await websocket.send_text(message)
+                                ws_ready = await shared_dict.get.aio("ws_ready", False)
+                                if not ws_ready and comfy_ws.state != State.CLOSED:
+                                    await shared_dict.put.aio("ws_ready", True)
+                                    print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
+                                    # Logging to investigate why "pending_prompt" switched from 1 to 0 after this message shows up in the logs (before "Waiting for GPU" message)
+                                    #print(f"The message = >>> {message} <<<")
+                                    #pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
+                                    #ws_host = await shared_dict.get.aio("ws_host", "127.")
+                                    #print(f"Testing pending_prompt: {pending_prompt}, ws_host: {ws_host}")
+                                # Disconnect from GPU instance when there are no running inference anymore
+                                if status_updated:
+                                    active_count = await shared_dict.get.aio("active", 0)
+                                    pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
+                                    #inqueue_count = await shared_dict.get.aio("inqueue", 0)
+                                    if active_count>0 and inqueue_count==0 and pending_prompt==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                                        print(f"{inqueue_count}(+{pending_prompt}) Queue remaining in GPU instance, disconnecting from GPU instance.")
+                                        await comfy_ws.close()
+                                        await shared_dict.put.aio("ws_ready", False)
+                                        print("Internal websocket is Not Ready anymore!")
+                    except Exception as e:
+                        print(f"comfy_to_client Throw: {e!r}")
+                        # NOTE: ConnectionClosedError(None, Close(code=<CloseCode.PROTOCOL_ERROR: 1002> could mean the remote ComfyUI (GPU instance) got SIGKILLed/crashed! (and didn't reached App CleanUp stage!)
+                        # Update "active" with the actual number
+                        await fix_gpu_active_count()
+                    finally:
+                        # Close internal connection when there are no more messages
+                        #await comfy_ws.close()
+                        #await shared_dict.put.aio("ws_ready", False)
+                        #print("Internal websocket is Not Ready!")
+                        pass
+                        
+                async def watch_active():
+                    try:
+                        while True:
+                            #shared_dict.hydrate()
+                            active_count = await shared_dict.get.aio("active", 0)
+                            inqueue_count = await shared_dict.get.aio("inqueue", 0)
+                            pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
+                            #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
+                            if websocket.client_state == WebSocketState.DISCONNECTED:
+                                print(f"Disconnected EndUser Websocket State = {websocket.client_state}")
+                                # Disconnect internal websocket too
+                                if comfy_ws.state != State.CLOSED:
+                                    await comfy_ws.close()
+                                    await shared_dict.put.aio("ws_ready", False)
+                                    print("Internal websocket is Not Ready!")
+                                break
+                            if active_count>0 and (inqueue_count>0 or pending_prompt>0) and comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                                print(f"{active_count} Active GPU instance detected, disconnecting from CPU instance.")
+                                if comfy_ws.state != State.CLOSED:
+                                    await comfy_ws.close()
+                                    await shared_dict.put.aio("ws_ready", False)
+                                    print("Internal websocket is Not Ready!")
+                                break
+                            if comfy_ws.state == State.CLOSED:
+                                print("Closed Internal Websocket!")
+                                break
+                            #import time
+                            #print(f"Watch: Time = {time.time()}, (Active:{active_count}, InQueue:{inqueue_count}, PendingPrompt:{pending_prompt}, Host: {comfy_ws.request.headers.get("Host", "")})")
+                            await asyncio.sleep(0.1)  # poll interval
+                    except Exception as e:
+                        print(f"watch_active Throw: {e!r}")
+
+                ws_host = comfy_ws.request.headers.get("Host", "127.0.0.")
+                #if ws_host == "127.0.0.":
+                #    print("WARNING: Host not found in request!")
+                print(f"Connected Internal WebSocket Host: {ws_host}")
+                await shared_dict.put.aio("ws_host", ws_host)
+                # cancel both tasks when either side closes their internal connection
+                # Create named tasks so we can cancel them
+                client_task = asyncio.create_task(client_to_comfy())
+                server_task = asyncio.create_task(comfy_to_client())
+                watch_task  = asyncio.create_task(watch_active())
+
+                all_tasks = {client_task, server_task, watch_task}
+
+                # Return as soon as ANY task finishes (e.g. watch_active breaks)
+                done, pending = await asyncio.wait(all_tasks, return_when=asyncio.FIRST_COMPLETED)
+
+                # Cancel the remaining tasks
+                for task in pending:
+                    task.cancel()
+
+                # Wait for cancellations to complete cleanly
+                await asyncio.gather(*pending, return_exceptions=True)
+                print("Internal websocket connection was Closed!")
+        except ConnectionClosedError as e:
+            # Handles errors during active connection (e.g., ping timeout)
+            print(f"Connection closed unexpectedly: {e!r}")
+        except (OSError, Exception) as e:
+            # Handles connection refused, DNS issues, or handshake failures
+            print(f"Failed to connect: {e!r}")
+            
+        # Exit when EndUser connection is lost
+        if websocket.client_state == WebSocketState.DISCONNECTED:
+            break
+        await asyncio.sleep(1)  # poll every second
+
+# Proxy everything else to local ComfyUI
+@web_app.api_route("/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "TRACE"])
+async def proxy(request: Request, path: str):
+    url = f"http://127.0.0.1:{uiport}"
+    
+    # Strip Host from headers to prevent loopback
+    headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in (
+            "host",
+            "content-length",
+            "x-forwarded-proto",
+            "x-forwarded-for",
+            "x-forwarded-host",
+            "x-forwarded-port",
+        )
+    }
+    # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
+    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
+
+    body = await request.body()
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        resp = await client.request(
+            method=request.method,
+            url=f"{url}/{path}",
+            params=request.query_params,
+            headers=headers,
+            content=body,
+            #extensions={"decode_content": False},
+        )
+    # Return raw bytes with the original content-type
+    return Response(
+        content=resp.content,
+        status_code=resp.status_code,
+        #media_type=resp.headers.get("content-type"),
+        headers=resp.headers,
+    )
+    
+
 @app.cls(
     max_containers=1,
     gpu=GPU_MODEL,
+    memory=(128, 262144), # (request, limit) in MiB, set hard limit to avoid high cost when memory leaks occurred
     volumes={"/cache": vol},
     scaledown_window=60,  # idle 1 minutes to shutdown
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True},
+    startup_timeout=300, # container's startup timeout
+    timeout=3600, # execution timeout, this will also be websocket timeout
 )
 @modal.concurrent(max_inputs=10)
-class ComfyUI:
+class ComfyGPU:
     @modal.enter(snap=True)
     def start_checkpoint(self):
-        self.proc = subprocess.Popen(
-            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
-        )
-        # Block here — snapshot is taken only after this returns
-        wait_for_port(uiport, timeout=120)
+        try:
+            self.proc = subprocess.Popen(
+                f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {gpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+            )
+            # Block here — snapshot is taken only after this returns
+            wait_for_port(gpuport, timeout=300)
+        except Exception as e:
+            print(f"ComfyGPU Throw: {e!r}")
 
     @modal.enter(snap=False)
     def start_restore(self):
-        print("App Restored!")
+        active_count = shared_dict.get("active", 0)
+        shared_dict["active"] = active_count + 1
+    
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
-        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {gpuport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         #)
-        #wait_for_port(uiport, timeout=120)
+        wait_for_port(gpuport, timeout=30)
+        print("App Restored!")
     
-    @modal.web_server(uiport, startup_timeout=60)
+    @modal.web_server(gpuport, startup_timeout=30)
     def web(self):
         print("App Ready!")
     
     @modal.exit()
     def cleanup(self):
-        self.proc.terminate()
+        if shared_dict.get("active", 0) > 0:
+            shared_dict["active"] -= 1
+        else:
+            shared_dict["active"] = 0
+        # There won't be any inference running when ComfyUI is shutting down
+        shared_dict["inqueue"] = 0
+        
+        proc = getattr(self, "proc", None)
+        if proc is not None:
+            try:
+                proc.terminate()
+                proc.wait()
+            except (ProcessLookupError, OSError):
+                pass
         print("App CleanUp!")
 
 @app.cls(
@@ -373,31 +893,102 @@ class ComfyUI:
     scaledown_window=60,  # idle 1 minutes to shutdown
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True},
+    startup_timeout=300, # container's startup timeout
+    timeout=3600, # execution timeout, this will also be websocket timeout
 )
 @modal.concurrent(max_inputs=10)
-class ComfyUICPU:
+class ComfyCPU:
     @modal.enter(snap=True)
     def start_checkpoint(self):
-        self.proc = subprocess.Popen(
-            f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport + 1} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
-        )
-        # Block here — snapshot is taken only after this returns
-        wait_for_port(uiport + 1, timeout=120)
+        try:
+            self.proc = subprocess.Popen(
+                f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {cpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+            )
+            # Block here — snapshot is taken only after this returns
+            wait_for_port(cpuport, timeout=300)
+        except Exception as e:
+            print(f"ComfyCPU Throw: {e!r}")
+
+    @modal.enter(snap=False)
+    def start_restore(self):
+        # On restore, sockets may need to be rebound
+        #self.proc = subprocess.Popen(
+        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        #)
+        wait_for_port(cpuport, timeout=30)
+        print("App Restored!")
+    
+    @modal.web_server(cpuport, startup_timeout=30)
+    def web(self):
+        print("App Ready!")
+
+    @modal.exit()
+    def cleanup(self):
+        proc = getattr(self, "proc", None)
+        if proc is not None:
+            try:
+                proc.terminate()
+                proc.wait()
+            except (ProcessLookupError, OSError):
+                pass
+        print("App CleanUp!")
+
+@app.cls(
+    max_containers=1,
+    #cpu=2.0, memory=4096,
+    volumes={"/cache": vol},
+    scaledown_window=60,  # idle 1 minutes to shutdown
+    enable_memory_snapshot=True,
+    experimental_options={"enable_gpu_snapshot": True},
+    startup_timeout=300, # container's startup timeout
+    timeout=3600, # execution timeout, this will also be websocket timeout
+)
+@modal.concurrent(max_inputs=10)
+class ComfyMix:
+    @modal.enter(snap=True)
+    def start_checkpoint(self):
+        try:
+            self.proc = subprocess.Popen(
+                f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+            )
+            # Block here — snapshot is taken only after this returns
+            wait_for_port(uiport, timeout=300)
+        except Exception as e:
+            print(f"ComfyMix Throw: {e!r}")
 
     @modal.enter(snap=False)
     def start_restore(self):
         print("App Restored!")
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
-        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport + 1} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         #)
-        #wait_for_port(uiport + 1, timeout=120)
+        wait_for_port(uiport, timeout=30)
     
-    @modal.web_server(uiport + 1, startup_timeout=60)
-    def web(self):
+    @modal.asgi_app()
+    def api(self):
         print("App Ready!")
+        return web_app
     
     @modal.exit()
     def cleanup(self):
-        self.proc.terminate()
+        proc = getattr(self, "proc", None)
+        if proc is not None:
+            try:
+                proc.terminate()
+                proc.wait()
+            except (ProcessLookupError, OSError):
+                pass
         print("App CleanUp!")
+
+# This will get executed by: python comfyui.py
+if __name__ == "__main__":
+    with modal.enable_output():
+        # Clear the dict before deploying new logic
+        with app.run():
+            print("Clearing shared_dict ...")
+            shared_dict.clear() # Removes all items
+
+        # Alternative to: modal deploy comfyui.py
+        print(f"Deploying App({app.name}) ...")
+        app.deploy()
