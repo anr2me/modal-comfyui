@@ -597,6 +597,8 @@ async def proxy_websocket(websocket: WebSocket):
             "x-forwarded-port",
         )
     }
+    # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
+    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0"
     
     # We should only exit the function when connection to client lost
     while True:
