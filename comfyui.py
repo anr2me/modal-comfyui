@@ -487,7 +487,8 @@ async def proxy_prompt(request: Request):
     if pending_prompt > 0:
         await shared_dict.put.aio("pending_prompt", pending_prompt - 1)
         #print(f"Decreasing Pending Prompt to: {pending_prompt - 1}")
-    return new_resp
+    import json
+    return JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code) if new_resp.body else new_resp
 
 @web_app.get("/prompt")
 @web_app.get("/api/prompt")
@@ -505,7 +506,8 @@ async def proxy_queue(request: Request):
     # Forward request
     new_resp = await forward_httpx(url, request)
  
-    return new_resp
+    import json
+    return JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code) if new_resp.body else new_resp
     
 @web_app.post("/interrupt")
 @web_app.post("/api/interrupt")
@@ -521,7 +523,8 @@ async def proxy_interrupt(request: Request):
     # Forward request
     new_resp = await forward_httpx(url, request)
  
-    return new_resp
+    import json
+    return JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code) if new_resp.body else new_resp
 
 #@web_app.get("/api/view")
 @web_app.get("/api/jobs")
@@ -538,7 +541,7 @@ async def proxy_jobs(request: Request):
     new_resp = await forward_httpx(url, request)
  
     import json
-    return JSONResponse(json.loads(new_resp.body)) if new_resp.body else new_resp
+    return JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code) if new_resp.body else new_resp
 
 # Proxy Logs API routes
 @web_app.patch("/internal/logs{path:path}")
@@ -558,7 +561,7 @@ async def proxy_logs(request: Request, path: str):
     new_resp = await forward_httpx(url, request)
  
     import json
-    return JSONResponse(json.loads(new_resp.body)) if new_resp.body else new_resp
+    return JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code) if new_resp.body else new_resp
 
 # Proxy other API routes
 @web_app.get("/api/{path:path}")
@@ -573,7 +576,7 @@ async def proxy_api(request: Request, path: str):
     new_resp = await forward_httpx(url, request)
  
     import json
-    return JSONResponse(json.loads(new_resp.body)) if new_resp.body else new_resp
+    return JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code) if new_resp.body else new_resp
 
 # Proxy websocket
 @web_app.websocket("/ws")
