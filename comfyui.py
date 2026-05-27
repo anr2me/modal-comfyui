@@ -489,9 +489,12 @@ async def proxy_prompt(request: Request):
         print("GPU instance Timeout!")
         
     # Forward request
-    print(f"Forwarding {request.method}:{request.url.path} to GPU instance...")
-    new_resp = await forward_httpx(url, request, True)
-    
+    try:
+        print(f"Forwarding {request.method}:{request.url.path} to GPU instance...")
+        new_resp = await forward_httpx(url, request, True)
+    except Exception as e:
+        print(f"[{request.method}:{request.url.path}?{request.query_params}] Throw: {e!r}")
+        
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
     if pending_prompt > 0:
         await shared_dict.put.aio("pending_prompt", pending_prompt - 1)
