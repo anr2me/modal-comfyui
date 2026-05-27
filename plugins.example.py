@@ -17,9 +17,9 @@ comfy_plugins_ext = [
     # {
     #     "url": "URL",
     #     "branch": "BRANCH",
-    #     "requirements": "requirements.txt", # or "pyproject.toml"
+    #     "requirements": "requirements.txt", # and/or "pyproject.toml"
     #     "install": "install.py", # or "setup.py"
-    #     "dependencies": "'numpy<2' ninja", # in case requirements.txt breaks something by installing a specific version
+    #     "dependencies": "numpy<2 setuptools<82", # in case requirements.txt breaks something by installing a specific version
     # },
     {
         "url": "https://github.com/Echoflare/ComfyUI-Reverse-Proxy-Fix.git", 
@@ -28,14 +28,12 @@ comfy_plugins_ext = [
     {
         "url": "https://github.com/Comfy-Org/ComfyUI-Manager.git", 
         "branch": "main",
-        "requirements": "requirements.txt",
-        "install": "",
+        "requirements": "pyproject.toml requirements.txt",
     },
     {
         "url": "https://github.com/Lightricks/ComfyUI-LTXVideo.git", 
         "branch": "master",
-        #"requirements": "requirements.txt",
-        "install": "",
-        "dependencies": "ninja"
+        "requirements": "requirements.txt",
+        "dependencies": "kornia~=0.6.12"
     },
 ]
