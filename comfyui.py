@@ -393,7 +393,7 @@ async def wait_websocket_ready():
         
         await asyncio.sleep(0.1)
     else:
-        print("Internal Websocket Timeout!")
+        print("Internal Websocket Timeout!") # raise TimeoutError("Internal Websocket Timeout!")
 
 async def forward_httpx(url: str, request: Request, try_json: bool = False, timeout: int = 120) -> Response:
     # Strip Host from headers to prevent loopback
