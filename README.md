@@ -61,9 +61,13 @@ This will provide a temporary URL where you can access the ComfyUI interface.
 
 ### Deploy (Production)
 
-To deploy ComfyUI as a persistent app:
+To deploy ComfyUI as a persistent app using default L4 GPU:
 ```bash
 modal deploy comfyui.py
+```
+Or change the GPU with:
+```
+MODAL_GPU=RTX-PRO-6000 modal deploy comfyui.py
 ```
 
 ## Features
