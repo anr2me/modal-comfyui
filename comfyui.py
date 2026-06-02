@@ -518,7 +518,8 @@ async def proxy_queue(request: Request):
     new_resp = await forward_httpx(url, request, True)
  
     return new_resp
-    
+
+@web_app.post("/free")
 @web_app.post("/interrupt")
 @web_app.post("/api/interrupt")
 async def proxy_interrupt(request: Request):
@@ -587,6 +588,8 @@ async def proxy_logs(request: Request, path: str):
 # Proxy other API routes
 @web_app.get("/api/{path:path}")
 @web_app.get("/internal/{path:path}")
+@web_app.get("/history/{path:path}")
+@web_app.post("/history/{path:path}")
 async def proxy_api(request: Request, path: str):
     url = f"http://127.0.0.1:{uiport}"
     active_count = await shared_dict.get.aio("active", 0)
