@@ -32,7 +32,7 @@ image = (
     modal.Image.debian_slim(python_version="3.12")
     .add_local_python_source("models", "plugins", copy=True)
     .run_commands("apt-get update")
-    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "ffmpeg", "kmod") #rav1e
+    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "ffmpeg", "kmod", "linux-headers-4.4.0") #rav1e
     .uv_pip_install(["pip", "uv", "aiohttp", "fastapi", "websockets", "httpx", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
