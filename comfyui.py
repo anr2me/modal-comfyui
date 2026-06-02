@@ -312,7 +312,7 @@ image = image.run_commands(
     "git clone https://github.com/lining79355504/fork_greenboost.git &&"
     "cd fork_greenboost &&"
     "chmod +x greenboost_setup.sh &&"
-    "./greenboost_setup.sh"
+    "yes 1|./greenboost_setup.sh"
 )
 
 # Testing for vulnerability on custom nodes
