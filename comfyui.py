@@ -504,22 +504,22 @@ async def proxy_prompt(request: Request):
         print("GPU instance Timeout!")
 
     # Replace client_id content with the new sid
-    body = await request.body()
-    import json
-    try:
-        bodyobj = json.loads(body)
-        oldid = bodyobj.get("client_id", "")
-        if oldid and sid:
-            print(f"Replacing client_id: {oldid} ==> {sid}")
-            bodyobj["client_id"] = sid
-        body = json.dumps(bodyobj).encode('utf-8')
-    except Exception as e:
-        print(f"Body JSON Throw: {e!r}")
+    #body = await request.body()
+    #import json
+    #try:
+    #    bodyobj = json.loads(body)
+    #    oldid = bodyobj.get("client_id", "")
+    #    if oldid and sid:
+    #        print(f"Replacing client_id: {oldid} ==> {sid}")
+    #        bodyobj["client_id"] = sid
+    #    body = json.dumps(bodyobj).encode('utf-8')
+    #except Exception as e:
+    #    print(f"Body JSON Throw: {e!r}")
         
     # Forward request
     try:
         print(f"Forwarding {request.method}:{request.url.path} to GPU instance...")
-        new_resp = await forward_httpx(url, request, True, new_body=body)
+        new_resp = await forward_httpx(url, request, True) # new_body=body
     except Exception as e:
         print(f"[{request.method}:{request.url.path}?{request.query_params}] Throw: {e!r}")
         
@@ -664,7 +664,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
     if query_params:
         params = f"?{'&'.join([f'{k}={v}' for k, v in query_params.items()])}"
 
-    # Testing to use existing clientId
+    # Use existing clientId (including from CPU instance) when available
     sid = await shared_dict.get.aio("sid", "")
     if sid and not params: 
         params = f"?clientId={sid}"
@@ -750,18 +750,21 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                         # Check sid existence when receiving status message
                                         if msgobj.get("type", "").startswith("status"):
                                             sid = (msgobj["data"]).get("sid", "")
+                                            # Update sid
+                                            if sid:
+                                                await shared_dict.put.aio("sid", sid)
                                             # Update number of inqueue when connected to GPU instance
                                             if not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                                                 inqueue_count = int(msgobj["data"]["status"]["exec_info"]["queue_remaining"])
                                                 await shared_dict.put.aio("inqueue", inqueue_count)
                                                 status_updated = True
                                                 # Update sid if it's from GPU instance
-                                                if sid:
-                                                    await shared_dict.put.aio("sid", sid)
-                                                    ws_ready = await shared_dict.get.aio("ws_ready", False)
-                                                    if not ws_ready and comfy_ws.state != State.CLOSED:
-                                                        await shared_dict.put.aio("ws_ready", True)
-                                                        print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
+                                                #if sid:
+                                                #    await shared_dict.put.aio("sid", sid)
+                                                #    ws_ready = await shared_dict.get.aio("ws_ready", False)
+                                                #    if not ws_ready and comfy_ws.state != State.CLOSED:
+                                                #        await shared_dict.put.aio("ws_ready", True)
+                                                #        print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
                                     except Exception as e:
                                         print(f"message JSON Throw: {e!r}")
                                         
