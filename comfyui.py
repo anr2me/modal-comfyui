@@ -768,8 +768,8 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                             pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
                             #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
                             # Fake a queue while spinning up  GPU instance
-                            if prev_pending < pending_prompt:
-                                data = {"type": "status", "data": {"status": {"exec_info": {"queue_remaining": pending_prompt}}}}
+                            if prev_pending != pending_prompt:
+                                data = {"type": "status", "data": {"status": {"exec_info": {"queue_remaining": pending_prompt+inqueue_count}}}}
                                 fakemsg = json.dumps(data)
                                 await websocket.send_text(fakemsg)
                             prev_pending = pending_prompt
