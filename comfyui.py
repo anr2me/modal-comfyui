@@ -402,11 +402,15 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     }
     # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
     headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
-
-    # Forward to remote ComfyUI
+    # Use original range header (for partial streaming) if exist
+    #if range_header := request.headers.get("range"):
+    #    headers["Range"] = range_header
+        
+    # Load the full content into memory instead of streaming in chunk with request.stream()
     body = await request.body()
     if new_body:
         body = new_body
+    # Forward to remote ComfyUI
     async with httpx.AsyncClient(timeout=timeout) as client:
         resp = await client.request(
             method=request.method,
@@ -414,6 +418,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
             params=request.query_params,
             headers=headers,
             content=body,
+            #stream=True,
             #extensions={"decode_content": False}, 
         )
     # Return raw bytes with the original content-type
@@ -423,18 +428,31 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
         #media_type=resp.headers.get("content-type"),
         headers=resp.headers,
     )
+    # Stream content
+    #new_resp = StreamingResponse(
+    #    content=resp.aiter_bytes(65536),
+    #    status_code=resp.status_code,          # 206 Partial Content if range was honored
+    #    media_type=resp.headers.get("content-type"),
+    #    headers={
+    #        k: v for k, v in resp.headers.items()
+    #        if k.lower() in {"content-range", "content-length", "accept-ranges", "etag"}
+    #    },
+    #)
     if try_json:
-        try:
-            # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
-            #import zstandard as zstd
-            #dctx = zstd.ZstdDecompressor()
-            #decompressed = dctx.decompress(resp.content)
+        if resp.content:
+            try:
+                # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
+                #import zstandard as zstd
+                #dctx = zstd.ZstdDecompressor()
+                #decompressed = dctx.decompress(resp.content)
 
-            print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {body} ==> {resp.content} <==")
-            new_resp = JSONResponse(resp.json()) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
-        except Exception as e: # (json.JSONDecodeError, UnicodeDecodeError):
-            print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
-
+                print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {body} ==> {resp.content} <==")
+                new_resp = JSONResponse(resp.json()) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
+            except Exception as e: # (json.JSONDecodeError, UnicodeDecodeError):
+                print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
+        #else:
+        #    new_resp = JSONResponse(content={}, status_code=new_resp.status_code)
+    
     return new_resp
     
 
@@ -561,6 +579,7 @@ async def proxy_jobs(request: Request):
     return new_resp
 
 @web_app.get("/api/view")
+@web_app.get("/api/viewvideo")
 async def proxy_view(request: Request):
     url = f"http://127.0.0.1:{uiport}"
     active_count = await shared_dict.get.aio("active", 0)
@@ -571,7 +590,7 @@ async def proxy_view(request: Request):
     await wait_websocket_ready()
     
     # Forward request
-    new_resp = await forward_httpx(url, request, False)
+    new_resp = await forward_httpx(url, request, False) #stream=True 
  
     return new_resp
 
