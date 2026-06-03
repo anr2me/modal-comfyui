@@ -477,7 +477,7 @@ async def proxy_prompt(request: Request):
             #pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
             #print(f"Rechecked pending_prompt: {pending_prompt}")
 
-    # TODO: ws_host, ws_ready, inqueue, pending_prompt, and internal sid should be created per EndUser's sid/client_id (ie. ws_ready[client_id])
+    # TODO: ws_host, ws_ready, inqueue, pending_prompt, and internal sid should be created per EndUser's sid/clientId/client_id (ie. ws_ready[client_id])
     # wait until websocket is connected to GPU instance
     print("Waiting for GPU websocket to be Ready...")
     import time
@@ -509,6 +509,7 @@ async def proxy_prompt(request: Request):
         bodyobj = json.loads(body)
         oldid = bodyobj.get("client_id", "")
         if oldid and sid:
+            print(f"Replacing client_id: {oldid} ==> {sid}")
             bodyobj["client_id"] = sid
         body = json.dumps(bodyobj).encode('utf-8')
     except Exception as e:
@@ -804,7 +805,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                             #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
                             # Fake a queue while spinning up  GPU instance
                             if active_count == 0 and prev_pending != pending_prompt:
-                                print(f"Pending prompt changed! Faking queue remaining ({pending_prompt})")
+                                print(f"Pending prompt changed! Faking queue_remaining ({pending_prompt})")
                                 data = {"type": "status", "data": {"status": {"exec_info": {"queue_remaining": pending_prompt+inqueue_count}}}}
                                 fakemsg = json.dumps(data)
                                 await websocket.send_text(fakemsg)
