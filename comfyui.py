@@ -459,7 +459,7 @@ async def proxy_prompt(request: Request):
             #pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
             #print(f"Rechecked pending_prompt: {pending_prompt}")
 
-    # TODO: ws_host, ws_ready, inqueue, pending_prompt, sid should be created per EndUser's client_id (ie. ws_ready[client_id])
+    # TODO: ws_host, ws_ready, inqueue, pending_prompt, and internal sid should be created per EndUser's sid/client_id (ie. ws_ready[client_id])
     # wait until websocket is connected to GPU instance
     print("Waiting for GPU websocket to be Ready...")
     import time
@@ -673,6 +673,8 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                 ping_interval=15,       # send pings every N seconds
                 ping_timeout=20,        # wait N seconds for pong before closing
             ) as comfy_ws:
+                dc_time = 0
+                
                 async def client_to_comfy():
                     import json
                     try:
@@ -688,13 +690,14 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                         await fix_gpu_active_count()
                     finally:
                         # Close internal connection when there are no more messages
-                        #await comfy_ws.close()
-                        #await shared_dict.put.aio("ws_ready", False)
                         #print("Internal websocket is Not Ready!")
+                        #await shared_dict.put.aio("ws_ready", False)
+                        #await comfy_ws.close()
                         pass
                         
                 async def comfy_to_client():
                     import json
+                    import time
                     try:
                         async for message in comfy_ws:
                             if isinstance(message, bytes):
@@ -739,12 +742,14 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                 if status_updated:
                                     active_count = await shared_dict.get.aio("active", 0)
                                     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
-                                    #inqueue_count = await shared_dict.get.aio("inqueue", 0)
+                                    inqueue_count = await shared_dict.get.aio("inqueue", 0)
                                     if active_count>0 and inqueue_count==0 and pending_prompt==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
-                                        print(f"{inqueue_count}(+{pending_prompt}) Queue remaining in GPU instance, disconnecting from GPU instance.")
-                                        await comfy_ws.close()
-                                        await shared_dict.put.aio("ws_ready", False)
-                                        print("Internal websocket is Not Ready anymore!")
+                                        countdown = 30
+                                        dc_time = time.time() + countdown
+                                        print(f"{inqueue_count}(+{pending_prompt}) Queue remaining in GPU instance, Disconnecting from GPU instance in {countdown} seconds.")
+                                        #print("Internal websocket is Not Ready anymore!")
+                                        #await shared_dict.put.aio("ws_ready", False)
+                                        #await comfy_ws.close()
                     except Exception as e:
                         print(f"comfy_to_client Throw: {e!r}")
                         # NOTE: ConnectionClosedError(None, Close(code=<CloseCode.PROTOCOL_ERROR: 1002> could mean the remote ComfyUI (GPU instance) got SIGKILLed/crashed! (and didn't reached App CleanUp stage!)
@@ -752,13 +757,14 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                         await fix_gpu_active_count()
                     finally:
                         # Close internal connection when there are no more messages
-                        #await comfy_ws.close()
-                        #await shared_dict.put.aio("ws_ready", False)
                         #print("Internal websocket is Not Ready!")
+                        #await shared_dict.put.aio("ws_ready", False)
+                        #await comfy_ws.close()
                         pass
                         
                 async def watch_active():
                     import json
+                    import time
                     prev_pending = 0
                     try:
                         while True:
@@ -774,21 +780,30 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                 fakemsg = json.dumps(data)
                                 await websocket.send_text(fakemsg)
                             prev_pending = pending_prompt
-                                
+                            
+                            # Reset countdown timer when there are pending jobs
+                            if active_count > 0 and (pending_prompt > 0 or inqueue_count > 0) and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                                dc_time = 0
+
+                            if dc_time != 0 and dc_time <= time.time():
+                                print("Internal websocket is Not Ready anymore!")
+                                await shared_dict.put.aio("ws_ready", False)
+                                await comfy_ws.close()
+                                break
                             if websocket.client_state == WebSocketState.DISCONNECTED:
                                 print(f"Disconnected EndUser Websocket State = {websocket.client_state}")
                                 # Disconnect internal websocket too
                                 if comfy_ws.state != State.CLOSED:
-                                    await comfy_ws.close()
-                                    await shared_dict.put.aio("ws_ready", False)
                                     print("Internal websocket is Not Ready!")
+                                    await shared_dict.put.aio("ws_ready", False)
+                                    await comfy_ws.close()
                                 break
                             if active_count>0 and (inqueue_count>0 or pending_prompt>0) and comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                                 print(f"{active_count} Active GPU instance detected, disconnecting from CPU instance.")
                                 if comfy_ws.state != State.CLOSED:
-                                    await comfy_ws.close()
-                                    await shared_dict.put.aio("ws_ready", False)
                                     print("Internal websocket is Not Ready!")
+                                    await shared_dict.put.aio("ws_ready", False)
+                                    await comfy_ws.close()
                                 break
                             if comfy_ws.state == State.CLOSED:
                                 print("Closed Internal Websocket!")
