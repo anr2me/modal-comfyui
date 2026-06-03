@@ -387,7 +387,7 @@ async def wait_websocket_ready():
     else:
         print("Internal Websocket Timeout!") # raise TimeoutError("Internal Websocket Timeout!")
 
-async def forward_httpx(url: str, request: Request, try_json: bool = False, timeout: int = 120) -> Response:
+async def forward_httpx(url: str, request: Request, try_json: bool = False, timeout: int = 120, new_body: bytes = b'') -> Response:
     # Strip Host from headers to prevent loopback
     headers = {
         k: v for k, v in request.headers.items()
@@ -405,6 +405,8 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
 
     # Forward to remote ComfyUI
     body = await request.body()
+    if new_body:
+        body = new_body
     async with httpx.AsyncClient(timeout=timeout) as client:
         resp = await client.request(
             method=request.method,
@@ -457,19 +459,21 @@ async def proxy_prompt(request: Request):
             #pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
             #print(f"Rechecked pending_prompt: {pending_prompt}")
 
-    # TODO: ws_host, ws_ready, inqueue, pending_prompt should be created per EndUser's client_id (ie. ws_ready[client_id])
+    # TODO: ws_host, ws_ready, inqueue, pending_prompt, sid should be created per EndUser's client_id (ie. ws_ready[client_id])
     # wait until websocket is connected to GPU instance
     print("Waiting for GPU websocket to be Ready...")
     import time
     import asyncio
+    sid = ""
     deadline = time.time() + 300
     while time.time() < deadline:
         try:
             #shared_dict.hydrate()
             active_count = await shared_dict.get.aio("active", 0)
+            sid = await shared_dict.get.aio("sid", "")
             ws_ready = await shared_dict.get.aio("ws_ready", False)
             ws_host  = await shared_dict.get.aio("ws_host", "127.0.")
-            if active_count>0 and ws_ready and not ws_host.startswith("127.0."):
+            if active_count>0 and sid and ws_ready and not ws_host.startswith("127.0."):
                 print(f"GPU websocket is Ready! (Active:{active_count}, Ready:{ws_ready}, Host: {ws_host})")
                 break # websocket is connected to GPU instance
             #print(f"Wait: Time = {time.time()}, (active:{active_count}, ready:{ws_ready}, host: {ws_host})")
@@ -479,11 +483,22 @@ async def proxy_prompt(request: Request):
         await asyncio.sleep(0.1)
     else:
         print("GPU instance Timeout!")
+
+    # TODO: replace client_id content with the new sid
+    body = await request.body()
+    try:
+        bodyobj = json.loads(body)
+        oldid = bodyobj.get("client_id", "")
+        if oldid and sid:
+            bodyobj.put("client_id", sid)
+        body = json.dumps(bodyobj).encode('utf-8')
+    except Exception as e:
+        print(f"Body JSON Throw: {e!r}")
         
     # Forward request
     try:
         print(f"Forwarding {request.method}:{request.url.path} to GPU instance...")
-        new_resp = await forward_httpx(url, request, True)
+        new_resp = await forward_httpx(url, request, True, new_body=body)
     except Exception as e:
         print(f"[{request.method}:{request.url.path}?{request.query_params}] Throw: {e!r}")
         
@@ -684,10 +699,10 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                             if isinstance(message, bytes):
                                 print(f"comfy_to_client(b): {message}")
                                 await websocket.send_bytes(message)
-                                ws_ready = await shared_dict.get.aio("ws_ready", False)
-                                if not ws_ready and comfy_ws.state != State.CLOSED:
-                                    await shared_dict.put.aio("ws_ready", True)
-                                    print(f"Internal websocket is Ready[b]!({comfy_ws.request.headers.get("Host", "")})")
+                                #ws_ready = await shared_dict.get.aio("ws_ready", False)
+                                #if not ws_ready and comfy_ws.state != State.CLOSED:
+                                #    await shared_dict.put.aio("ws_ready", True)
+                                #    print(f"Internal websocket is Ready[b]!({comfy_ws.request.headers.get("Host", "")})")
                             elif message is not None:
                                 print_msg = True
                                 status_updated = False
@@ -702,18 +717,23 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                         inqueue_count = int(msgobj["data"]["status"]["exec_info"]["queue_remaining"])
                                         await shared_dict.put.aio("inqueue", inqueue_count)
                                         status_updated = True
+                                        sid = (msgobj["data"]).get("sid", "")
+                                        if sid:
+                                            await shared_dict.put.aio("sid", sid)
+                                            ws_ready = await shared_dict.get.aio("ws_ready", False)
+                                            if not ws_ready and comfy_ws.state != State.CLOSED:
+                                                await shared_dict.put.aio("ws_ready", True)
+                                                print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
+                                        
                                 if print_msg:
                                     print(f"comfy_to_client: {message}")
+                                
                                 await websocket.send_text(message)
-                                ws_ready = await shared_dict.get.aio("ws_ready", False)
-                                if not ws_ready and comfy_ws.state != State.CLOSED:
-                                    await shared_dict.put.aio("ws_ready", True)
-                                    print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
-                                    # Logging to investigate why "pending_prompt" switched from 1 to 0 after this message shows up in the logs (before "Waiting for GPU" message)
-                                    #print(f"The message = >>> {message} <<<")
-                                    #pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
-                                    #ws_host = await shared_dict.get.aio("ws_host", "127.")
-                                    #print(f"Testing pending_prompt: {pending_prompt}, ws_host: {ws_host}")
+                                #ws_ready = await shared_dict.get.aio("ws_ready", False)
+                                #if not ws_ready and comfy_ws.state != State.CLOSED:
+                                #    await shared_dict.put.aio("ws_ready", True)
+                                #    print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
+                                    
                                 # Disconnect from GPU instance when there are no running inference anymore
                                 if status_updated:
                                     active_count = await shared_dict.get.aio("active", 0)
