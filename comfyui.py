@@ -579,6 +579,8 @@ async def proxy_jobs(request: Request):
  
     return new_resp
 
+@web_app.get("/view")
+@web_app.get("/viewvideo")
 @web_app.get("/api/view")
 @web_app.get("/api/viewvideo")
 async def proxy_view(request: Request):
