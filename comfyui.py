@@ -698,6 +698,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                 async def comfy_to_client():
                     import json
                     import time
+                    nonlocal dc_time
                     try:
                         async for message in comfy_ws:
                             if isinstance(message, bytes):
@@ -765,6 +766,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                 async def watch_active():
                     import json
                     import time
+                    nonlocal dc_time
                     prev_pending = 0
                     try:
                         while True:
