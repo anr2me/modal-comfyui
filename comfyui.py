@@ -712,32 +712,40 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                 print_msg = True
                                 status_updated = False
                                 inqueue_count = 0
+                                sid = ""
                                 if message.startswith("{"):
-                                    msgobj = json.loads(message)
-                                    # Don't logs messages for crystools.monitor, since it can flood the logs
-                                    if msgobj.get("type", "").startswith("crystools.monitor"):
-                                        print_msg = False
-                                    # Update number of inqueue when connected to GPU instance
-                                    if msgobj.get("type", "").startswith("status") and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
-                                        inqueue_count = int(msgobj["data"]["status"]["exec_info"]["queue_remaining"])
-                                        await shared_dict.put.aio("inqueue", inqueue_count)
-                                        status_updated = True
-                                        sid = (msgobj["data"]).get("sid", "")
-                                        if sid:
-                                            await shared_dict.put.aio("sid", sid)
-                                            ws_ready = await shared_dict.get.aio("ws_ready", False)
-                                            if not ws_ready and comfy_ws.state != State.CLOSED:
-                                                await shared_dict.put.aio("ws_ready", True)
-                                                print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
+                                    try:
+                                        msgobj = json.loads(message)
+                                        # Don't logs messages for crystools.monitor, since it can flood the logs
+                                        if msgobj.get("type", "").startswith("crystools.monitor"):
+                                            print_msg = False
+                                        # Check sid existence when receiving status message
+                                        if msgobj.get("type", "").startswith("status"):
+                                            sid = (msgobj["data"]).get("sid", "")
+                                            # Update number of inqueue when connected to GPU instance
+                                            if not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                                                inqueue_count = int(msgobj["data"]["status"]["exec_info"]["queue_remaining"])
+                                                await shared_dict.put.aio("inqueue", inqueue_count)
+                                                status_updated = True
+                                                # Update sid if it's from GPU instance
+                                                if sid:
+                                                    await shared_dict.put.aio("sid", sid)
+                                                    ws_ready = await shared_dict.get.aio("ws_ready", False)
+                                                    if not ws_ready and comfy_ws.state != State.CLOSED:
+                                                        await shared_dict.put.aio("ws_ready", True)
+                                                        print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
+                                    except Exception as e:
+                                        print(f"message JSON Throw: {e!r}")
                                         
                                 if print_msg:
                                     print(f"comfy_to_client: {message}")
                                 
                                 await websocket.send_text(message)
-                                #ws_ready = await shared_dict.get.aio("ws_ready", False)
-                                #if not ws_ready and comfy_ws.state != State.CLOSED:
-                                #    await shared_dict.put.aio("ws_ready", True)
-                                #    print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
+                                # Update ws_ready after receiving status message with sid
+                                ws_ready = await shared_dict.get.aio("ws_ready", False)
+                                if not ws_ready and sid and comfy_ws.state != State.CLOSED:
+                                    await shared_dict.put.aio("ws_ready", True)
+                                    print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
                                     
                                 # Disconnect from GPU instance when there are no running inference anymore
                                 if status_updated:
