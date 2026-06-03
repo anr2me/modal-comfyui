@@ -610,10 +610,20 @@ async def proxy_logs(request: Request, path: str):
     # wait until internal websocket is connected and ready
     await wait_websocket_ready()
 
-    # TODO: replace client_id
+    # store logs subscribe enabled state
+    body = await request.body()
+    import json
+    if path == "/subscribe":
+        try:
+            bodyobj = json.loads(body)
+            value = bodyobj.get("enabled", "false")
+            logs_enabled = value if isinstance(value, bool) else value.lower() == "true"
+            await shared_dict.put.aio("logs_enabled", logs_enabled)
+        except Exception as e:
+            print(f"Body JSON Throw: {e!r}")
 
     # Forward request
-    new_resp = await forward_httpx(url, request, True)
+    new_resp = await forward_httpx(url, request, True, new_body=body)
  
     return new_resp
 
@@ -777,6 +787,18 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                 if not ws_ready and sid and comfy_ws.state != State.CLOSED:
                                     await shared_dict.put.aio("ws_ready", True)
                                     print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
+                                    # Re-subscribe the Logs on GPU instance
+                                    logs_enabled = await shared_dict.get.aio("logs_enabled", False)
+                                    if logs_enabled and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                                        print("Re-subscribing Logs...")
+                                        logs_url = f"http://127.0.0.1:{uiport}"
+                                        active_count = await shared_dict.get.aio("active", 0)
+                                        if active_count > 0:
+                                            logs_url = await get_remote_url("ComfyGPU")
+                                        logs_url += "/internal/logs/subscribe"
+                                        logs_body = json.dumps({"enabled": logs_enabled, "clientId": sid}).encode("utf-8") 
+                                        async with httpx.AsyncClient(timeout=300) as logs_client:
+                                            await logs_client.patch(logs_url, content=logs_body)
                                     
                                 # Disconnect from GPU instance when there are no running inference anymore
                                 if status_updated:
