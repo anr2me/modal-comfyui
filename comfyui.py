@@ -641,6 +641,7 @@ async def proxy_websocket(websocket: WebSocket):
 
         try:
             print(f"CONNECTing to {uri}")
+            print(f"Headers: {headers}")
             async with websockets.connect(
                 uri,
                 additional_headers=headers, 
