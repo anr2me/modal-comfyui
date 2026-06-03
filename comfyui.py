@@ -901,7 +901,7 @@ async def proxy(request: Request, path: str):
     startup_timeout=300, # container's startup timeout
     timeout=3600, # execution timeout, this will also be websocket timeout
 )
-@modal.concurrent(max_inputs=10)
+@modal.concurrent(max_inputs=20)
 class ComfyGPU:
     @modal.enter(snap=True)
     def start_checkpoint(self):
@@ -958,7 +958,7 @@ class ComfyGPU:
     startup_timeout=300, # container's startup timeout
     timeout=3600, # execution timeout, this will also be websocket timeout
 )
-@modal.concurrent(max_inputs=10)
+@modal.concurrent(max_inputs=20)
 class ComfyCPU:
     @modal.enter(snap=True)
     def start_checkpoint(self):
@@ -1005,7 +1005,7 @@ class ComfyCPU:
     startup_timeout=300, # container's startup timeout
     timeout=3600, # execution timeout, this will also be websocket timeout
 )
-@modal.concurrent(max_inputs=10)
+@modal.concurrent(max_inputs=20)
 class ComfyMix:
     @modal.enter(snap=True)
     def start_checkpoint(self):
