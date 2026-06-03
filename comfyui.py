@@ -662,6 +662,11 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
     params = ""
     if query_params:
         params = f"?{'&'.join([f'{k}={v}' for k, v in query_params.items()])}"
+
+    # Testing to use existing clientId
+    sid = await shared_dict.get.aio("sid", "")
+    if sid and not params: 
+        params = f"?clientId={sid}"
         
     # We should only exit the function when connection to client lost
     while True:
