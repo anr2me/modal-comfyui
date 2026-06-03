@@ -758,6 +758,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                         pass
                         
                 async def watch_active():
+                    prev_pending = 0
                     try:
                         while True:
                             #shared_dict.hydrate()
@@ -765,6 +766,12 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                             inqueue_count = await shared_dict.get.aio("inqueue", 0)
                             pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
                             #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
+                            # Fake a queue while spinning up  GPU instance
+                            if prev_pending < pending_prompt:
+                                fakemsg = f'\{"type": "status", "data": \{"status": \{"exec_info": \{"queue_remaining": {pending_prompt}\}\}\}\}'
+                                await websocket.send_text(fakemsg)
+                            prev_pending = pending_prompt
+                                
                             if websocket.client_state == WebSocketState.DISCONNECTED:
                                 print(f"Disconnected EndUser Websocket State = {websocket.client_state}")
                                 # Disconnect internal websocket too
