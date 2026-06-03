@@ -758,6 +758,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                         pass
                         
                 async def watch_active():
+                    import json
                     prev_pending = 0
                     try:
                         while True:
@@ -768,7 +769,8 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                             #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
                             # Fake a queue while spinning up  GPU instance
                             if prev_pending < pending_prompt:
-                                fakemsg = f'\{"type": "status", "data": \{"status": \{"exec_info": \{"queue_remaining": {pending_prompt}\}\}\}\}'
+                                data = {"type": "status", "data": {"status": {"exec_info": {"queue_remaining": pending_prompt}}}}
+                                fakemsg = json.dumps(data)
                                 await websocket.send_text(fakemsg)
                             prev_pending = pending_prompt
                                 
