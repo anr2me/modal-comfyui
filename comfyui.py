@@ -491,7 +491,7 @@ async def proxy_prompt(request: Request):
         bodyobj = json.loads(body)
         oldid = bodyobj.get("client_id", "")
         if oldid and sid:
-            bodyobj.put("client_id", sid)
+            bodyobj["client_id"] = sid
         body = json.dumps(bodyobj).encode('utf-8')
     except Exception as e:
         print(f"Body JSON Throw: {e!r}")
