@@ -484,8 +484,9 @@ async def proxy_prompt(request: Request):
     else:
         print("GPU instance Timeout!")
 
-    # TODO: replace client_id content with the new sid
+    # Replace client_id content with the new sid
     body = await request.body()
+    import json
     try:
         bodyobj = json.loads(body)
         oldid = bodyobj.get("client_id", "")
