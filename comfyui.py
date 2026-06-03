@@ -596,7 +596,7 @@ async def proxy_api(request: Request, path: str):
 
 # Proxy websocket
 @web_app.websocket("/ws")
-async def proxy_websocket(websocket: WebSocket):
+async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, request: Request)
     await websocket.accept()
 
     import asyncio
@@ -618,7 +618,13 @@ async def proxy_websocket(websocket: WebSocket):
     }
     # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
     headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0"
-    
+
+    # Get query parameters as an ImmutableMultiDict
+    query_params = dict(websocket.query_params)
+    params = ""
+    if query_params:
+        params = f"?{'&'.join([f'{k}={v}' for k, v in query_params.items()])}"
+        
     # We should only exit the function when connection to client lost
     while True:
         # Use active GPU instance when available, otherwise use localhost (CPU)
@@ -638,6 +644,7 @@ async def proxy_websocket(websocket: WebSocket):
                 new_parsed = parsed._replace(scheme=scheme_map[parsed.scheme])
                 url = urlunparse(new_parsed)
             uri = f"{url}/ws"
+        uri = f"{uri}{params}"
 
         try:
             print(f"CONNECTing to {uri}")
