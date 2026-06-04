@@ -339,11 +339,18 @@ def wait_for_port(port: int, timeout: int = 60):
 with image.imports():
     from fastapi import Request, Response, WebSocket
     from fastapi.responses import JSONResponse
+    from fastapi.middleware.gzip import GZipMiddleware
     import httpx
     import websockets
 
 from fastapi import FastAPI
-web_app = FastAPI() 
+web_app = FastAPI()
+# Enable automatic Gzip compression
+web_app.add_middleware(
+    GZipMiddleware, 
+    minimum_size=1000,  # Bytes: skip small payloads to protect CPU overhead
+    compresslevel=5     # Balance between speed (1) and size reduction (9)
+)
 
 app = modal.App(name="modal-comfyui", image=image)
 shared_dict = modal.Dict.from_name(app.name, create_if_missing=True)
