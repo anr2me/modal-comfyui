@@ -446,7 +446,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     #    },
     #)
     
-    print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {body} ==> {resp.content} <==")
+    print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {body} >> {resp.headers} >>> {new_resp.headers} ==> {resp.content} <==")
     if try_json:
         if resp.content:
             try:
