@@ -605,7 +605,7 @@ async def proxy_view(request: Request):
 
     # Testing downloadable file
     return Response(
-            content=new_resp.content,
+            content=new_resp.body,
             media_type="image/png",
             headers={
                 # "attachment" forces the browser to download the file instead of rendering it inline
