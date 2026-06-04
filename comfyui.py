@@ -635,10 +635,11 @@ async def proxy_view(request: Request):
     return Response(
             content=new_resp.body,
             media_type="image/png",
-            headers={
-                # "attachment" forces the browser to download the file instead of rendering it inline
-                "Content-Disposition": 'attachment; filename="generated_image.png"'
-            }
+            headers=new_resp.headers,
+            #headers={
+            #    # "attachment" forces the browser to download the file instead of rendering it inline
+            #    "Content-Disposition": 'attachment; filename="generated_image.png"'
+            #}
     )
     return new_resp
 
