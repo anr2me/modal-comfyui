@@ -632,8 +632,8 @@ async def proxy_view(request: Request):
     new_resp = await forward_httpx(url, request, False) #stream=True 
 
     # Testing downloadable file
-    headers = new_resp.headers
-    condis = headers.get("content-disposition", "")
+    headers = {} #new_resp.headers
+    condis = new_resp.headers.get("content-disposition", "")
     if condis:
         headers["Content-Disposition"]=condis
     return Response(
