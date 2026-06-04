@@ -632,19 +632,16 @@ async def proxy_view(request: Request):
     new_resp = await forward_httpx(url, request, False) #stream=True 
 
     # Testing downloadable file
-    headers = {} #new_resp.headers
-    condis = new_resp.headers.get("content-disposition", "")
-    if condis:
-        headers["Content-Disposition"]=condis
+    headers = {}
+    for key in ("content-disposition", "content-range", "accept-ranges", "content-length", "etag", "cache-control"):
+        if val := new_resp.headers.get(key):
+            headers[key] = val
+        
     return Response(
             content=new_resp.body,
-            media_type=new_resp.media_type, #"image/png",
+            media_type=new_resp.media_type,
             status_code=new_resp.status_code,
             headers=headers,
-            #headers={
-            #    # "attachment" forces the browser to download the file instead of rendering it inline
-            #    "Content-Disposition": 'filename="generated_image.png"' # attachment; 
-            #}
     )
     return new_resp
 
