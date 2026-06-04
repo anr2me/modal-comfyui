@@ -602,7 +602,16 @@ async def proxy_view(request: Request):
     
     # Forward request
     new_resp = await forward_httpx(url, request, False) #stream=True 
- 
+
+    # Testing downloadable file
+    return Response(
+            content=new_resp.content,
+            media_type="image/png",
+            headers={
+                # "attachment" forces the browser to download the file instead of rendering it inline
+                "Content-Disposition": 'attachment; filename="generated_image.png"'
+            }
+    )
     return new_resp
 
 # Proxy Logs API routes
