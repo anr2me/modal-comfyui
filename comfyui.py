@@ -656,9 +656,12 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
     await websocket.accept()
 
     import asyncio
+    import json
+    import time
     from starlette.websockets import WebSocketState
     from websockets.connection import State
     from websockets.exceptions import ConnectionClosedError
+    from datetime import datetime
 
     # Strip Host from headers to prevent loopback
     headers = {
@@ -721,7 +724,6 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                 dc_time = 0
                 
                 async def client_to_comfy():
-                    import json
                     try:
                         async for message in websocket.iter_bytes():
                             #if isinstance(message, str) and message.startswith("{"):
@@ -741,8 +743,6 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                         pass
                         
                 async def comfy_to_client():
-                    import json
-                    import time
                     nonlocal dc_time
                     try:
                         async for message in comfy_ws:
@@ -797,14 +797,14 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                     # Re-subscribe the Logs on GPU instance
                                     logs_enabled = await shared_dict.get.aio("logs_enabled", False)
                                     if logs_enabled and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
-                                        print("Re-subscribing Logs...")
+                                        print(f"Re-subscribing Logs({logs_enabled})...")
                                         logs_url = f"http://127.0.0.1:{uiport}"
                                         active_count = await shared_dict.get.aio("active", 0)
                                         if active_count > 0:
                                             logs_url = await get_remote_url("ComfyGPU")
                                         logs_url += "/internal/logs/subscribe"
                                         logs_body = json.dumps({"enabled": logs_enabled, "clientId": sid}).encode("utf-8") 
-                                        async with httpx.AsyncClient(timeout=300) as logs_client:
+                                        async with httpx.AsyncClient(timeout=120) as logs_client:
                                             await logs_client.patch(logs_url, content=logs_body)
                                     
                                 # Disconnect from GPU instance when there are no running inference anymore
@@ -832,8 +832,6 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                         pass
                         
                 async def watch_active():
-                    import json
-                    import time
                     nonlocal dc_time
                     prev_pending = 0
                     try:
@@ -913,6 +911,13 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
         except (OSError, Exception) as e:
             # Handles connection refused, DNS issues, or handshake failures
             print(f"Failed to connect: {e!r}")
+            # NOTE: Responde status_code = 204, the GPU instance might be crashed!
+            # Send an error message to EndUser's websocket
+            if websocket.client_state != WebSocketState.DISCONNECTED:
+                errmsg = f"\u001b[1m\u001b[31m[ERROR]\u001b[0m Failed to connect to GPU instance: {e!r}.\n"
+                data = {"type": "logs","data": {"entries": [{"t": datetime.utcnow().isoformat(),"m": errmsg}],"size": None}}
+                fakemsg = json.dumps(data)
+                await websocket.send_text(fakemsg)
             
         # Exit when EndUser connection is lost
         if websocket.client_state == WebSocketState.DISCONNECTED:
