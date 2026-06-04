@@ -474,7 +474,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     #    },
     #)
     
-    print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {request.headers} >> {body} ==> {resp.headers} >>> {resp.content} <<<")
+    print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>> {resp.content} <<<")
     if try_json:
         if resp.content:
             try:
@@ -635,6 +635,7 @@ async def proxy_view(request: Request):
     return Response(
             content=new_resp.body,
             media_type="image/png",
+            status_code=new_resp.status_code,
             #headers=new_resp.headers,
             headers={
                 # "attachment" forces the browser to download the file instead of rendering it inline
