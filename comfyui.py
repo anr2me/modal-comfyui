@@ -719,6 +719,12 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
             uri = f"{url}/ws"
         uri = f"{uri}{params}"
 
+        # Send a message to Enduser's websocket
+        if websocket.client_state != WebSocketState.DISCONNECTED:
+            msg = f"\n\033[32m[INFO]\033[0m Connecting to {uri}.\n"
+            data = {"type": "logs","data": {"entries": [{"t": datetime.utcnow().isoformat(),"m": msg}],"size": None}}
+            await websocket.send_text(json.dumps(data))
+
         try:
             print(f"CONNECTing to {uri}")
             print(f"Headers: {headers}")
@@ -853,9 +859,8 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                             # Fake a queue while spinning up  GPU instance
                             if active_count == 0 and prev_pending != pending_prompt:
                                 print(f"Pending prompt changed! Faking queue_remaining ({pending_prompt})")
-                                data = {"type": "status", "data": {"status": {"exec_info": {"queue_remaining": pending_prompt+inqueue_count}}}}
-                                fakemsg = json.dumps(data)
-                                await websocket.send_text(fakemsg)
+                                fakedata = {"type": "status", "data": {"status": {"exec_info": {"queue_remaining": pending_prompt+inqueue_count}}}}
+                                await websocket.send_text(json.dumps(fakedata))
                             prev_pending = pending_prompt
                             
                             # Reset countdown timer when there are pending jobs
@@ -923,10 +928,9 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
             # NOTE: Responde status_code = 204, the GPU instance might be crashed!
             # Send an error message to EndUser's websocket
             if websocket.client_state != WebSocketState.DISCONNECTED:
-                errmsg = f"\u001b[1m\u001b[31m[ERROR]\u001b[0m Failed to connect to GPU instance: {e!r}.\n"
-                data = {"type": "logs","data": {"entries": [{"t": datetime.utcnow().isoformat(),"m": errmsg}],"size": None}}
-                fakemsg = json.dumps(data)
-                await websocket.send_text(fakemsg)
+                msg = f"\n\u001b[1m\u001b[31m[ERROR]\u001b[0m Failed to connect to GPU instance: {e!r}.\n"
+                data = {"type": "logs","data": {"entries": [{"t": datetime.utcnow().isoformat(),"m": msg}],"size": None}}
+                await websocket.send_text(json.dumps(data))
             
         # Exit when EndUser connection is lost
         if websocket.client_state == WebSocketState.DISCONNECTED:
