@@ -721,7 +721,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
 
         # Send a message to Enduser's websocket
         if websocket.client_state != WebSocketState.DISCONNECTED:
-            msg = f"\n\033[32m[INFO]\033[0m Connecting to {uri}.\n"
+            msg = f"\n\033[32m[INFO]\033[0m Connecting to {uri} ...\n"
             data = {"type": "logs","data": {"entries": [{"t": datetime.utcnow().isoformat(),"m": msg}],"size": None}}
             await websocket.send_text(json.dumps(data))
 
@@ -857,10 +857,14 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                             pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
                             #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
                             # Fake a queue while spinning up  GPU instance
-                            if active_count == 0 and prev_pending != pending_prompt:
+                            if active_count == 0 and prev_pending != pending_prompt and websocket.client_state != WebSocketState.DISCONNECTED:
                                 print(f"Pending prompt changed! Faking queue_remaining ({pending_prompt})")
                                 fakedata = {"type": "status", "data": {"status": {"exec_info": {"queue_remaining": pending_prompt+inqueue_count}}}}
                                 await websocket.send_text(json.dumps(fakedata))
+                                # Send to logs too
+                                msg = f"\n\033[32m[INFO]\033[0m Initializing GPU instance...\n"
+                                data = {"type": "logs","data": {"entries": [{"t": datetime.utcnow().isoformat(),"m": msg}],"size": None}}
+                                await websocket.send_text(json.dumps(data))
                             prev_pending = pending_prompt
                             
                             # Reset countdown timer when there are pending jobs
