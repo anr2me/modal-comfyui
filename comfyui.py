@@ -692,9 +692,9 @@ async def proxy_crystools(request: Request, path: str):
     if path == "/monitor" and request.method == "PATCH":
         try:
             bodyobj = json.loads(body)
-            value = bodyobj.get("enabled", "false")
-            #logs_enabled = value if isinstance(value, bool) else value.lower() == "true"
-            #await shared_dict.put.aio("logs_enabled", logs_enabled)
+            value = bodyobj.get("switchGPU", "false")
+            gpu_enabled = value if isinstance(value, bool) else value.lower() == "true"
+            await shared_dict.put.aio("gpu_enabled", gpu_enabled)
         except Exception as e:
             print(f"Body JSON Throw: {e!r}")
 
@@ -877,6 +877,18 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                         logs_body = json.dumps({"enabled": logs_enabled, "clientId": sid}).encode("utf-8") 
                                         async with httpx.AsyncClient(timeout=120) as logs_client:
                                             await logs_client.patch(logs_url, content=logs_body)
+                                    # Re-Patch Crystools monitor on GPU instance
+                                    gpu_enabled = await shared_dict.get.aio("gpu_enabled", False)
+                                    if not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                                        print(f"Re-patching Crystools Monitor ({gpu_enabled})...")
+                                        crystools_url = f"http://127.0.0.1:{uiport}"
+                                        active_count = await shared_dict.get.aio("active", 0)
+                                        if active_count > 0:
+                                            crystools_url = await get_remote_url("ComfyGPU")
+                                        crystools_url += "/api/crystools/monitor"
+                                        crystools_body = json.dumps({"switchGPU": (active_count > 0) }).encode("utf-8") 
+                                        async with httpx.AsyncClient(timeout=120) as crystools_client:
+                                            await crystools_client.patch(crystools_url, content=crystools_body)
                                     
                                 # Disconnect from GPU instance when there are no running inference anymore
                                 if status_updated:
