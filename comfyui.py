@@ -362,6 +362,34 @@ uiport = 8188
 gpuport = uiport + 1
 cpuport = uiport + 2
 
+from enum import IntEnum, auto
+
+class LogsType(IntEnum):
+    ERROR = auto()  # Starts at 1 by default
+    WARNING = auto()  # 2
+    INFO = auto()  # 3
+    DEBUG = auto()   # 4
+    VERBOSE = auto()   # 5
+    
+async def send_logs_msg(websocket: WebSocket, msg: str, logs_type: LogsType = 0):
+    import json
+    from datetime import datetime
+    from starlette.websockets import WebSocketState
+    
+    if websocket.client_state != WebSocketState.DISCONNECTED:
+        prefixtype = ""
+        match logs_type:
+            case LogsType.ERROR:
+                prefixtype = "\u001b[1m\u001b[31m[ERROR]\u001b[0m "
+            case LogsType.WARNING:
+                prefixtype = "\u001b[1m\u001b[33m[WARNING]\u001b[0m "
+            case LogsType.INFO:
+                prefixtype = "\033[32m[INFO]\033[0m "
+                
+        msg = f"\n{prefixtype}{msg}"
+        data = {"type": "logs","data": {"entries": [{"t": datetime.utcnow().isoformat(),"m": msg}],"size": None}}
+        await websocket.send_text(json.dumps(data))
+
 async def fix_gpu_active_count():
     # Fix active count, in the case where the GPU container got SIGKILLed (which couldn't reached @modal.exit stage)
     GpuClass = modal.Cls.from_name(app.name, "ComfyGPU")
@@ -446,7 +474,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     #    },
     #)
     
-    print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {request.headers} >> {body} ==> {resp.headers} >>> {resp.content} <<<")
+    print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>> {resp.content} <<<")
     if try_json:
         if resp.content:
             try:
@@ -602,7 +630,19 @@ async def proxy_view(request: Request):
     
     # Forward request
     new_resp = await forward_httpx(url, request, False) #stream=True 
- 
+
+    # Testing downloadable file
+    headers = {}
+    for key in ("content-disposition", "content-range", "accept-ranges", "content-length", "etag", "cache-control", "last-modified"):
+        if val := new_resp.headers.get(key):
+            headers[key] = val
+        
+    new_resp = Response(
+            content=new_resp.body,
+            media_type=new_resp.media_type,
+            status_code=new_resp.status_code,
+            headers=headers,
+    )
     return new_resp
 
 # Proxy Logs API routes
@@ -620,7 +660,7 @@ async def proxy_logs(request: Request, path: str):
     # store logs subscribe enabled state
     body = await request.body()
     import json
-    if path == "/subscribe":
+    if path == "/subscribe" and request.method == "PATCH":
         try:
             bodyobj = json.loads(body)
             value = bodyobj.get("enabled", "false")
@@ -633,6 +673,38 @@ async def proxy_logs(request: Request, path: str):
     new_resp = await forward_httpx(url, request, True, new_body=body)
  
     return new_resp
+
+# Proxy Crystools API routes
+@web_app.patch("/api/crystools{path:path}")
+@web_app.get("/api/crystools{path:path}")
+async def proxy_crystools(request: Request, path: str):
+    url = f"http://127.0.0.1:{uiport}"
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        url = await get_remote_url("ComfyGPU")
+
+    # wait until internal websocket is connected and ready
+    await wait_websocket_ready()
+
+    # store logs subscribe enabled state
+    body = await request.body()
+    import json
+    if path == "/monitor" and request.method == "PATCH":
+        try:
+            bodyobj = json.loads(body)
+            value = bodyobj.get("switchGPU", "false")
+            gpu_enabled = value if isinstance(value, bool) else value.lower() == "true"
+            await shared_dict.put.aio("gpu_enabled", gpu_enabled)
+            value = bodyobj.get("switchCPU", "false")
+            cpu_enabled = value if isinstance(value, bool) else value.lower() == "true"
+            await shared_dict.put.aio("cpu_enabled", cpu_enabled)
+        except Exception as e:
+            print(f"Body JSON Throw: {e!r}")
+
+    # Forward request
+    new_resp = await forward_httpx(url, request, True, new_body=body)
+ 
+    return new_resp 
 
 # Proxy other API routes
 @web_app.get("/api/{path:path}")
@@ -661,8 +733,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
     from starlette.websockets import WebSocketState
     from websockets.connection import State
     from websockets.exceptions import ConnectionClosedError
-    from datetime import datetime
-
+    
     # Strip Host from headers to prevent loopback
     headers = {
         k: v for k, v in websocket.headers.items()
@@ -709,6 +780,9 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                 url = urlunparse(new_parsed)
             uri = f"{url}/ws"
         uri = f"{uri}{params}"
+
+        # Send a message to Enduser's websocket
+        await send_logs_msg(websocket, f"Connecting to {uri} ...\n", LogsType.INFO)
 
         try:
             print(f"CONNECTing to {uri}")
@@ -806,6 +880,19 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                         logs_body = json.dumps({"enabled": logs_enabled, "clientId": sid}).encode("utf-8") 
                                         async with httpx.AsyncClient(timeout=120) as logs_client:
                                             await logs_client.patch(logs_url, content=logs_body)
+                                    # TODO: Re-Patch Crystools monitor on GPU instance
+                                    #gpu_enabled = await shared_dict.get.aio("gpu_enabled", False)
+                                    #cpu_enabled = await shared_dict.get.aio("cpu_enabled", False)
+                                    #if not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                                    #    print(f"Re-patching Crystools Monitor ({gpu_enabled})...")
+                                    #    crystools_url = f"http://127.0.0.1:{uiport}"
+                                    #    active_count = await shared_dict.get.aio("active", 0)
+                                    #    if active_count > 0:
+                                    #        crystools_url = await get_remote_url("ComfyGPU")
+                                    #    crystools_url += "/api/crystools/monitor"
+                                    #    crystools_body = json.dumps({"switchGPU": (active_count > 0), "switchCPU": (active_count > 0)}).encode("utf-8") 
+                                    #    async with httpx.AsyncClient(timeout=120) as crystools_client:
+                                    #        await crystools_client.patch(crystools_url, content=crystools_body)
                                     
                                 # Disconnect from GPU instance when there are no running inference anymore
                                 if status_updated:
@@ -842,11 +929,12 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                             pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
                             #print(f"watch_active: Active = {active_count}, Request = {comfy_ws.request}, Response = {comfy_ws.response}")
                             # Fake a queue while spinning up  GPU instance
-                            if active_count == 0 and prev_pending != pending_prompt:
+                            if active_count == 0 and prev_pending != pending_prompt and websocket.client_state != WebSocketState.DISCONNECTED:
                                 print(f"Pending prompt changed! Faking queue_remaining ({pending_prompt})")
-                                data = {"type": "status", "data": {"status": {"exec_info": {"queue_remaining": pending_prompt+inqueue_count}}}}
-                                fakemsg = json.dumps(data)
-                                await websocket.send_text(fakemsg)
+                                fakedata = {"type": "status", "data": {"status": {"exec_info": {"queue_remaining": pending_prompt+inqueue_count}}}}
+                                await websocket.send_text(json.dumps(fakedata))
+                                # Send to logs too
+                                await send_logs_msg(websocket, f"Initializing GPU instance...\n", LogsType.INFO)
                             prev_pending = pending_prompt
                             
                             # Reset countdown timer when there are pending jobs
@@ -913,11 +1001,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
             print(f"Failed to connect: {e!r}")
             # NOTE: Responde status_code = 204, the GPU instance might be crashed!
             # Send an error message to EndUser's websocket
-            if websocket.client_state != WebSocketState.DISCONNECTED:
-                errmsg = f"\u001b[1m\u001b[31m[ERROR]\u001b[0m Failed to connect to GPU instance: {e!r}.\n"
-                data = {"type": "logs","data": {"entries": [{"t": datetime.utcnow().isoformat(),"m": errmsg}],"size": None}}
-                fakemsg = json.dumps(data)
-                await websocket.send_text(fakemsg)
+            await send_logs_msg(websocket, f"Failed to connect to GPU instance: {e!r}.\n", LogsType.ERROR)
             
         # Exit when EndUser connection is lost
         if websocket.client_state == WebSocketState.DISCONNECTED:
