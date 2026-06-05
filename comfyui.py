@@ -633,7 +633,7 @@ async def proxy_view(request: Request):
 
     # Testing downloadable file
     headers = {}
-    for key in ("content-disposition", "content-range", "accept-ranges", "content-length", "etag", "cache-control"):
+    for key in ("content-disposition", "content-range", "accept-ranges", "content-length", "etag", "cache-control", "last-modified"):
         if val := new_resp.headers.get(key):
             headers[key] = val
         
