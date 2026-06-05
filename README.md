@@ -1,6 +1,6 @@
 # modal-comfyui
 
-Run ComfyUI on Modal with auto-scaling, GPU snapshots, and easy model management.
+Run ComfyUI on Modal.com with auto-scaling, GPU snapshots, and easy model management.
 
 Good for testing wan2.2 or other video generation models.
 
