@@ -886,7 +886,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                         if active_count > 0:
                                             crystools_url = await get_remote_url("ComfyGPU")
                                         crystools_url += "/api/crystools/monitor"
-                                        crystools_body = json.dumps({"switchGPU": (active_count > 0) }).encode("utf-8") 
+                                        crystools_body = json.dumps({"switchGPU": (active_count > 0), "switchCPU": (active_count > 0)}).encode("utf-8") 
                                         async with httpx.AsyncClient(timeout=120) as crystools_client:
                                             await crystools_client.patch(crystools_url, content=crystools_body)
                                     
