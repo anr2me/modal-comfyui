@@ -637,7 +637,7 @@ async def proxy_view(request: Request):
         if val := new_resp.headers.get(key):
             headers[key] = val
         
-    return Response(
+    new_resp = Response(
             content=new_resp.body,
             media_type=new_resp.media_type,
             status_code=new_resp.status_code,
@@ -660,7 +660,7 @@ async def proxy_logs(request: Request, path: str):
     # store logs subscribe enabled state
     body = await request.body()
     import json
-    if path == "/subscribe":
+    if path == "/subscribe" and request.method == "PATCH":
         try:
             bodyobj = json.loads(body)
             value = bodyobj.get("enabled", "false")
@@ -673,6 +673,35 @@ async def proxy_logs(request: Request, path: str):
     new_resp = await forward_httpx(url, request, True, new_body=body)
  
     return new_resp
+
+# Proxy Crystools API routes
+@web_app.patch("/api/crystools{path:path}")
+@web_app.get("/api/crystools{path:path}")
+async def proxy_crystools(request: Request, path: str):
+    url = f"http://127.0.0.1:{uiport}"
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        url = await get_remote_url("ComfyGPU")
+
+    # wait until internal websocket is connected and ready
+    await wait_websocket_ready()
+
+    # store logs subscribe enabled state
+    body = await request.body()
+    import json
+    if path == "/monitor" and request.method == "PATCH":
+        try:
+            bodyobj = json.loads(body)
+            value = bodyobj.get("enabled", "false")
+            #logs_enabled = value if isinstance(value, bool) else value.lower() == "true"
+            #await shared_dict.put.aio("logs_enabled", logs_enabled)
+        except Exception as e:
+            print(f"Body JSON Throw: {e!r}")
+
+    # Forward request
+    new_resp = await forward_httpx(url, request, True, new_body=body)
+ 
+    return new_resp 
 
 # Proxy other API routes
 @web_app.get("/api/{path:path}")
