@@ -63,7 +63,8 @@ def get_comfyui_path() -> Path:
         else:
             print("Path not found in output")
     except FileNotFoundError:
-        print("comfy-cli is not installed or not in PATH")
+        if not modal.is_local():
+            print("comfy-cli is not installed or not in PATH")
     
     return comfyui_path
 
@@ -302,7 +303,7 @@ image = (
     #.uv_pip_install("transformers~=4.42.4") # extra_options="--no-deps --no-build-isolation" # Fix KeyError: 'default' issue on bytedance Lance
     #.uv_pip_install("peft~=0.10.0") # compatible peft version for transformers 4.40–4.42
 )
-print("Done install missing dependencies.")
+#print("Done install missing dependencies.")
 
 # Disable ultralytics' Anonymized Google Analytics
 image = image.run_commands("yolo settings sync=False")
