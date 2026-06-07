@@ -435,7 +435,7 @@ async def wait_websocket_ready():
     else:
         print("Internal Websocket Timeout!") # raise TimeoutError("Internal Websocket Timeout!")
 
-async def forward_httpx(url: str, request: Request, try_json: bool = False, timeout: int = 120, new_body: bytes = b'') -> Response:
+async def forward_httpx(url: str, request: Request, try_json: bool = False, timeout: int = 120, new_body: bytes = b'', show_logs: bool = False) -> Response:
     # Strip Host from headers to prevent loopback
     headers = {
         k: v for k, v in request.headers.items()
@@ -486,8 +486,9 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     #        if k.lower() in {"content-range", "content-length", "accept-ranges", "etag"}
     #    },
     #)
-    
-    print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>> {resp.content} <<<")
+
+    if show_logs:
+        print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>> {resp.content} <<<")
     if try_json:
         if resp.content:
             try:
@@ -714,7 +715,7 @@ async def proxy_crystools(request: Request, path: str):
             print(f"Body JSON Throw: {e!r}")
 
     # Forward request
-    new_resp = await forward_httpx(url, request, True, new_body=body)
+    new_resp = await forward_httpx(url, request, True, new_body=body, show_logs=True)
  
     return new_resp 
 
