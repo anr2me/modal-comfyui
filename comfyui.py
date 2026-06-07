@@ -551,23 +551,23 @@ async def proxy_prompt(request: Request):
     else:
         print("GPU instance Timeout!")
 
-    # Replace client_id content with the new sid
-    #body = await request.body()
-    #import json
-    #try:
-    #    bodyobj = json.loads(body)
-    #    oldid = bodyobj.get("client_id", "")
-    #    if oldid and sid:
-    #        print(f"Replacing client_id: {oldid} ==> {sid}")
-    #        bodyobj["client_id"] = sid
-    #    body = json.dumps(bodyobj).encode('utf-8')
-    #except Exception as e:
-    #    print(f"Body JSON Throw: {e!r}")
+    # Replace client_id content with the new sid, because sometimes the progressbar didn't shows up
+    body = await request.body()
+    import json
+    try:
+        bodyobj = json.loads(body)
+        oldid = bodyobj.get("client_id", "")
+        if oldid and sid:
+            print(f"Replacing client_id: {oldid} ==> {sid}")
+            bodyobj["client_id"] = sid
+        body = json.dumps(bodyobj).encode('utf-8')
+    except Exception as e:
+        print(f"Body JSON Throw: {e!r}")
         
     # Forward request
     try:
         print(f"Forwarding {request.method}:{request.url.path} to GPU instance...")
-        new_resp = await forward_httpx(url, request, True) # new_body=body
+        new_resp = await forward_httpx(url, request, True, new_body=body)
     except Exception as e:
         print(f"[{request.method}:{request.url.path}?{request.query_params}] Throw: {e!r}")
         
