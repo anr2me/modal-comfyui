@@ -702,15 +702,14 @@ async def proxy_crystools(request: Request, path: str):
     # store logs subscribe enabled state
     body = await request.body()
     import json
-    if path == "/monitor" and request.method == "PATCH":
+    if path == "/monitor/GPU" and request.method == "GET":
         try:
             bodyobj = json.loads(body)
-            value = bodyobj.get("switchGPU", "false")
-            gpu_enabled = value if isinstance(value, bool) else value.lower() == "true"
-            await shared_dict.put.aio("gpu_enabled", gpu_enabled)
-            value = bodyobj.get("switchCPU", "false")
-            cpu_enabled = value if isinstance(value, bool) else value.lower() == "true"
-            await shared_dict.put.aio("cpu_enabled", cpu_enabled)
+            # If no GPU detected
+            if not bodyobj or not bodyobj[0]:
+                print("Faking to have 1x L4 GPU!")
+                body = b'[{"index": 0, "name": "NVIDIA L4"}]'
+            await shared_dict.put.aio("crystools_enabled", true)
         except Exception as e:
             print(f"Body JSON Throw: {e!r}")
 
@@ -894,9 +893,8 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                         async with httpx.AsyncClient(timeout=120) as logs_client:
                                             await logs_client.patch(logs_url, content=logs_body)
                                     # TODO: Re-Patch Crystools monitor on GPU instance
-                                    #gpu_enabled = await shared_dict.get.aio("gpu_enabled", False)
-                                    #cpu_enabled = await shared_dict.get.aio("cpu_enabled", False)
-                                    if not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                                    crystools_enabled = await shared_dict.get.aio("crystools_enabled", False)
+                                    if crystools_enabled and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                                         print(f"Re-patching Crystools Monitor ({gpu_enabled})...")
                                         crystools_url = f"http://127.0.0.1:{uiport}"
                                         active_count = await shared_dict.get.aio("active", 0)
