@@ -563,7 +563,7 @@ async def proxy_prompt(request: Request):
             bodyobj["client_id"] = sid
         body = json.dumps(bodyobj).encode('utf-8')
     except Exception as e:
-        print(f"Body JSON Throw: {e!r}")
+        print(f"[{request.method}:{request.url.path}] Body JSON Throw: {e!r}")
         
     # Forward request
     try:
@@ -645,11 +645,12 @@ async def proxy_view(request: Request):
     # Forward request
     new_resp = await forward_httpx(url, request, False) #stream=True 
 
-    # Testing downloadable file
-    headers = {}
-    for key in ("content-disposition", "content-range", "accept-ranges", "content-length", "etag", "cache-control", "last-modified"):
-        if val := new_resp.headers.get(key):
-            headers[key] = val
+    # Making sure the content is downloadable
+    headers = dict(new_resp.headers) # {}
+    headers.pop("transfer-encoding", None)  # avoid conflict with content-length
+    #for key in ("content-disposition", "content-range", "accept-ranges", "content-length", "etag", "cache-control", "last-modified"):
+    #    if val := new_resp.headers.get(key):
+    #        headers[key] = val
         
     new_resp = Response(
             content=new_resp.body,
@@ -681,7 +682,7 @@ async def proxy_logs(request: Request, path: str):
             logs_enabled = value if isinstance(value, bool) else value.lower() == "true"
             await shared_dict.put.aio("logs_enabled", logs_enabled)
         except Exception as e:
-            print(f"Body JSON Throw: {e!r}")
+            print(f"[{request.method}:{request.url.path}] Body JSON Throw: {e!r}")
 
     # Forward request
     new_resp = await forward_httpx(url, request, True, new_body=body)
@@ -700,23 +701,35 @@ async def proxy_crystools(request: Request, path: str):
     # wait until internal websocket is connected and ready
     await wait_websocket_ready()
 
-    # store logs subscribe enabled state
-    body = await request.body()
+    # Forward request
+    new_resp = await forward_httpx(url, request, True, show_logs=True)
+
+    # check and tamper GPU info
+    body = new_resp.body
     import json
-    if path == "/monitor/GPU?" and request.method == "GET":
+    if path == "/monitor/GPU" and request.method == "GET":
+        await shared_dict.put.aio("crystools_enabled", true)
         try:
             bodyobj = json.loads(body)
             # If no GPU detected
             if not bodyobj or not bodyobj[0]:
                 print("Faking to have 1x L4 GPU!")
                 body = b'[{"index": 0, "name": "NVIDIA L4"}]'
-            await shared_dict.put.aio("crystools_enabled", true)
         except Exception as e:
-            print(f"Body JSON Throw: {e!r}")
+            print(f"[{request.method}:{request.url.path}] Body JSON Throw: {e!r}")
+            if not body:
+                print("Faking (e) to have 1x L4 GPU!")
+                body = b'[{"index": 0, "name": "NVIDIA L4"}]' 
 
-    # Forward request
-    new_resp = await forward_httpx(url, request, True, new_body=body, show_logs=True)
- 
+    headers = dict(new_resp.headers)
+    headers.pop("transfer-encoding", None)  # avoid conflict with content-length
+
+    new_resp = Response(
+            content=body, # content-length will be set if "transfer-encoding: chunked" is not present.
+            media_type=new_resp.media_type,
+            status_code=new_resp.status_code,
+            headers=headers,
+    )
     return new_resp 
 
 # Proxy other API routes
