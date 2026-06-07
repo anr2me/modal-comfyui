@@ -646,11 +646,11 @@ async def proxy_view(request: Request):
     new_resp = await forward_httpx(url, request, False) #stream=True 
 
     # Making sure the content is downloadable
-    headers = dict(new_resp.headers) # {}
-    headers.pop("transfer-encoding", None)  # avoid conflict with content-length
-    #for key in ("content-disposition", "content-range", "accept-ranges", "content-length", "etag", "cache-control", "last-modified"):
-    #    if val := new_resp.headers.get(key):
-    #        headers[key] = val
+    headers = {} # dict(new_resp.headers)
+    #headers.pop("transfer-encoding", None)  # avoid conflict with content-length
+    for key in ("content-disposition", "content-range", "accept-ranges", "content-length", "etag", "cache-control", "last-modified", "transfer-encoding"):
+        if val := new_resp.headers.get(key):
+            headers[key] = val
         
     new_resp = Response(
             content=new_resp.body,
@@ -702,7 +702,7 @@ async def proxy_crystools(request: Request, path: str):
     await wait_websocket_ready()
 
     # Forward request
-    new_resp = await forward_httpx(url, request, True, show_logs=True)
+    new_resp = await forward_httpx(url, request, True)
 
     # check and tamper GPU info
     body = new_resp.body
