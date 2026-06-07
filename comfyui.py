@@ -347,9 +347,10 @@ with image.imports():
 
 from fastapi import FastAPI
 
-def create_app():
+web_app = FastAPI()
+try:
     from starlette_compress import CompressMiddleware  # safe: only runs inside container
-    web_app = FastAPI()
+    
     # Enable automatic compression
     web_app.add_middleware(
         #GZipMiddleware, 
@@ -360,9 +361,9 @@ def create_app():
         gzip_level=5,        # Gzip: 1 to 9
         minimum_size=1000,  # Bytes: skip small payloads to protect CPU overhead
     )
-    return web_app
+except ImportError:
+    pass  # starlette_compress not installed locally; middleware skipped
 
-web_app = create_app()
 
 app = modal.App(name="modal-comfyui", image=image)
 shared_dict = modal.Dict.from_name(app.name, create_if_missing=True)
