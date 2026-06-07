@@ -33,7 +33,7 @@ image = (
     .add_local_python_source("models", "plugins", copy=True)
     .run_commands("apt-get update")
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "ffmpeg") #rav1e
-    .uv_pip_install(["pip", "uv", "aiohttp", "fastapi", "websockets", "httpx", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
+    .uv_pip_install(["pip", "uv", "aiohttp", "fastapi", "websockets", "httpx", "starlette-compress", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
     .uv_pip_install(["torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec~=0.10.0"], extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
@@ -339,17 +339,22 @@ def wait_for_port(port: int, timeout: int = 60):
 with image.imports():
     from fastapi import Request, Response, WebSocket
     from fastapi.responses import JSONResponse
-    from fastapi.middleware.gzip import GZipMiddleware
+    #from fastapi.middleware.gzip import GZipMiddleware
+    from starlette_compress import CompressMiddleware
     import httpx
     import websockets
 
 from fastapi import FastAPI
 web_app = FastAPI()
-# Enable automatic Gzip compression
+# Enable automatic compression
 web_app.add_middleware(
-    GZipMiddleware, 
     minimum_size=1000,  # Bytes: skip small payloads to protect CPU overhead
-    compresslevel=5     # Balance between speed (1) and size reduction (9)
+    #GZipMiddleware, 
+    #compresslevel=5     # Balance between speed (1) and size reduction (9)
+    CompressMiddleware, # All-in-One compression middleware (Zstd, Brotli, and Gzip)
+    zstd_level=10        # Standard Zstd compression level (1-19)
+    brotli_quality=6,   # Brotli: 0 to 11
+    gzip_level=5        # Gzip: 1 to 9
 )
 
 app = modal.App(name="modal-comfyui", image=image)
