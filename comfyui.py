@@ -345,17 +345,23 @@ with image.imports():
     import websockets
 
 from fastapi import FastAPI
-web_app = FastAPI()
-# Enable automatic compression
-web_app.add_middleware(
-    #GZipMiddleware, 
-    #compresslevel=5,     # Balance between speed (1) and size reduction (9)
-    CompressMiddleware, # All-in-One compression middleware (Zstd, Brotli, and Gzip)
-    zstd_level=10,        # Standard Zstd compression level (1-19)
-    brotli_quality=6,   # Brotli: 0 to 11
-    gzip_level=5,        # Gzip: 1 to 9
-    minimum_size=1000,  # Bytes: skip small payloads to protect CPU overhead
-)
+
+def create_app():
+    from starlette_compress import CompressMiddleware  # safe: only runs inside container
+    web_app = FastAPI()
+    # Enable automatic compression
+    web_app.add_middleware(
+        #GZipMiddleware, 
+        #compresslevel=5,     # Balance between speed (1) and size reduction (9)
+        CompressMiddleware, # All-in-One compression middleware (Zstd, Brotli, and Gzip)
+        zstd_level=10,        # Standard Zstd compression level (1-19)
+        brotli_quality=6,   # Brotli: 0 to 11
+        gzip_level=5,        # Gzip: 1 to 9
+        minimum_size=1000,  # Bytes: skip small payloads to protect CPU overhead
+    )
+    return web_app
+
+web_app = create_app()
 
 app = modal.App(name="modal-comfyui", image=image)
 shared_dict = modal.Dict.from_name(app.name, create_if_missing=True)
