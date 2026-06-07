@@ -947,7 +947,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                 fakedata = {"type": "status", "data": {"status": {"exec_info": {"queue_remaining": pending_prompt+inqueue_count}}}}
                                 await websocket.send_text(json.dumps(fakedata))
                                 # Send to logs too
-                                await send_logs_msg(websocket, f"Initializing GPU instance...\n", LogsType.INFO)
+                                await send_logs_msg(websocket, f"Starting GPU instance...\n", LogsType.INFO)
                             prev_pending = pending_prompt
                             
                             # Reset countdown timer when there are pending jobs
