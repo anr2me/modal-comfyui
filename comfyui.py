@@ -708,7 +708,7 @@ async def proxy_crystools(request: Request, path: str):
     body = new_resp.body
     import json
     if path == "/monitor/GPU" and request.method == "GET":
-        await shared_dict.put.aio("crystools_enabled", true)
+        await shared_dict.put.aio("crystools_enabled", True)
         try:
             bodyobj = json.loads(body)
             # If no GPU detected
