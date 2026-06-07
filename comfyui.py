@@ -350,11 +350,11 @@ web_app = FastAPI()
 web_app.add_middleware(
     minimum_size=1000,  # Bytes: skip small payloads to protect CPU overhead
     #GZipMiddleware, 
-    #compresslevel=5     # Balance between speed (1) and size reduction (9)
+    #compresslevel=5,     # Balance between speed (1) and size reduction (9)
     CompressMiddleware, # All-in-One compression middleware (Zstd, Brotli, and Gzip)
-    zstd_level=10        # Standard Zstd compression level (1-19)
+    zstd_level=10,        # Standard Zstd compression level (1-19)
     brotli_quality=6,   # Brotli: 0 to 11
-    gzip_level=5        # Gzip: 1 to 9
+    gzip_level=5,        # Gzip: 1 to 9
 )
 
 app = modal.App(name="modal-comfyui", image=image)
