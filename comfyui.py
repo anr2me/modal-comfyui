@@ -849,8 +849,8 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                     try:
                                         msgobj = json.loads(message)
                                         # Don't logs messages for crystools.monitor, since it can flood the logs
-                                        if msgobj.get("type", "").startswith("crystools.monitor"):
-                                            print_msg = False
+                                        #if msgobj.get("type", "").startswith("crystools.monitor"):
+                                        #    print_msg = False
                                         # Check sid existence when receiving status message
                                         if msgobj.get("type", "").startswith("status"):
                                             sid = (msgobj["data"]).get("sid", "")
