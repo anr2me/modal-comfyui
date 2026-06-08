@@ -9,7 +9,7 @@ import modal
 GPU_MODEL = os.getenv("MODAL_GPU", "L4")
 MAXTIME = int(os.getenv("MODAL_MAXTIME", "3600"))
 IDLETIME = int(os.getenv("MODAL_IDLETIME", "60"))
-WAITTIME = int(os.getenv("MODAL_WAITTIME", "5"))
+WAITTIME = int(os.getenv("MODAL_WAITTIME", "10"))
 MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300"))
 
 from models import models, models_ext
