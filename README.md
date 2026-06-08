@@ -69,6 +69,7 @@ Or change the GPU with:
 ```
 MODAL_GPU=RTX-PRO-6000 modal deploy comfyui.py
 ```
+You can find the GPU types available on modal.com at https://modal.com/docs/guide/gpu
 
 ## Features
 
