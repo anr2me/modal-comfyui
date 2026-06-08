@@ -73,7 +73,7 @@ You can find the GPU types available on modal.com at https://modal.com/docs/guid
 
 ## Features
 
-- **Auto-scaling**: Scales down to zero when not in use to save costs.
+- **Auto-scaling**: Scales down to zero when not in use to save costs (modal's serverless can also auto-scale vertically, where CPU cores and RAM size can grow automatically as needed).
 - **GPU Snapshots**: Fast startup times using Modal's GPU snapshots (cold-start can be under 3 seconds).
 - **Model Caching**: Uses Modal Volumes to cache models across runs (modal's persistent volume is free for the first 1 TiB).
 - **Custom Node Management**: Integrated with `comfy-cli` for easy plugin installation.
