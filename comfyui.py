@@ -712,18 +712,19 @@ async def proxy_crystools(request: Request, path: str):
     body = new_resp.body
     import json
     if path == "/monitor/GPU" and request.method == "GET":
-        await shared_dict.put.aio("crystools_enabled", True)
+        #await shared_dict.put.aio("crystools_enabled", True)
+        fakeGPUs = b'[{"index": 0, "name": "NVIDIA L4"}]'
         try:
             bodyobj = json.loads(body)
             # If no GPU detected
             if not bodyobj or not bodyobj[0]:
                 print("Faking to have 1x L4 GPU!")
-                body = b'[{"index": 0, "name": "NVIDIA L4"}]'
+                body = fakeGPUs
         except Exception as e:
             print(f"[{request.method}:{request.url.path}] Body JSON Throw: {e!r}")
             if not body:
                 print("Faking (e) to have 1x L4 GPU!")
-                body = b'[{"index": 0, "name": "NVIDIA L4"}]' 
+                body = fakeGPUs
 
     headers = dict(new_resp.headers)
     headers.pop("transfer-encoding", None)  # avoid conflict with content-length
