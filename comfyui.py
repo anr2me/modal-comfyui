@@ -906,20 +906,20 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                         logs_body = json.dumps({"enabled": logs_enabled, "clientId": sid}).encode("utf-8") 
                                         async with httpx.AsyncClient(timeout=120) as logs_client:
                                             await logs_client.patch(logs_url, content=logs_body)
-                                    # TODO: Re-Patch Crystools monitor on GPU instance
-                                    crystools_enabled = await shared_dict.get.aio("crystools_enabled", False)
-                                    if crystools_enabled and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
-                                        print(f"Re-patching Crystools Monitor ({gpu_enabled})...")
-                                        crystools_url = f"http://127.0.0.1:{uiport}"
-                                        active_count = await shared_dict.get.aio("active", 0)
-                                        if active_count > 0:
-                                            crystools_url = await get_remote_url("ComfyGPU")
-                                            crystools_url += "/api/crystools/monitor/GPU"
-                                            async with httpx.AsyncClient(timeout=120) as crystools_client:
-                                                crystools_resp = await crystools_client.get(crystools_url)
-                                            crystools_body = json.dumps({"temperature": True, "utilization": True, "vram": True}).encode("utf-8") 
-                                            async with httpx.AsyncClient(timeout=120) as crystools_client:
-                                                await crystools_client.patch(crystools_url+"/0", content=crystools_body)
+                                    # Re-Patch Crystools monitor on GPU instance
+                                    #crystools_enabled = await shared_dict.get.aio("crystools_enabled", False)
+                                    #if crystools_enabled and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
+                                    #    print(f"Re-patching Crystools Monitor ({gpu_enabled})...")
+                                    #    crystools_url = f"http://127.0.0.1:{uiport}"
+                                    #    active_count = await shared_dict.get.aio("active", 0)
+                                    #    if active_count > 0:
+                                    #        crystools_url = await get_remote_url("ComfyGPU")
+                                    #        crystools_url += "/api/crystools/monitor/GPU"
+                                    #        async with httpx.AsyncClient(timeout=120) as crystools_client:
+                                    #            crystools_resp = await crystools_client.get(crystools_url)
+                                    #        crystools_body = json.dumps({"temperature": True, "utilization": True, "vram": True}).encode("utf-8") 
+                                    #        async with httpx.AsyncClient(timeout=120) as crystools_client:
+                                    #            await crystools_client.patch(crystools_url+"/0", content=crystools_body)
                                     
                                 # Disconnect from GPU instance when there are no running inference anymore
                                 if status_updated:
