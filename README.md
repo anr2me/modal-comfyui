@@ -61,7 +61,7 @@ This will provide a temporary URL where you can access the ComfyUI interface.
 
 ### Deploy (Production)
 
-To deploy ComfyUI as a persistent app using default L4 GPU:
+To deploy ComfyUI as a persistent app using the default L4 GPU:
 ```bash
 modal deploy comfyui.py
 ```
@@ -70,6 +70,14 @@ Or change the GPU with:
 MODAL_GPU=RTX-PRO-6000 modal deploy comfyui.py
 ```
 You can find the GPU types available on modal.com at https://modal.com/docs/guide/gpu
+
+Other Environment Variables you can use are:
+```
+MODAL_MAXTIME=3600
+MODAL_IDLETIME=60
+MODAL_WAITTIME=15
+MODAL_MAXSTARTTIME=300
+```
 
 ## Features
 
