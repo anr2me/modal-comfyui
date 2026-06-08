@@ -7,6 +7,10 @@ from pathlib import Path
 import modal
 
 GPU_MODEL = os.getenv("MODAL_GPU", "L4")
+MAXTIME = int(os.getenv("MODAL_MAXTIME", "3600"))
+IDLETIME = int(os.getenv("MODAL_IDLETIME", "60"))
+WAITTIME = int(os.getenv("MODAL_WAITTIME", "5"))
+MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300"))
 
 from models import models, models_ext
 from plugins import comfy_plugins, comfy_plugins_ext
@@ -420,7 +424,7 @@ async def wait_websocket_ready():
     import time
     import asyncio
     print("Waiting for Internal websocket to be Ready...")
-    deadline = time.time() + 300
+    deadline = time.time() + MAXSTARTTIME
     while time.time() < deadline:
         try:
             ws_ready = await shared_dict.get.aio("ws_ready", False)
@@ -521,7 +525,7 @@ async def proxy_prompt(request: Request):
     active_count = await shared_dict.get.aio("active", 0)
     if active_count == 0:
         print("Spinning Up GPU instance...")
-        async with httpx.AsyncClient(timeout=300) as client:
+        async with httpx.AsyncClient(timeout=MAXSTARTTIME) as client:
             await client.get(url)
             # Testing for pending_prompt value as spinning up GPU instance could reset the shared_dict
             #pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
@@ -533,7 +537,7 @@ async def proxy_prompt(request: Request):
     import time
     import asyncio
     sid = ""
-    deadline = time.time() + 300
+    deadline = time.time() + MAXSTARTTIME
     while time.time() < deadline:
         try:
             #shared_dict.hydrate()
@@ -816,10 +820,10 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
             async with websockets.connect(
                 uri,
                 additional_headers=headers, 
-                open_timeout=300,        # handshake timeout (seconds)
-                close_timeout=10,       # graceful close timeout
-                ping_interval=15,       # send pings every N seconds
-                ping_timeout=20,        # wait N seconds for pong before closing
+                open_timeout=MAXSTARTTIME,  # handshake timeout (seconds)
+                close_timeout=10,           # graceful close timeout
+                ping_interval=15,           # send pings every N seconds
+                ping_timeout=20,            # wait N seconds for pong before closing
             ) as comfy_ws:
                 dc_time = 0
                 
@@ -889,17 +893,19 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                     print(f"comfy_to_client: {message}")
                                 
                                 await websocket.send_text(message)
+                                active_count = await shared_dict.get.aio("active", 0)
                                 # Update ws_ready after receiving status message with sid
                                 ws_ready = await shared_dict.get.aio("ws_ready", False)
                                 if not ws_ready and sid and comfy_ws.state != State.CLOSED:
                                     await shared_dict.put.aio("ws_ready", True)
                                     print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
+                                    if active_count > 0:
+                                        await send_logs_msg(websocket, f"GPU instance is ready.\n", LogsType.INFO)
                                     # Re-subscribe the Logs on GPU instance
                                     logs_enabled = await shared_dict.get.aio("logs_enabled", False)
                                     if logs_enabled and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                                         print(f"Re-subscribing Logs({logs_enabled})...")
                                         logs_url = f"http://127.0.0.1:{uiport}"
-                                        active_count = await shared_dict.get.aio("active", 0)
                                         if active_count > 0:
                                             logs_url = await get_remote_url("ComfyGPU")
                                         logs_url += "/internal/logs/subscribe"
@@ -911,7 +917,6 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                     #if crystools_enabled and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                                     #    print(f"Re-patching Crystools Monitor ({gpu_enabled})...")
                                     #    crystools_url = f"http://127.0.0.1:{uiport}"
-                                    #    active_count = await shared_dict.get.aio("active", 0)
                                     #    if active_count > 0:
                                     #        crystools_url = await get_remote_url("ComfyGPU")
                                     #        crystools_url += "/api/crystools/monitor/GPU"
@@ -923,11 +928,10 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                     
                                 # Disconnect from GPU instance when there are no running inference anymore
                                 if status_updated:
-                                    active_count = await shared_dict.get.aio("active", 0)
                                     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
                                     inqueue_count = await shared_dict.get.aio("inqueue", 0)
                                     if active_count>0 and inqueue_count==0 and pending_prompt==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
-                                        countdown = 30
+                                        countdown = WAITTIME
                                         dc_time = time.time() + countdown
                                         print(f"{inqueue_count}(+{pending_prompt}) Queue remaining in GPU instance, Disconnecting from GPU instance in {countdown} seconds.")
                                         #print("Internal websocket is Not Ready anymore!")
@@ -1056,7 +1060,7 @@ async def proxy(request: Request, path: str):
     headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
 
     body = await request.body()
-    async with httpx.AsyncClient(timeout=20.0) as client:
+    async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.request(
             method=request.method,
             url=f"{url}/{path}",
@@ -1079,11 +1083,11 @@ async def proxy(request: Request, path: str):
     gpu=GPU_MODEL,
     memory=(128, 262144), # (request, limit) in MiB, set hard limit to avoid high cost when memory leaks occurred
     volumes={"/cache": vol},
-    scaledown_window=60,  # idle 1 minutes to shutdown
+    scaledown_window=IDLETIME,  # idle 1 minutes to shutdown
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True},
-    startup_timeout=300, # container's startup timeout
-    timeout=3600, # execution timeout, this will also be websocket timeout
+    startup_timeout=MAXSTARTTIME, # container's startup timeout
+    timeout=MAXTIME, # execution timeout, this will also be websocket timeout
 )
 @modal.concurrent(max_inputs=20)
 class ComfyGPU:
@@ -1094,7 +1098,7 @@ class ComfyGPU:
                 f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {gpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
             )
             # Block here — snapshot is taken only after this returns
-            wait_for_port(gpuport, timeout=300)
+            wait_for_port(gpuport, timeout=MAXSTARTTIME)
         except Exception as e:
             print(f"ComfyGPU Throw: {e!r}")
 
@@ -1136,11 +1140,11 @@ class ComfyGPU:
     max_containers=1,
     #cpu=2.0, memory=4096,
     volumes={"/cache": vol},
-    scaledown_window=60,  # idle 1 minutes to shutdown
+    scaledown_window=IDLETIME,  # idle 1 minutes to shutdown
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True},
-    startup_timeout=300, # container's startup timeout
-    timeout=3600, # execution timeout, this will also be websocket timeout
+    startup_timeout=MAXSTARTTIME, # container's startup timeout
+    timeout=MAXTIME, # execution timeout, this will also be websocket timeout
 )
 @modal.concurrent(max_inputs=20)
 class ComfyCPU:
@@ -1151,7 +1155,7 @@ class ComfyCPU:
                 f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {cpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
             )
             # Block here — snapshot is taken only after this returns
-            wait_for_port(cpuport, timeout=300)
+            wait_for_port(cpuport, timeout=MAXSTARTTIME)
         except Exception as e:
             print(f"ComfyCPU Throw: {e!r}")
 
@@ -1183,11 +1187,11 @@ class ComfyCPU:
     max_containers=1,
     #cpu=2.0, memory=4096,
     volumes={"/cache": vol},
-    scaledown_window=60,  # idle 1 minutes to shutdown
+    scaledown_window=60, # IDLETIME # idle 1 minutes to shutdown
     enable_memory_snapshot=True,
     experimental_options={"enable_gpu_snapshot": True},
-    startup_timeout=300, # container's startup timeout
-    timeout=3600, # execution timeout, this will also be websocket timeout
+    startup_timeout=MAXSTARTTIME, # container's startup timeout
+    timeout=MAXTIME, # execution timeout, this will also be websocket timeout
 )
 @modal.concurrent(max_inputs=20)
 class ComfyMix:
@@ -1198,7 +1202,7 @@ class ComfyMix:
                 f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
             )
             # Block here — snapshot is taken only after this returns
-            wait_for_port(uiport, timeout=300)
+            wait_for_port(uiport, timeout=MAXSTARTTIME)
         except Exception as e:
             print(f"ComfyMix Throw: {e!r}")
 
