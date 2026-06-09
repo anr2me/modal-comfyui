@@ -7,6 +7,8 @@ from pathlib import Path
 import modal
 
 GPU_MODEL = os.getenv("MODAL_GPU", "L4")
+GPU_NAME = GPU_MODEL.split(':')[0]
+GPU_COUNT = int(GPU_MODEL.split(":")[1]) if ":" in GPU_MODEL else 1
 MAXTIME = int(os.getenv("MODAL_MAXTIME", "3600"))
 IDLETIME = int(os.getenv("MODAL_IDLETIME", "60"))
 WAITTIME = int(os.getenv("MODAL_WAITTIME", "15"))
@@ -614,7 +616,7 @@ async def proxy_interrupt(request: Request):
     await wait_websocket_ready()
     
     # Forward request
-    new_resp = await forward_httpx(url, request, True)
+    new_resp = await forward_httpx(url, request, True, show_logs=True)
  
     return new_resp
 
@@ -629,7 +631,7 @@ async def proxy_jobs(request: Request):
     await wait_websocket_ready()
     
     # Forward request
-    new_resp = await forward_httpx(url, request, True)
+    new_resp = await forward_httpx(url, request, True, show_logs=True)
  
     return new_resp
 
@@ -647,7 +649,7 @@ async def proxy_view(request: Request):
     await wait_websocket_ready()
     
     # Forward request
-    new_resp = await forward_httpx(url, request, False) #stream=True 
+    new_resp = await forward_httpx(url, request, False, show_logs=True) #stream=True 
 
     # Making sure the content is downloadable
     headers = {} # dict(new_resp.headers)
@@ -713,17 +715,21 @@ async def proxy_crystools(request: Request, path: str):
     import json
     if path == "/monitor/GPU" and request.method == "GET":
         #await shared_dict.put.aio("crystools_enabled", True)
-        fakeGPUs = b'[{"index": 0, "name": "NVIDIA L4"}]'
+        #fakeGPUs = b'[{"index": 0, "name": "NVIDIA L4"}]'
+        #gpus = json.loads(fakeGPUs)
+        #duplicated = [{"index": i, "name": gpus[0]["name"]} for i in range(GPU_COUNT)]
+        duplicated = [{"index": i, "name": f"NVIDIA {GPU_NAME}"} for i in range(GPU_COUNT)]
+        fakeGPUs = json.dumps(duplicated).encode('utf-8')
         try:
             bodyobj = json.loads(body)
             # If no GPU detected
             if not bodyobj or not bodyobj[0]:
-                print("Faking to have 1x L4 GPU!")
+                print(f"Faking to have {GPU_COUNT}x NVIDIA {GPU_NAME} GPU!")
                 body = fakeGPUs
         except Exception as e:
             print(f"[{request.method}:{request.url.path}] Body JSON Throw: {e!r}")
             if not body:
-                print("Faking (e) to have 1x L4 GPU!")
+                print(f"Faking (e) to have {GPU_COUNT}x NVIDIA {GPU_NAME} GPU!")
                 body = fakeGPUs
 
     headers = dict(new_resp.headers)
