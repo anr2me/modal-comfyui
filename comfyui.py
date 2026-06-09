@@ -11,7 +11,7 @@ GPU_NAME = GPU_MODEL.split(':')[0]
 GPU_COUNT = int(GPU_MODEL.split(":")[1]) if ":" in GPU_MODEL else 1
 MAXTIME = int(os.getenv("MODAL_MAXTIME", "3600"))
 IDLETIME = int(os.getenv("MODAL_IDLETIME", "60"))
-WAITTIME = int(os.getenv("MODAL_WAITTIME", "15"))
+WAITTIME = int(os.getenv("MODAL_WAITTIME", "20"))
 MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300"))
 JOBSCUTOFFTIME = int(os.getenv("MODAL_JOBSCUTOFFTIME", "86400"))
 
