@@ -87,6 +87,7 @@ You can access ComfyUI from the provided URL when successfully deployed.
 - **GPU Snapshots**: Fast startup times using Modal's GPU snapshots (cold-start can be under 3 seconds).
 - **Model Caching**: Uses Modal Volumes to cache models across runs (modal's persistent volume is free for the first 1 TiB).
 - **Custom Node Management**: Integrated with `comfy-cli` for easy plugin installation.
+- **Mixed CPU and GPU instance**: Works on your workflows on CPU-only instance for cheaper rates, but runs workflows on GPU instance. Also have persistent completed jobs with their output assets.
 
 ## Contributing
 
