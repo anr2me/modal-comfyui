@@ -13,6 +13,7 @@ MAXTIME = int(os.getenv("MODAL_MAXTIME", "3600"))
 IDLETIME = int(os.getenv("MODAL_IDLETIME", "60"))
 WAITTIME = int(os.getenv("MODAL_WAITTIME", "15"))
 MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300"))
+JOBSCUTOFFTIME = int(os.getenv("MODAL_JOBSCUTOFFTIME", "86400"))
 
 from models import models, models_ext
 from plugins import comfy_plugins, comfy_plugins_ext
@@ -373,6 +374,7 @@ except ImportError:
 
 app = modal.App(name="modal-comfyui", image=image)
 shared_dict = modal.Dict.from_name(app.name, create_if_missing=True)
+jobs_dict = modal.Dict.from_name(app.name+"_jobs", create_if_missing=True)
 # Reset the contents when redeployed, but doing it here will cleared it during spin up!
 #shared_dict.clear()
 
@@ -632,7 +634,63 @@ async def proxy_jobs(request: Request):
     
     # Forward request
     new_resp = await forward_httpx(url, request, True, show_logs=True)
- 
+
+    # cache completed jobs to be persistent on each session
+    params = request.query_params.get("status", "")
+    if params and "completed" in params:
+        try:
+            import json
+            import asyncio
+            import time
+            respobj = json.loads(new_resp.body)
+            # update jobs_dict with new jobs
+            jobs = respobj.get("jobs", [])
+            pagination = respobj.get("pagination", {})
+            if jobs:
+                await asyncio.gather(*[
+                    jobs_dict.put.aio(str(item["id"]), item)  # skip_if_exists=True
+                    for item in jobs
+                ])
+            # current time in milliseconds (create_time is in ms)
+            cutoff = time.time() * 1000 - (JOBSCUTOFFTIME * 1000)
+            # retrieve the full jobs (filter out old jobs when needed)
+            jobs = [v async for _, v in jobs_dict.items.aio() if JOBSCUTOFFTIME < 0 or v.get("create_time", 0) >= cutoff]
+
+            # update pagination
+            if pagination:
+                jobs_count = len(jobs)
+                page_offset = pagination.get("offset", 0)
+                page_limit = pagination.get("limit", 0)
+                pagination["has_more"] = (page_offset+page_limit < jobs_count)
+                if jobs_count > page_limit:
+                    jobs_count = page_limit
+                pagination["total"] = jobs_count
+                # sort jobs by create_time in descending order
+                jobs.sort(key=lambda x: x.get("create_time", 0), reverse=True)
+                # only retrieve jobs up to limit from offset
+                jobs = jobs[page_offset:page_offset + page_limit]
+                # update response's pagination
+                respobj["pagination"] = pagination
+            
+            # update response' jobs
+            respobj["jobs"] = jobs
+
+            # construct new response
+            new_body = json.dumps(respobj).encode("utf-8")
+        
+            # update headers with correct content-length
+            headers = dict(new_resp.headers)
+            headers["content-length"] = str(len(new_body))
+        
+            new_resp = Response(
+                content=new_body,
+                status_code=new_resp.status_code,
+                headers=headers,
+                media_type=new_resp.media_type,
+            )
+        except Exception as e:
+            print(f"[{request.method}:{request.url.path}] Body JSON Throw: {e!r}")
+        
     return new_resp
 
 @web_app.get("/view")
@@ -1102,7 +1160,7 @@ class ComfyGPU:
     def start_checkpoint(self):
         try:
             self.proc = subprocess.Popen(
-                f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {gpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+                f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {gpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
             )
             # Block here — snapshot is taken only after this returns
             wait_for_port(gpuport, timeout=MAXSTARTTIME)
@@ -1159,7 +1217,7 @@ class ComfyCPU:
     def start_checkpoint(self):
         try:
             self.proc = subprocess.Popen(
-                f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {cpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+                f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {cpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
             )
             # Block here — snapshot is taken only after this returns
             wait_for_port(cpuport, timeout=MAXSTARTTIME)
@@ -1206,7 +1264,7 @@ class ComfyMix:
     def start_checkpoint(self):
         try:
             self.proc = subprocess.Popen(
-                f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+                f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
             )
             # Block here — snapshot is taken only after this returns
             wait_for_port(uiport, timeout=MAXSTARTTIME)
