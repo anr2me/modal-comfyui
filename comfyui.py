@@ -1282,6 +1282,7 @@ class ComfyGPU:
 
     @modal.method()
     def vol_commit(self):
+        print("Forcing volume commits!")
         # Force the volume to commit changes 
         vol.commit()
     
