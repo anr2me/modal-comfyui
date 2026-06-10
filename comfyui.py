@@ -466,74 +466,81 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     body = await request.body()
     if new_body:
         body = new_body
-
-    async def stream_response(resp: httpx.Response):
-        async for chunk in resp.aiter_bytes(chunk_size=65536):
-            if show_logs:
-                print(f"[{request.method}:{request.url.path}?{request.query_params}({len(chunk)})]: >..> {chunk} <..<")
-            yield chunk
     
     # Forward to remote ComfyUI
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        async with client.stream(
-            method=request.method,
-            url=f"{url}{request.url.path}",
-            params=request.query_params,
-            headers=headers,
-            content=body,
-            #stream=True,
-            #extensions={"decode_content": False}, 
-        ) as resp:
-            # Filter hop-by-hop headers that must not be forwarded
-            HOP_BY_HOP = {
-                "transfer-encoding", "connection", "keep-alive",
-                "proxy-authenticate", "proxy-authorization",
-                "te", "trailers", "upgrade",
-            }
-            filtered_headers = {
-                k: v for k, v in resp.headers.items()
-                if k.lower() not in HOP_BY_HOP
-            }
+    async def make_stream():
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            async with client.stream(
+                method=request.method,
+                url=f"{url}{request.url.path}",
+                params=request.query_params,
+                headers=headers,
+                content=body,
+                #stream=True,
+                #extensions={"decode_content": False}, 
+            ) as resp:
+                # Yield metadata as first item, then chunks
+                yield resp
+                async for chunk in resp.aiter_bytes(chunk_size=65536):
+                    if show_logs:
+                        print(f"[{request.method}:{request.url.path}?{request.query_params}({len(chunk)})]: >..> {chunk} <..<")
+                    yield chunk
 
-            is_chunked = (
-                resp.headers.get("transfer-encoding", "").lower() == "chunked"
-            )
-            is_partial = resp.status_code == 206
+    gen = make_stream()
 
-            if is_chunked or is_partial:
-                # Stream it — don't buffer
-                if show_logs:
-                    print(f"[{request.method}:{request.url.path}?{request.query_params}]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>>> ")
-                new_resp = StreamingResponse(
-                    stream_response(resp),
-                    status_code=resp.status_code,
-                    headers=filtered_headers,
-                    media_type=resp.headers.get("content-type"),
-                )
-            else:
-                # Safe to buffer small/complete responses
-                content = await resp.aread()
-                if show_logs:
-                    print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>> {resp.content} <<<")
-                new_resp = Response(
-                    content=content,
-                    status_code=resp.status_code,
-                    headers=filtered_headers,
-                    media_type=resp.headers.get("content-type"),
-                )
-                if try_json:
-                    if resp.content:
-                        try:
-                            # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
-                            #import zstandard as zstd
-                            #dctx = zstd.ZstdDecompressor()
-                            #decompressed = dctx.decompress(resp.content)
+    # First yield is the response object with headers/status
+    resp = await gen.__anext__() 
+    
+    # Filter hop-by-hop headers that must not be forwarded
+    HOP_BY_HOP = {
+        "transfer-encoding", "connection", "keep-alive",
+        "proxy-authenticate", "proxy-authorization",
+        "te", "trailers", "upgrade",
+    }
+    filtered_headers = {
+        k: v for k, v in resp.headers.items()
+        if k.lower() not in HOP_BY_HOP
+    }
 
-                            new_resp = JSONResponse(resp.json()) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
-                        except Exception as e: # (json.JSONDecodeError, UnicodeDecodeError):
-                            print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
-                    #else:
-                    #    new_resp = JSONResponse(content={}, status_code=new_resp.status_code)
+    is_chunked = resp.headers.get("transfer-encoding", "").lower() == "chunked"
+    is_partial = resp.status_code == 206
+
+    if is_chunked or is_partial:
+        if show_logs:
+            print(f"[{request.method}:{request.url.path}?{request.query_params}]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>>> ")
+        # Remaining yields are byte chunks — client/stream stays open
+        new_resp = StreamingResponse(
+            gen,  # continues from where we left off
+            status_code=resp.status_code,
+            headers=filtered_headers,
+            media_type=resp.headers.get("content-type"),
+        )
+    else:
+        # Safe to buffer small/complete responses
+        content = await resp.aread()
+        # Close the generator cleanly
+        await gen.aclose()
+        if show_logs:
+            print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>> {resp.content} <<<")
+        new_resp = Response(
+            content=content,
+            status_code=resp.status_code,
+            headers=filtered_headers,
+            media_type=resp.headers.get("content-type"),
+        )
+        if try_json:
+            if resp.content:
+                try:
+                    # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
+                    #import zstandard as zstd
+                    #dctx = zstd.ZstdDecompressor()
+                    #decompressed = dctx.decompress(resp.content)
+
+                    new_resp = JSONResponse(resp.json()) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
+                except Exception as e: # (json.JSONDecodeError, UnicodeDecodeError):
+                    print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
+            #else:
+            #    new_resp = JSONResponse(content={}, status_code=new_resp.status_code)
         
     return new_resp
     
