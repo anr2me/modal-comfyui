@@ -1140,23 +1140,32 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                 #    print("WARNING: Host not found in request!")
                 print(f"Connected Internal WebSocket Host: {ws_host}")
                 await shared_dict.put.aio("ws_host", ws_host)
-                # cancel both tasks when either side closes their internal connection
-                # Create named tasks so we can cancel them
-                client_task = asyncio.create_task(client_to_comfy())
-                server_task = asyncio.create_task(comfy_to_client())
-                watch_task  = asyncio.create_task(watch_active())
-
-                all_tasks = {client_task, server_task, watch_task}
-
-                # Return as soon as ANY task finishes (e.g. watch_active breaks)
-                done, pending = await asyncio.wait(all_tasks, return_when=asyncio.FIRST_COMPLETED)
-
-                # Cancel the remaining tasks
-                for task in pending:
-                    task.cancel()
-
-                # Wait for cancellations to complete cleanly
-                await asyncio.gather(*pending, return_exceptions=True)
+                try:
+                    # cancel both tasks when either side closes their internal connection
+                    # Create named tasks so we can cancel them
+                    client_task = asyncio.create_task(client_to_comfy())
+                    server_task = asyncio.create_task(comfy_to_client())
+                    watch_task  = asyncio.create_task(watch_active())
+    
+                    all_tasks = {client_task, server_task, watch_task}
+    
+                    # Return as soon as ANY task finishes (e.g. watch_active breaks)
+                    done, pending = await asyncio.wait(all_tasks, return_when=asyncio.FIRST_COMPLETED)
+    
+                    # Cancel the remaining tasks
+                    for task in pending:
+                        task.cancel()
+    
+                    # Wait for cancellations to complete cleanly
+                    await asyncio.gather(*pending, return_exceptions=True)
+                except Exception as e:
+                    print(f"comfy_ws Throw: {e!r}")
+                finally:
+                    # Make sure we close internal websocket to avoid double websocket when reconnected (ie. refreshing the tab)
+                    if comfy_ws.state != State.CLOSED:
+                        print("Internal websocket is Not Ready!")
+                        await shared_dict.put.aio("ws_ready", False)
+                        await comfy_ws.close()
                 print("Internal websocket connection was Closed!")
         except ConnectionClosedError as e:
             # Handles errors during active connection (e.g., ping timeout)
