@@ -9,11 +9,11 @@ import modal
 GPU_MODEL = os.getenv("MODAL_GPU", "L4")
 GPU_NAME = GPU_MODEL.split(':')[0]
 GPU_COUNT = int(GPU_MODEL.split(":")[1]) if ":" in GPU_MODEL else 1
-MAXTIME = int(os.getenv("MODAL_MAXTIME", "3600"))
-IDLETIME = int(os.getenv("MODAL_IDLETIME", "60"))
-WAITTIME = int(os.getenv("MODAL_WAITTIME", "20"))
-MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300"))
-JOBSCUTOFFTIME = int(os.getenv("MODAL_JOBSCUTOFFTIME", "86400"))
+MAXTIME = int(os.getenv("MODAL_MAXTIME", "3600")) # stream & websocket max lifetime before forcefully terminated
+IDLETIME = int(os.getenv("MODAL_IDLETIME", "60")) # spin down on idle timeout
+WAITTIME = int(os.getenv("MODAL_WAITTIME", "20")) # wait time to finished progressbar animation when inference is done (ie. VHS save video node)
+MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300")) # ComfyUI & it's custom nodes initialization/startup timeout
+JOBSCUTOFFTIME = int(os.getenv("MODAL_JOBSCUTOFFTIME", "86400")) # completed jobs history cutoff (ie. only shows jobs from the last 24 hours)
 
 from models import models, models_ext
 from plugins import comfy_plugins, comfy_plugins_ext
