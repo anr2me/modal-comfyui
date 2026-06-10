@@ -506,7 +506,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     resp = await anext(gen) # await gen.__anext__()
     
     # Filter hop-by-hop headers that must not be forwarded
-    HOP_BY_HOP = {
+    '''HOP_BY_HOP = {
         "transfer-encoding", "connection", "keep-alive",
         "proxy-authenticate", "proxy-authorization",
         "te", "trailers", "upgrade",
@@ -515,6 +515,21 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     filtered_headers = {
         k: v for k, v in resp.headers.items()
         if k.lower() not in HOP_BY_HOP
+    }
+    '''
+    ESSENTIAL = {
+        # partial content
+        "content-range",
+        "content-length", 
+        "accept-ranges",
+        "content-type",
+        # chunked/SSE
+        "cache-control",
+    }
+    
+    filtered_headers = {
+        k: v for k, v in resp.headers.items()
+        if k.lower() in ESSENTIAL  # whitelist instead of blacklist
     }
 
     is_chunked = resp.headers.get("transfer-encoding", "").lower() == "chunked"
