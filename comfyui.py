@@ -536,7 +536,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
                     #dctx = zstd.ZstdDecompressor()
                     #decompressed = dctx.decompress(resp.content)
 
-                    new_resp = JSONResponse(resp.json()) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
+                    new_resp = JSONResponse(resp.json(), status_code=resp.status_code) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
                 except Exception as e: # (json.JSONDecodeError, UnicodeDecodeError):
                     print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
             #else:
