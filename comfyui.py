@@ -482,8 +482,8 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
                 # Yield metadata as first item, then chunks
                 yield resp
                 async for chunk in resp.aiter_bytes(chunk_size=65536):
-                    if show_logs:
-                        print(f"[{request.method}:{request.url.path}?{request.query_params}({len(chunk)})]: >..> {chunk} <..<")
+                    #if show_logs:
+                    #    print(f"[{request.method}:{request.url.path}?{request.query_params}({len(chunk)})]: >..> {chunk} <..<")
                     yield chunk
 
     gen = make_stream()
