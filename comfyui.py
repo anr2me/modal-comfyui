@@ -424,6 +424,20 @@ async def get_remote_url(class_name: str) -> str:
     url = await remote_cls().web.get_web_url.aio()
     return url
 
+async def do_vol_commit(class_name: str):
+    # Dynamically look up the class from the other deployed app
+    TargetCls = modal.Cls.from_name(app.name, class_name)
+
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        try:
+            print(f"Commiting Volume changes on {class_name} instance.")
+            # Instantiate and await the method remotely (.remote.aio())
+            remote_instance = TargetCls()
+            await remote_instance.vol_commit.remote.aio()
+        except Exception as e:
+            print(f"do_vol_commit Throw: {e!r}")
+
 async def wait_websocket_ready():
     import time
     import asyncio
@@ -1071,8 +1085,8 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                         countdown = WAITTIME
                                         dc_time = time.time() + countdown
                                         print(f"{inqueue_count}(+{pending_prompt}) Queue remaining in GPU instance, Disconnecting from GPU instance in {countdown} seconds.")
-                                        # Force the volume to commit changes 
-                                        vol.commit()
+                                        # Force remote instance to commit changes on volume
+                                        await do_vol_commit("ComfyGPU")
                                         #print("Internal websocket is Not Ready anymore!")
                                         #await shared_dict.put.aio("ws_ready", False)
                                         #await comfy_ws.close()
@@ -1265,6 +1279,11 @@ class ComfyGPU:
     @modal.web_server(gpuport, startup_timeout=30)
     def web(self):
         print("App Ready!")
+
+    @modal.method()
+    def vol_commit(self):
+        # Force the volume to commit changes 
+        vol.commit()
     
     @modal.exit()
     def cleanup(self):
