@@ -682,6 +682,10 @@ async def proxy_history(request: Request, path: str):
 
 @web_app.get("/api/jobs{path:path}")
 async def proxy_jobs(request: Request, path: str):
+    import json
+    import asyncio
+    import time
+    
     url = f"http://127.0.0.1:{uiport}"
     active_count = await shared_dict.get.aio("active", 0)
     if active_count > 0:
@@ -693,62 +697,66 @@ async def proxy_jobs(request: Request, path: str):
     # Forward request
     new_resp = await forward_httpx(url, request, True, show_logs=True)
 
-    # cache completed jobs to be persistent on each session
-    params = request.query_params.get("status", "")
-    if params and "completed" in params:
-        try:
-            import json
-            import asyncio
-            import time
-            respobj = json.loads(new_resp.body)
-            # update jobs_dict with new jobs
-            jobs = respobj.get("jobs", [])
-            pagination = respobj.get("pagination", {})
-            if jobs:
-                await asyncio.gather(*[
-                    jobs_dict.put.aio(str(item["id"]), item)  # skip_if_exists=True
-                    for item in jobs
-                ])
-            # current time in milliseconds (create_time is in ms)
-            cutoff = time.time() * 1000 - (JOBSCUTOFFTIME * 1000)
-            # retrieve the full jobs (filter out old jobs when needed)
-            jobs = [v async for _, v in jobs_dict.items.aio() if JOBSCUTOFFTIME < 0 or v.get("create_time", 0) >= cutoff]
-
-            # update pagination
-            if pagination:
-                jobs_count = len(jobs)
-                page_offset = pagination.get("offset", 0)
-                page_limit = pagination.get("limit", 0)
-                pagination["has_more"] = (page_offset+page_limit < jobs_count)
-                if jobs_count > page_limit:
-                    jobs_count = page_limit
-                pagination["total"] = jobs_count
-                # sort jobs by create_time in descending order
-                jobs.sort(key=lambda x: x.get("create_time", 0), reverse=True)
-                # only retrieve jobs up to limit from offset
-                jobs = jobs[page_offset:page_offset + page_limit]
-                # update response's pagination
-                respobj["pagination"] = pagination
+    # get the job from cache if not found
+    if new_resp.status_code == 404 and path.startswith("/") and len(path)>1:
+        job_id = path[1:]
+        job = await jobs_dict.get.aio(str(job_id), None)
+        if job:
+            new_resp = JSONResponse(content=job)
+    else:
+        # cache completed jobs to be persistent across sessions
+        params = request.query_params.get("status", "")
+        if params and "completed" in params:
+            try:
+                respobj = json.loads(new_resp.body)
+                # update jobs_dict with new jobs
+                jobs = respobj.get("jobs", [])
+                pagination = respobj.get("pagination", {})
+                if jobs:
+                    await asyncio.gather(*[
+                        jobs_dict.put.aio(str(item["id"]), item)  # skip_if_exists=True
+                        for item in jobs
+                    ])
+                # current time in milliseconds (create_time is in ms)
+                cutoff = time.time() * 1000 - (JOBSCUTOFFTIME * 1000)
+                # retrieve the full jobs (filter out old jobs when needed)
+                jobs = [v async for _, v in jobs_dict.items.aio() if JOBSCUTOFFTIME < 0 or v.get("create_time", 0) >= cutoff]
+    
+                # update pagination
+                if pagination:
+                    jobs_count = len(jobs)
+                    page_offset = pagination.get("offset", 0)
+                    page_limit = pagination.get("limit", 0)
+                    pagination["has_more"] = (page_offset+page_limit < jobs_count)
+                    if jobs_count > page_limit:
+                        jobs_count = page_limit
+                    pagination["total"] = jobs_count
+                    # sort jobs by create_time in descending order
+                    jobs.sort(key=lambda x: x.get("create_time", 0), reverse=True)
+                    # only retrieve jobs up to limit from offset
+                    jobs = jobs[page_offset:page_offset + page_limit]
+                    # update response's pagination
+                    respobj["pagination"] = pagination
+                
+                # update response' jobs
+                respobj["jobs"] = jobs
+    
+                # construct new response
+                new_body = json.dumps(respobj).encode("utf-8")
             
-            # update response' jobs
-            respobj["jobs"] = jobs
+                # update headers with correct content-length
+                headers = dict(new_resp.headers)
+                headers["content-length"] = str(len(new_body))
+            
+                new_resp = Response(
+                    content=new_body,
+                    status_code=new_resp.status_code,
+                    headers=headers,
+                    media_type=new_resp.media_type,
+                )
+            except Exception as e:
+                print(f"[{request.method}:{request.url.path}] Body JSON Throw: {e!r}")
 
-            # construct new response
-            new_body = json.dumps(respobj).encode("utf-8")
-        
-            # update headers with correct content-length
-            headers = dict(new_resp.headers)
-            headers["content-length"] = str(len(new_body))
-        
-            new_resp = Response(
-                content=new_body,
-                status_code=new_resp.status_code,
-                headers=headers,
-                media_type=new_resp.media_type,
-            )
-        except Exception as e:
-            print(f"[{request.method}:{request.url.path}] Body JSON Throw: {e!r}")
-        
     return new_resp
 
 @web_app.get("/view")
