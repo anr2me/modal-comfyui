@@ -503,9 +503,8 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     }
 
     is_chunked = resp.headers.get("transfer-encoding", "").lower() == "chunked"
-    is_partial = resp.status_code == 206
 
-    if is_chunked or is_partial: # (is_partial and not resp.headers.get("content-length", "")):
+    if is_chunked: # or (resp.status_code==206 and not resp.headers.get("content-length", "")):
         if show_logs:
             print(f"[{request.method}:{request.url.path}?{request.query_params}]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>>> ")
         # Remaining yields are byte chunks — client/stream stays open
@@ -540,7 +539,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
                 except Exception as e: # (json.JSONDecodeError, UnicodeDecodeError):
                     print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
             #else:
-            #    new_resp = JSONResponse(content={}, status_code=new_resp.status_code)
+            #    new_resp = JSONResponse(content={}, status_code=resp.status_code)
         
     return new_resp
     
