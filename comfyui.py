@@ -345,7 +345,8 @@ def wait_for_port(port: int, timeout: int = 60):
 
 
 with image.imports():
-    from fastapi import Request, StreamingResponse, JSONResponse, Response, WebSocket 
+    from fastapi.responses import StreamingResponse, JSONResponse, Response
+    from fastapi import Request, WebSocket 
     #from fastapi.middleware.gzip import GZipMiddleware
     from starlette_compress import CompressMiddleware
     import httpx
