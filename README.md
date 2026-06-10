@@ -65,7 +65,7 @@ To deploy ComfyUI as a persistent app using the default L4 GPU:
 ```bash
 modal deploy comfyui.py
 ```
-Or deploy with cleared `shared_dict`:
+Or deploy with cleared `shared_dict` (ie. when the App forcefully stopped):
 ```bash
 python comfyui.py
 ```
