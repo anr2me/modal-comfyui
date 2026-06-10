@@ -9,11 +9,11 @@ import modal
 GPU_MODEL = os.getenv("MODAL_GPU", "L4")
 GPU_NAME = GPU_MODEL.split(':')[0]
 GPU_COUNT = int(GPU_MODEL.split(":")[1]) if ":" in GPU_MODEL else 1
-MAXTIME = int(os.getenv("MODAL_MAXTIME", "3600"))
-IDLETIME = int(os.getenv("MODAL_IDLETIME", "60"))
-WAITTIME = int(os.getenv("MODAL_WAITTIME", "20"))
-MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300"))
-JOBSCUTOFFTIME = int(os.getenv("MODAL_JOBSCUTOFFTIME", "86400"))
+MAXTIME = int(os.getenv("MODAL_MAXTIME", "3600")) # stream & websocket max lifetime before forcefully terminated
+IDLETIME = int(os.getenv("MODAL_IDLETIME", "60")) # spin down on idle timeout
+WAITTIME = int(os.getenv("MODAL_WAITTIME", "20")) # wait time to finished progressbar animation when inference is done (ie. VHS save video node)
+MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300")) # ComfyUI & it's custom nodes initialization/startup timeout
+JOBSCUTOFFTIME = int(os.getenv("MODAL_JOBSCUTOFFTIME", "86400")) # completed jobs history cutoff (ie. only shows jobs from the last 24 hours)
 
 from models import models, models_ext
 from plugins import comfy_plugins, comfy_plugins_ext
@@ -40,7 +40,7 @@ image = (
     .add_local_python_source("models", "plugins", copy=True)
     .run_commands("apt-get update")
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "ffmpeg") #rav1e
-    .uv_pip_install(["pip", "uv", "aiohttp", "fastapi", "websockets", "httpx", "starlette-compress", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
+    .uv_pip_install(["pip", "uv", "aiohttp", "fastapi", "websockets", "httpx", "starlette", "starlette-compress", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
     .uv_pip_install(["torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec~=0.10.0"], extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
@@ -345,8 +345,8 @@ def wait_for_port(port: int, timeout: int = 60):
 
 
 with image.imports():
-    from fastapi import Request, Response, WebSocket
-    from fastapi.responses import JSONResponse
+    from fastapi.responses import StreamingResponse, JSONResponse, Response
+    from fastapi import Request, WebSocket 
     #from fastapi.middleware.gzip import GZipMiddleware
     from starlette_compress import CompressMiddleware
     import httpx
@@ -443,7 +443,7 @@ async def wait_websocket_ready():
     else:
         print("Internal Websocket Timeout!") # raise TimeoutError("Internal Websocket Timeout!")
 
-async def forward_httpx(url: str, request: Request, try_json: bool = False, timeout: int = 120, new_body: bytes = b'', show_logs: bool = False) -> Response:
+async def forward_httpx(url: str, request: Request, try_json: bool = False, timeout: int = 120, new_body: bytes = b'', show_logs: bool = False):
     # Strip Host from headers to prevent loopback
     headers = {
         k: v for k, v in request.headers.items()
@@ -466,51 +466,82 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     body = await request.body()
     if new_body:
         body = new_body
-    # Forward to remote ComfyUI
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        resp = await client.request(
-            method=request.method,
-            url=f"{url}{request.url.path}",
-            params=request.query_params,
-            headers=headers,
-            content=body,
-            #stream=True,
-            #extensions={"decode_content": False}, 
-        )
-    # Return raw bytes with the original content-type
-    new_resp = Response(
-        content=resp.content,
-        status_code=resp.status_code,
-        #media_type=resp.headers.get("content-type"),
-        headers=resp.headers,
-    )
-    # Stream content
-    #new_resp = StreamingResponse(
-    #    content=resp.aiter_bytes(65536),
-    #    status_code=resp.status_code,          # 206 Partial Content if range was honored
-    #    media_type=resp.headers.get("content-type"),
-    #    headers={
-    #        k: v for k, v in resp.headers.items()
-    #        if k.lower() in {"content-range", "content-length", "accept-ranges", "etag"}
-    #    },
-    #)
-
-    if show_logs:
-        print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>> {resp.content} <<<")
-    if try_json:
-        if resp.content:
-            try:
-                # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
-                #import zstandard as zstd
-                #dctx = zstd.ZstdDecompressor()
-                #decompressed = dctx.decompress(resp.content)
-
-                new_resp = JSONResponse(resp.json()) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
-            except Exception as e: # (json.JSONDecodeError, UnicodeDecodeError):
-                print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
-        #else:
-        #    new_resp = JSONResponse(content={}, status_code=new_resp.status_code)
     
+    # Forward to remote ComfyUI
+    async def make_stream():
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            async with client.stream(
+                method=request.method,
+                url=f"{url}{request.url.path}",
+                params=request.query_params,
+                headers=headers,
+                content=body,
+                #stream=True,
+                #extensions={"decode_content": False}, 
+            ) as resp:
+                # Yield metadata as first item, then chunks
+                yield resp
+                async for chunk in resp.aiter_bytes(chunk_size=65536):
+                    #if show_logs:
+                    #    print(f"[{request.method}:{request.url.path}?{request.query_params}({len(chunk)})]: >..> {chunk} <..<")
+                    yield chunk
+
+    gen = make_stream()
+
+    # First yield is the response object with headers/status
+    resp = await gen.__anext__() 
+    
+    # Filter hop-by-hop headers that must not be forwarded
+    HOP_BY_HOP = {
+        "transfer-encoding", "connection", "keep-alive",
+        "proxy-authenticate", "proxy-authorization",
+        "te", "trailers", "upgrade",
+    }
+    filtered_headers = {
+        k: v for k, v in resp.headers.items()
+        if k.lower() not in HOP_BY_HOP
+    }
+
+    is_chunked = resp.headers.get("transfer-encoding", "").lower() == "chunked"
+    is_partial = resp.status_code == 206
+
+    if is_chunked or is_partial:
+        if show_logs:
+            print(f"[{request.method}:{request.url.path}?{request.query_params}]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>>> ")
+        # Remaining yields are byte chunks — client/stream stays open
+        new_resp = StreamingResponse(
+            gen,  # continues from where we left off
+            status_code=resp.status_code,
+            headers=filtered_headers,
+            media_type=resp.headers.get("content-type"),
+        )
+    else:
+        # Safe to buffer small/complete responses
+        content = await resp.aread()
+        # Close the generator cleanly
+        await gen.aclose()
+        if show_logs:
+            print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>> {resp.content} <<<")
+        new_resp = Response(
+            content=content,
+            status_code=resp.status_code,
+            headers=filtered_headers,
+            media_type=resp.headers.get("content-type"),
+        )
+        if try_json:
+            if resp.content:
+                try:
+                    # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
+                    #import zstandard as zstd
+                    #dctx = zstd.ZstdDecompressor()
+                    #decompressed = dctx.decompress(resp.content)
+
+                    new_resp = JSONResponse(resp.json()) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
+                except Exception as e: # (json.JSONDecodeError, UnicodeDecodeError):
+                    print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
+            #else:
+            #    new_resp = JSONResponse(content={}, status_code=new_resp.status_code)
+        
     return new_resp
     
 
@@ -710,18 +741,18 @@ async def proxy_view(request: Request):
     new_resp = await forward_httpx(url, request, False, show_logs=True) #stream=True 
 
     # Making sure the content is downloadable
-    headers = {} # dict(new_resp.headers)
-    #headers.pop("transfer-encoding", None)  # avoid conflict with content-length
-    for key in ("content-disposition", "content-range", "accept-ranges", "content-length", "etag", "cache-control", "last-modified", "transfer-encoding"):
-        if val := new_resp.headers.get(key):
-            headers[key] = val
-        
-    new_resp = Response(
-            content=new_resp.body,
-            media_type=new_resp.media_type,
-            status_code=new_resp.status_code,
-            headers=headers,
-    )
+    #headers = {} # dict(new_resp.headers)
+    ##headers.pop("transfer-encoding", None)  # avoid conflict with content-length
+    #for key in ("content-disposition", "content-range", "accept-ranges", "content-length", "etag", "cache-control", "last-modified", "transfer-encoding"):
+    #    if val := new_resp.headers.get(key):
+    #        headers[key] = val
+    #    
+    #new_resp = Response(
+    #        content=new_resp.body,
+    #        media_type=new_resp.media_type,
+    #        status_code=new_resp.status_code,
+    #        headers=headers,
+    #)
     return new_resp
 
 # Proxy Logs API routes
