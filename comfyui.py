@@ -40,7 +40,7 @@ image = (
     .add_local_python_source("models", "plugins", copy=True)
     .run_commands("apt-get update")
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "ffmpeg") #rav1e
-    .uv_pip_install(["pip", "uv", "aiohttp", "fastapi", "websockets", "httpx", "starlette", "starlette-compress", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
+    .uv_pip_install(["pip", "uv", "aiohttp", "fastapi", "websockets", "httpx", "brotli", "zstandard", "starlette", "starlette-compress", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
     .uv_pip_install(["torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec~=0.10.0"], extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
@@ -457,7 +457,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
         )
     }
     # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
-    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
+    #headers["accept-encoding"] = "gzip, deflate" # , br # "identity;q=1, *;q=0" 
     # Use original range header (for partial streaming) if exist
     #if range_header := request.headers.get("range"):
     #    headers["Range"] = range_header
@@ -489,13 +489,14 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     gen = make_stream()
 
     # First yield is the response object with headers/status
-    resp = await gen.__anext__() 
+    resp = await anext(gen) # await gen.__anext__()
     
     # Filter hop-by-hop headers that must not be forwarded
     HOP_BY_HOP = {
         "transfer-encoding", "connection", "keep-alive",
         "proxy-authenticate", "proxy-authorization",
         "te", "trailers", "upgrade",
+        "content-encoding",  # httpx already decoded it
     }
     filtered_headers = {
         k: v for k, v in resp.headers.items()
@@ -520,7 +521,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
         # Close the generator cleanly
         await gen.aclose()
         if show_logs:
-            print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>> {resp.content} <<<")
+            print(f"[{request.method}:{request.url.path}?{request.query_params}({len(content)})]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>> {content} <<<")
         new_resp = Response(
             content=content,
             status_code=resp.status_code,
@@ -528,16 +529,16 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
             media_type=resp.headers.get("content-type"),
         )
         if try_json:
-            if resp.content:
+            if content:
                 try:
                     # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
                     #import zstandard as zstd
                     #dctx = zstd.ZstdDecompressor()
                     #decompressed = dctx.decompress(resp.content)
 
-                    new_resp = JSONResponse(resp.json(), status_code=resp.status_code) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
+                    new_resp = JSONResponse(content=json.loads(content), status_code=resp.status_code) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
                 except Exception as e: # (json.JSONDecodeError, UnicodeDecodeError):
-                    print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
+                    print(f"[{request.method}:{request.url.path}({len(content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
             #else:
             #    new_resp = JSONResponse(content={}, status_code=resp.status_code)
         
@@ -901,6 +902,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
         if k.lower() not in (
             "host",
             "content-length",
+            "accept-encoding",   # not applicable to websockets
             "x-forwarded-proto",
             "x-forwarded-for",
             "x-forwarded-host",
@@ -908,7 +910,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
         )
     }
     # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
-    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0"
+    #headers["accept-encoding"] = "deflate" #gzip, br, # "identity;q=1, *;q=0"
 
     # Get query parameters as an ImmutableMultiDict
     query_params = dict(websocket.query_params)
@@ -951,6 +953,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
             async with websockets.connect(
                 uri,
                 additional_headers=headers, 
+                #compression="deflate",  # this is the only valid option (and it's the default)
                 open_timeout=MAXSTARTTIME,  # handshake timeout (seconds)
                 close_timeout=10,           # graceful close timeout
                 ping_interval=15,           # send pings every N seconds
@@ -1188,7 +1191,7 @@ async def proxy(request: Request, path: str):
         )
     }
     # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
-    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
+    #headers["accept-encoding"] = "gzip, deflate" #, br #"identity;q=1, *;q=0" 
 
     body = await request.body()
     async with httpx.AsyncClient(timeout=30.0) as client:
