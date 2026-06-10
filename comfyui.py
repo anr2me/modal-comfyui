@@ -761,10 +761,10 @@ async def proxy_jobs(request: Request, path: str):
 
     return new_resp
 
-@web_app.get("/view", status_code=200)
-@web_app.get("/viewvideo", status_code=200)
-@web_app.get("/api/view", status_code=200)
-@web_app.get("/api/viewvideo", status_code=200)
+@web_app.get("/view")
+@web_app.get("/viewvideo")
+@web_app.get("/api/view")
+@web_app.get("/api/viewvideo")
 async def proxy_view(request: Request):
     url = f"http://127.0.0.1:{uiport}"
     active_count = await shared_dict.get.aio("active", 0)
