@@ -529,6 +529,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
             media_type=resp.headers.get("content-type"),
         )
         if try_json:
+            import json
             if content:
                 try:
                     # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
