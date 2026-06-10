@@ -345,8 +345,7 @@ def wait_for_port(port: int, timeout: int = 60):
 
 
 with image.imports():
-    from fastapi import Request, Response, WebSocket
-    from fastapi.responses import JSONResponse
+    from fastapi import Request, StreamingResponse, JSONResponse, Response, WebSocket 
     #from fastapi.middleware.gzip import GZipMiddleware
     from starlette_compress import CompressMiddleware
     import httpx
@@ -443,7 +442,7 @@ async def wait_websocket_ready():
     else:
         print("Internal Websocket Timeout!") # raise TimeoutError("Internal Websocket Timeout!")
 
-async def forward_httpx(url: str, request: Request, try_json: bool = False, timeout: int = 120, new_body: bytes = b'', show_logs: bool = False) -> Response:
+async def forward_httpx(url: str, request: Request, try_json: bool = False, timeout: int = 120, new_body: bytes = b'', show_logs: bool = False):
     # Strip Host from headers to prevent loopback
     headers = {
         k: v for k, v in request.headers.items()
@@ -466,9 +465,16 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     body = await request.body()
     if new_body:
         body = new_body
+
+    async def stream_response(resp: httpx.Response):
+        async for chunk in resp.aiter_bytes(chunk_size=65536):
+            if show_logs:
+                print(f"[{request.method}:{request.url.path}?{request.query_params}({len(chunk)})]: >..> {chunk} <..<")
+            yield chunk
+    
     # Forward to remote ComfyUI
     async with httpx.AsyncClient(timeout=timeout) as client:
-        resp = await client.request(
+        async with client.stream(
             method=request.method,
             url=f"{url}{request.url.path}",
             params=request.query_params,
@@ -476,41 +482,58 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
             content=body,
             #stream=True,
             #extensions={"decode_content": False}, 
-        )
-    # Return raw bytes with the original content-type
-    new_resp = Response(
-        content=resp.content,
-        status_code=resp.status_code,
-        #media_type=resp.headers.get("content-type"),
-        headers=resp.headers,
-    )
-    # Stream content
-    #new_resp = StreamingResponse(
-    #    content=resp.aiter_bytes(65536),
-    #    status_code=resp.status_code,          # 206 Partial Content if range was honored
-    #    media_type=resp.headers.get("content-type"),
-    #    headers={
-    #        k: v for k, v in resp.headers.items()
-    #        if k.lower() in {"content-range", "content-length", "accept-ranges", "etag"}
-    #    },
-    #)
+        ) as resp:
+            # Filter hop-by-hop headers that must not be forwarded
+            HOP_BY_HOP = {
+                "transfer-encoding", "connection", "keep-alive",
+                "proxy-authenticate", "proxy-authorization",
+                "te", "trailers", "upgrade",
+            }
+            filtered_headers = {
+                k: v for k, v in resp.headers.items()
+                if k.lower() not in HOP_BY_HOP
+            }
 
-    if show_logs:
-        print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>> {resp.content} <<<")
-    if try_json:
-        if resp.content:
-            try:
-                # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
-                #import zstandard as zstd
-                #dctx = zstd.ZstdDecompressor()
-                #decompressed = dctx.decompress(resp.content)
+            is_chunked = (
+                resp.headers.get("transfer-encoding", "").lower() == "chunked"
+            )
+            is_partial = resp.status_code == 206
 
-                new_resp = JSONResponse(resp.json()) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
-            except Exception as e: # (json.JSONDecodeError, UnicodeDecodeError):
-                print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
-        #else:
-        #    new_resp = JSONResponse(content={}, status_code=new_resp.status_code)
-    
+            if is_chunked or is_partial:
+                # Stream it — don't buffer
+                if show_logs:
+                    print(f"[{request.method}:{request.url.path}?{request.query_params}]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>>> ")
+                new_resp = StreamingResponse(
+                    stream_response(resp),
+                    status_code=resp.status_code,
+                    headers=filtered_headers,
+                    media_type=resp.headers.get("content-type"),
+                )
+            else:
+                # Safe to buffer small/complete responses
+                content = await resp.aread()
+                if show_logs:
+                    print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>> {resp.content} <<<")
+                new_resp = Response(
+                    content=content,
+                    status_code=resp.status_code,
+                    headers=filtered_headers,
+                    media_type=resp.headers.get("content-type"),
+                )
+                if try_json:
+                    if resp.content:
+                        try:
+                            # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
+                            #import zstandard as zstd
+                            #dctx = zstd.ZstdDecompressor()
+                            #decompressed = dctx.decompress(resp.content)
+
+                            new_resp = JSONResponse(resp.json()) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
+                        except Exception as e: # (json.JSONDecodeError, UnicodeDecodeError):
+                            print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
+                    #else:
+                    #    new_resp = JSONResponse(content={}, status_code=new_resp.status_code)
+        
     return new_resp
     
 
