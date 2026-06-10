@@ -636,6 +636,8 @@ async def proxy_queue(request: Request):
  
     return new_resp
 
+@web_app.get("/api/system_stats")
+@web_app.get("/api/object_info")
 @web_app.post("/free")
 @web_app.post("/interrupt")
 @web_app.post("/api/interrupt")
