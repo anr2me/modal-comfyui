@@ -664,8 +664,19 @@ async def proxy_history(request: Request, path: str):
     if active_count > 0:
         url = await get_remote_url("ComfyGPU")
 
+    body = await request.body()
+    import json
+    try:
+        bodyobj = json.loads(body)
+        if request.method=="POST" and bodyobj.get("clear", False):
+            print("Clearing All completed jobs!")
+            jobs_dict.clear()
+        
+    except Exception as e:
+        print(f"[{request.method}:{request.url.path}] Body JSON Throw: {e!r}")
+
     # Forward request
-    new_resp = await forward_httpx(url, request, True, show_logs=True)
+    new_resp = await forward_httpx(url, request, True, new_body=body, show_logs=True)
  
     return new_resp
 
