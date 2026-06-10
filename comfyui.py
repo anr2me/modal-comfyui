@@ -40,7 +40,7 @@ image = (
     .add_local_python_source("models", "plugins", copy=True)
     .run_commands("apt-get update")
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "ffmpeg") #rav1e
-    .uv_pip_install(["pip", "uv", "aiohttp", "fastapi", "websockets", "httpx", "starlette", "starlette-compress", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
+    .uv_pip_install(["pip", "uv", "aiohttp", "fastapi", "websockets", "httpx", "brotli", "zstandard", "starlette", "starlette-compress", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
     .uv_pip_install(["torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec~=0.10.0"], extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
@@ -457,7 +457,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
         )
     }
     # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
-    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
+    #headers["accept-encoding"] = "gzip, deflate" # , br # "identity;q=1, *;q=0" 
     # Use original range header (for partial streaming) if exist
     #if range_header := request.headers.get("range"):
     #    headers["Range"] = range_header
@@ -489,13 +489,14 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     gen = make_stream()
 
     # First yield is the response object with headers/status
-    resp = await gen.__anext__() 
+    resp = await anext(gen) # await gen.__anext__()
     
     # Filter hop-by-hop headers that must not be forwarded
     HOP_BY_HOP = {
         "transfer-encoding", "connection", "keep-alive",
         "proxy-authenticate", "proxy-authorization",
         "te", "trailers", "upgrade",
+        "content-encoding",  # httpx already decoded it
     }
     filtered_headers = {
         k: v for k, v in resp.headers.items()
@@ -503,9 +504,10 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     }
 
     is_chunked = resp.headers.get("transfer-encoding", "").lower() == "chunked"
-    is_partial = resp.status_code == 206
+    is_json = "application/json" in resp.headers.get("content-type", "")
 
-    if is_chunked or is_partial:
+    # Stream only non-JSON chunked responses (SSE, binary, etc.)
+    if is_chunked and not is_json: # or (resp.status_code==206 and not resp.headers.get("content-length", "")):
         if show_logs:
             print(f"[{request.method}:{request.url.path}?{request.query_params}]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>>> ")
         # Remaining yields are byte chunks — client/stream stays open
@@ -521,7 +523,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
         # Close the generator cleanly
         await gen.aclose()
         if show_logs:
-            print(f"[{request.method}:{request.url.path}?{request.query_params}({len(resp.content)})]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>> {resp.content} <<<")
+            print(f"[{request.method}:{request.url.path}?{request.query_params}({len(content)})]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>> {content} <<<")
         new_resp = Response(
             content=content,
             status_code=resp.status_code,
@@ -529,18 +531,19 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
             media_type=resp.headers.get("content-type"),
         )
         if try_json:
-            if resp.content:
+            import json
+            if content:
                 try:
                     # NOTE: resp.content might be zstd compressed (depends on resp.headers["content-encoding"]), thus resp.json() might failed without explicitly decompressing the content first
                     #import zstandard as zstd
                     #dctx = zstd.ZstdDecompressor()
                     #decompressed = dctx.decompress(resp.content)
 
-                    new_resp = JSONResponse(resp.json()) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
+                    new_resp = JSONResponse(content=json.loads(content), status_code=resp.status_code) # JSONResponse(json.loads(new_resp.body), status_code=new_resp.status_code)
                 except Exception as e: # (json.JSONDecodeError, UnicodeDecodeError):
-                    print(f"[{request.method}:{request.url.path}({len(resp.content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
+                    print(f"[{request.method}:{request.url.path}({len(content)})] Throw: {e!r} => {resp.headers} ==> {resp}")
             #else:
-            #    new_resp = JSONResponse(content={}, status_code=new_resp.status_code)
+            #    new_resp = JSONResponse(content={}, status_code=resp.status_code)
         
     return new_resp
     
@@ -636,6 +639,8 @@ async def proxy_queue(request: Request):
  
     return new_resp
 
+@web_app.get("/api/system_stats")
+@web_app.get("/api/object_info")
 @web_app.post("/free")
 @web_app.post("/interrupt")
 @web_app.post("/api/interrupt")
@@ -653,8 +658,39 @@ async def proxy_interrupt(request: Request):
  
     return new_resp
 
-@web_app.get("/api/jobs")
-async def proxy_jobs(request: Request):
+# Proxy history API routes
+@web_app.get("/history{path:path}")
+@web_app.post("/history{path:path}")
+@web_app.get("/api/history{path:path}")
+@web_app.post("/api/history{path:path}")
+async def proxy_history(request: Request, path: str):
+    url = f"http://127.0.0.1:{uiport}"
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        url = await get_remote_url("ComfyGPU")
+
+    body = await request.body()
+    import json
+    try:
+        bodyobj = json.loads(body)
+        if request.method=="POST" and bodyobj.get("clear", False):
+            print("Clearing All completed jobs!")
+            jobs_dict.clear()
+        
+    except Exception as e:
+        print(f"[{request.method}:{request.url.path}] Body JSON Throw: {e!r}")
+
+    # Forward request
+    new_resp = await forward_httpx(url, request, True, new_body=body, show_logs=True)
+ 
+    return new_resp
+
+@web_app.get("/api/jobs{path:path}")
+async def proxy_jobs(request: Request, path: str):
+    import json
+    import asyncio
+    import time
+    
     url = f"http://127.0.0.1:{uiport}"
     active_count = await shared_dict.get.aio("active", 0)
     if active_count > 0:
@@ -666,62 +702,66 @@ async def proxy_jobs(request: Request):
     # Forward request
     new_resp = await forward_httpx(url, request, True, show_logs=True)
 
-    # cache completed jobs to be persistent on each session
-    params = request.query_params.get("status", "")
-    if params and "completed" in params:
-        try:
-            import json
-            import asyncio
-            import time
-            respobj = json.loads(new_resp.body)
-            # update jobs_dict with new jobs
-            jobs = respobj.get("jobs", [])
-            pagination = respobj.get("pagination", {})
-            if jobs:
-                await asyncio.gather(*[
-                    jobs_dict.put.aio(str(item["id"]), item)  # skip_if_exists=True
-                    for item in jobs
-                ])
-            # current time in milliseconds (create_time is in ms)
-            cutoff = time.time() * 1000 - (JOBSCUTOFFTIME * 1000)
-            # retrieve the full jobs (filter out old jobs when needed)
-            jobs = [v async for _, v in jobs_dict.items.aio() if JOBSCUTOFFTIME < 0 or v.get("create_time", 0) >= cutoff]
-
-            # update pagination
-            if pagination:
-                jobs_count = len(jobs)
-                page_offset = pagination.get("offset", 0)
-                page_limit = pagination.get("limit", 0)
-                pagination["has_more"] = (page_offset+page_limit < jobs_count)
-                if jobs_count > page_limit:
-                    jobs_count = page_limit
-                pagination["total"] = jobs_count
-                # sort jobs by create_time in descending order
-                jobs.sort(key=lambda x: x.get("create_time", 0), reverse=True)
-                # only retrieve jobs up to limit from offset
-                jobs = jobs[page_offset:page_offset + page_limit]
-                # update response's pagination
-                respobj["pagination"] = pagination
+    # get the job from cache if not found
+    if new_resp.status_code == 404 and path.startswith("/") and len(path)>1:
+        job_id = path[1:]
+        job = await jobs_dict.get.aio(str(job_id), None)
+        if job:
+            new_resp = JSONResponse(content=job)
+    else:
+        # cache completed jobs to be persistent across sessions
+        params = request.query_params.get("status", "")
+        if params and "completed" in params:
+            try:
+                respobj = json.loads(new_resp.body)
+                # update jobs_dict with new jobs
+                jobs = respobj.get("jobs", [])
+                pagination = respobj.get("pagination", {})
+                if jobs:
+                    await asyncio.gather(*[
+                        jobs_dict.put.aio(str(item["id"]), item)  # skip_if_exists=True
+                        for item in jobs
+                    ])
+                # current time in milliseconds (create_time is in ms)
+                cutoff = time.time() * 1000 - (JOBSCUTOFFTIME * 1000)
+                # retrieve the full jobs (filter out old jobs when needed)
+                jobs = [v async for _, v in jobs_dict.items.aio() if JOBSCUTOFFTIME < 0 or v.get("create_time", 0) >= cutoff]
+    
+                # update pagination
+                if pagination:
+                    jobs_count = len(jobs)
+                    page_offset = pagination.get("offset", 0)
+                    page_limit = pagination.get("limit", 0)
+                    pagination["has_more"] = (page_offset+page_limit < jobs_count)
+                    if jobs_count > page_limit:
+                        jobs_count = page_limit
+                    pagination["total"] = jobs_count
+                    # sort jobs by create_time in descending order
+                    jobs.sort(key=lambda x: x.get("create_time", 0), reverse=True)
+                    # only retrieve jobs up to limit from offset
+                    jobs = jobs[page_offset:page_offset + page_limit]
+                    # update response's pagination
+                    respobj["pagination"] = pagination
+                
+                # update response' jobs
+                respobj["jobs"] = jobs
+    
+                # construct new response
+                new_body = json.dumps(respobj).encode("utf-8")
             
-            # update response' jobs
-            respobj["jobs"] = jobs
+                # update headers with correct content-length
+                headers = dict(new_resp.headers)
+                headers["content-length"] = str(len(new_body))
+            
+                new_resp = Response(
+                    content=new_body,
+                    status_code=new_resp.status_code,
+                    headers=headers,
+                    media_type=new_resp.media_type,
+                )
+            except Exception as e:
+                print(f"[{request.method}:{request.url.path}] Body JSON Throw: {e!r}")
 
-            # construct new response
-            new_body = json.dumps(respobj).encode("utf-8")
-        
-            # update headers with correct content-length
-            headers = dict(new_resp.headers)
-            headers["content-length"] = str(len(new_body))
-        
-            new_resp = Response(
-                content=new_body,
-                status_code=new_resp.status_code,
-                headers=headers,
-                media_type=new_resp.media_type,
-            )
-        except Exception as e:
-            print(f"[{request.method}:{request.url.path}] Body JSON Throw: {e!r}")
-        
     return new_resp
 
 @web_app.get("/view")
@@ -799,7 +839,8 @@ async def proxy_crystools(request: Request, path: str):
     # Forward request
     new_resp = await forward_httpx(url, request, True)
 
-    # check and tamper GPU info
+    # Check and tamper GPU info with fake GPUs
+    # NOTE: Trying to access faked GPU will get status_code=400 (ie. PATCH /api/crystools/monitor/GPU/0 -> 400 Bad Request)
     body = new_resp.body
     import json
     if path == "/monitor/GPU" and request.method == "GET":
@@ -835,8 +876,6 @@ async def proxy_crystools(request: Request, path: str):
 # Proxy other API routes
 @web_app.get("/api/{path:path}")
 @web_app.get("/internal/{path:path}")
-@web_app.get("/history/{path:path}")
-@web_app.post("/history/{path:path}")
 async def proxy_api(request: Request, path: str):
     url = f"http://127.0.0.1:{uiport}"
     active_count = await shared_dict.get.aio("active", 0)
@@ -866,6 +905,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
         if k.lower() not in (
             "host",
             "content-length",
+            "accept-encoding",   # not applicable to websockets
             "x-forwarded-proto",
             "x-forwarded-for",
             "x-forwarded-host",
@@ -873,7 +913,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
         )
     }
     # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
-    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0"
+    #headers["accept-encoding"] = "deflate" #gzip, br, # "identity;q=1, *;q=0"
 
     # Get query parameters as an ImmutableMultiDict
     query_params = dict(websocket.query_params)
@@ -916,6 +956,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
             async with websockets.connect(
                 uri,
                 additional_headers=headers, 
+                #compression="deflate",  # this is the only valid option (and it's the default)
                 open_timeout=MAXSTARTTIME,  # handshake timeout (seconds)
                 close_timeout=10,           # graceful close timeout
                 ping_interval=15,           # send pings every N seconds
@@ -1030,6 +1071,8 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                         countdown = WAITTIME
                                         dc_time = time.time() + countdown
                                         print(f"{inqueue_count}(+{pending_prompt}) Queue remaining in GPU instance, Disconnecting from GPU instance in {countdown} seconds.")
+                                        # Force the volume to commit changes 
+                                        vol.commit()
                                         #print("Internal websocket is Not Ready anymore!")
                                         #await shared_dict.put.aio("ws_ready", False)
                                         #await comfy_ws.close()
@@ -1102,23 +1145,32 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                 #    print("WARNING: Host not found in request!")
                 print(f"Connected Internal WebSocket Host: {ws_host}")
                 await shared_dict.put.aio("ws_host", ws_host)
-                # cancel both tasks when either side closes their internal connection
-                # Create named tasks so we can cancel them
-                client_task = asyncio.create_task(client_to_comfy())
-                server_task = asyncio.create_task(comfy_to_client())
-                watch_task  = asyncio.create_task(watch_active())
-
-                all_tasks = {client_task, server_task, watch_task}
-
-                # Return as soon as ANY task finishes (e.g. watch_active breaks)
-                done, pending = await asyncio.wait(all_tasks, return_when=asyncio.FIRST_COMPLETED)
-
-                # Cancel the remaining tasks
-                for task in pending:
-                    task.cancel()
-
-                # Wait for cancellations to complete cleanly
-                await asyncio.gather(*pending, return_exceptions=True)
+                try:
+                    # cancel both tasks when either side closes their internal connection
+                    # Create named tasks so we can cancel them
+                    client_task = asyncio.create_task(client_to_comfy())
+                    server_task = asyncio.create_task(comfy_to_client())
+                    watch_task  = asyncio.create_task(watch_active())
+    
+                    all_tasks = {client_task, server_task, watch_task}
+    
+                    # Return as soon as ANY task finishes (e.g. watch_active breaks)
+                    done, pending = await asyncio.wait(all_tasks, return_when=asyncio.FIRST_COMPLETED)
+    
+                    # Cancel the remaining tasks
+                    for task in pending:
+                        task.cancel()
+    
+                    # Wait for cancellations to complete cleanly
+                    await asyncio.gather(*pending, return_exceptions=True)
+                except Exception as e:
+                    print(f"comfy_ws Throw: {e!r}")
+                finally:
+                    # Make sure we close internal websocket to avoid double websocket when reconnected (ie. refreshing the tab)
+                    if comfy_ws.state != State.CLOSED:
+                        print("Internal websocket is Not Ready!")
+                        await shared_dict.put.aio("ws_ready", False)
+                        await comfy_ws.close()
                 print("Internal websocket connection was Closed!")
         except ConnectionClosedError as e:
             # Handles errors during active connection (e.g., ping timeout)
@@ -1153,7 +1205,7 @@ async def proxy(request: Request, path: str):
         )
     }
     # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
-    headers["accept-encoding"] = "gzip, br, deflate" #"identity;q=1, *;q=0" 
+    #headers["accept-encoding"] = "gzip, deflate" #, br #"identity;q=1, *;q=0" 
 
     body = await request.body()
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -1222,6 +1274,8 @@ class ComfyGPU:
             shared_dict["active"] = 0
         # There won't be any inference running when ComfyUI is shutting down
         shared_dict["inqueue"] = 0
+        # Force the volume to commit changes 
+        vol.commit()
         
         proc = getattr(self, "proc", None)
         if proc is not None:
@@ -1270,6 +1324,9 @@ class ComfyCPU:
 
     @modal.exit()
     def cleanup(self):
+        # Force the volume to commit changes 
+        vol.commit()
+        
         proc = getattr(self, "proc", None)
         if proc is not None:
             try:
@@ -1318,6 +1375,9 @@ class ComfyMix:
     
     @modal.exit()
     def cleanup(self):
+        # Force the volume to commit changes 
+        vol.commit()
+        
         proc = getattr(self, "proc", None)
         if proc is not None:
             try:
