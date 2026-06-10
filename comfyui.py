@@ -505,7 +505,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     is_chunked = resp.headers.get("transfer-encoding", "").lower() == "chunked"
     is_partial = resp.status_code == 206
 
-    if is_chunked or (is_partial and not resp.headers.get("content-type", "")):
+    if is_chunked or (is_partial and not resp.headers.get("content-length", "")):
         if show_logs:
             print(f"[{request.method}:{request.url.path}?{request.query_params}]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>>> ")
         # Remaining yields are byte chunks — client/stream stays open
@@ -680,8 +680,8 @@ async def proxy_history(request: Request, path: str):
  
     return new_resp
 
-@web_app.get("/api/jobs")
-async def proxy_jobs(request: Request):
+@web_app.get("/api/jobs{path:path}")
+async def proxy_jobs(request: Request, path: str):
     url = f"http://127.0.0.1:{uiport}"
     active_count = await shared_dict.get.aio("active", 0)
     if active_count > 0:
