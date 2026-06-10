@@ -1071,6 +1071,8 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                         countdown = WAITTIME
                                         dc_time = time.time() + countdown
                                         print(f"{inqueue_count}(+{pending_prompt}) Queue remaining in GPU instance, Disconnecting from GPU instance in {countdown} seconds.")
+                                        # Force the volume to commit changes 
+                                        vol.commit()
                                         #print("Internal websocket is Not Ready anymore!")
                                         #await shared_dict.put.aio("ws_ready", False)
                                         #await comfy_ws.close()
@@ -1272,6 +1274,8 @@ class ComfyGPU:
             shared_dict["active"] = 0
         # There won't be any inference running when ComfyUI is shutting down
         shared_dict["inqueue"] = 0
+        # Force the volume to commit changes 
+        vol.commit()
         
         proc = getattr(self, "proc", None)
         if proc is not None:
@@ -1320,6 +1324,9 @@ class ComfyCPU:
 
     @modal.exit()
     def cleanup(self):
+        # Force the volume to commit changes 
+        vol.commit()
+        
         proc = getattr(self, "proc", None)
         if proc is not None:
             try:
@@ -1368,6 +1375,9 @@ class ComfyMix:
     
     @modal.exit()
     def cleanup(self):
+        # Force the volume to commit changes 
+        vol.commit()
+        
         proc = getattr(self, "proc", None)
         if proc is not None:
             try:
