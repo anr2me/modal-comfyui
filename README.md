@@ -65,8 +65,12 @@ To deploy ComfyUI as a persistent app using the default L4 GPU:
 ```bash
 modal deploy comfyui.py
 ```
-Or change the GPU with:
+Or deploy with cleared `shared_dict`:
+```bash
+python comfyui.py
 ```
+Or change the GPU with:
+```bash
 MODAL_GPU=RTX-PRO-6000 modal deploy comfyui.py
 ```
 You can find the GPU types available on modal.com at https://modal.com/docs/guide/gpu
