@@ -645,8 +645,8 @@ async def proxy_prompt(request: Request):
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
     if pending_prompt > 0:
         await shared_dict.put.aio("pending_prompt", pending_prompt - 1)
-        self.prompts -= 1
         #print(f"Decreasing Pending Prompt to: {pending_prompt - 1}")
+    self.prompts -= 1
     
     return new_resp
 
