@@ -513,43 +513,18 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
         "content-encoding",  # httpx already decoded it
         # CORS — let your proxy set its own
         #"access-control-allow-origin",
-        #"access-control-allow-credentials",
+        #"access-control-allow-credentials", # FIXME: credentials need to be False when origin='*'?
         #"access-control-allow-headers",
         #"access-control-allow-methods",
         #"access-control-expose-headers",
         # vendor-specific
         #"alt-svc",               # HTTP/3 hint, irrelevant for proxied response
-        "modal-function-call-id", # upstream vendor header, not for client
+        "modal-function-call-id", # upstream vendor header, not for client (can cause image not to shows up)
     }
     filtered_headers = {
         k: v for k, v in resp.headers.items()
         if k.lower() not in HOP_BY_HOP
     }
-    
-    '''ESSENTIAL = {
-        # partial content
-        "content-range",
-        "content-length", 
-        "accept-ranges",
-        "content-type",
-        # chunked/SSE
-        "cache-control",
-        # add these back one at a time:
-        "etag",
-        "last-modified",
-        "expires",
-        "vary",
-        "content-disposition",
-        "cross-origin-resource-policy",
-        "cross-origin-opener-policy",
-        "x-content-type-options",
-    }
-    
-    filtered_headers = {
-        k: v for k, v in resp.headers.items()
-        if k.lower() in ESSENTIAL  # whitelist instead of blacklist
-    }
-    '''
 
     is_chunked = resp.headers.get("transfer-encoding", "").lower() == "chunked"
     is_json = "application/json" in resp.headers.get("content-type", "")
