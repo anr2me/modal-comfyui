@@ -693,19 +693,31 @@ async def proxy_history(request: Request, path: str):
         url = await get_remote_url("ComfyGPU")
 
     body = await request.body()
+    bodyobj = {}
     import json
     try:
         bodyobj = json.loads(body)
-        if request.method=="POST" and bodyobj.get("clear", False):
-            print("Clearing All completed jobs!")
-            jobs_dict.clear()
-        
     except Exception as e:
         print(f"[{request.method}:{request.url.path}] Body JSON Throw: {e!r}")
 
     # Forward request
     new_resp = await forward_httpx(url, request, True, new_body=body, show_logs=True)
- 
+
+    max_items = int(request.query_params.get("max_items", 200))
+    offset = int(request.query_params.get("offset", -1))
+
+    # get the job from cache if not found
+    if (new_resp.status_code == 404 or not new_resp.body) and request.method=="GET" and path.startswith("/") and len(path)>1:
+        job_id = path[1:]
+        job = await jobs_dict.get.aio(str(job_id), None)
+        if job:
+            new_resp = JSONResponse(content=job)
+            
+    # Clear cached history too
+    elif new_resp.status_code == 200 and request.method=="POST" and bodyobj.get("clear", False):
+        print("Clearing All completed jobs!")
+        jobs_dict.clear()
+    
     return new_resp
 
 @web_app.get("/api/jobs{path:path}")
@@ -734,6 +746,9 @@ async def proxy_jobs(request: Request, path: str):
     else:
         # cache completed jobs to be persistent across sessions
         params = request.query_params.get("status", "")
+        sort_by = request.query_params.get('sort_by', 'created_at').lower()
+        sort_order = request.query_params.get('sort_order', 'desc').lower()
+
         if params and "completed" in params:
             try:
                 respobj = json.loads(new_resp.body)
@@ -753,17 +768,18 @@ async def proxy_jobs(request: Request, path: str):
                 # update pagination
                 if pagination:
                     jobs_count = len(jobs)
-                    page_offset = pagination.get("offset", 0)
-                    page_limit = pagination.get("limit", 0)
+                    page_offset = int(pagination.get("offset", 0))
+                    page_limit = int(pagination.get("limit", 200)) # limit is optional, but we should cap it.
                     pagination["has_more"] = (page_offset+page_limit < jobs_count)
                     if jobs_count > page_limit:
                         jobs_count = page_limit
                     pagination["total"] = jobs_count
-                    # sort jobs by create_time in descending order
-                    jobs.sort(key=lambda x: x.get("create_time", 0), reverse=True)
+                    # sort jobs by sort_by(ie. create_time) in sort_order(ie. desc) order
+                    jobs.sort(key=lambda x: x.get(sort_by, 0), reverse=(sort_order=="desc"))
                     # only retrieve jobs up to limit from offset
                     jobs = jobs[page_offset:page_offset + page_limit]
                     # update response's pagination
+                    pagination["limit"] = page_limit
                     respobj["pagination"] = pagination
                 
                 # update response' jobs
