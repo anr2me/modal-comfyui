@@ -1438,6 +1438,7 @@ class ComfyMix:
         if self.prompts > 0:
             pending_prompt = int(shared_dict.get("pending_prompt", 0))
             shared_dict["pending_prompt"] = max(0, pending_prompt - self.prompts)
+            print(f"Preemptive/Interruption detected during Prompting! ({pending_prompt} - {self.prompts})")
             self.prompts = 0
         
         proc = getattr(self, "proc", None)
