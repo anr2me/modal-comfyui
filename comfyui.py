@@ -725,6 +725,7 @@ async def proxy_jobs(request: Request, path: str):
     # Forward request
     new_resp = await forward_httpx(url, request, True, show_logs=True)
 
+    return new_resp
     # get the job from cache if not found
     if new_resp.status_code == 404 and path.startswith("/") and len(path)>1:
         job_id = path[1:]
