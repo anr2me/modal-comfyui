@@ -512,11 +512,11 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
         "te", "trailers", "upgrade",
         "content-encoding",  # httpx already decoded it
         # CORS — let your proxy set its own
-        "access-control-allow-origin",
-        "access-control-allow-credentials",
-        "access-control-allow-headers",
-        "access-control-allow-methods",
-        "access-control-expose-headers",
+        #"access-control-allow-origin",
+        #"access-control-allow-credentials",
+        #"access-control-allow-headers",
+        #"access-control-allow-methods",
+        #"access-control-expose-headers",
         # vendor-specific
         "alt-svc",               # HTTP/3 hint, irrelevant for proxied response
         "modal-function-call-id", # upstream vendor header, not for client
