@@ -418,6 +418,9 @@ async def fix_gpu_active_count():
     active_count = stats.num_total_runners
     await shared_dict.put.aio("active", active_count)
     print(f"Detected Active GPU instance(s): {active_count}")
+    # if there is no active GPU instance, inqueue should be 0 too
+    if active_count == 0:
+        await shared_dict.put.aio("inqueue", 0)
     
 async def get_remote_url(class_name: str) -> str:
     remote_cls = modal.Cls.from_name(app.name, class_name)
@@ -580,6 +583,7 @@ async def proxy_prompt(request: Request):
 
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
     await shared_dict.put.aio("pending_prompt", pending_prompt + 1)
+    self.prompts += 1
     #print(f"Increasing Pending Prompt to: {pending_prompt + 1}")
 
     # spin-up GPU instance
@@ -636,10 +640,12 @@ async def proxy_prompt(request: Request):
         new_resp = await forward_httpx(url, request, True, new_body=body)
     except Exception as e:
         print(f"[{request.method}:{request.url.path}?{request.query_params}] Throw: {e!r}")
-        
+
+    # NOTE: If the input got preempted/interrupted midway, pending_prompt might not get decreased!
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
     if pending_prompt > 0:
         await shared_dict.put.aio("pending_prompt", pending_prompt - 1)
+        self.prompts -= 1
         #print(f"Decreasing Pending Prompt to: {pending_prompt - 1}")
     
     return new_resp
@@ -1399,6 +1405,7 @@ class ComfyCPU:
 class ComfyMix:
     @modal.enter(snap=True)
     def start_checkpoint(self):
+        self.prompts = 0
         try:
             self.proc = subprocess.Popen(
                 f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
@@ -1411,6 +1418,7 @@ class ComfyMix:
     @modal.enter(snap=False)
     def start_restore(self):
         print("App Restored!")
+        self.prompts = 0
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
         #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
@@ -1426,6 +1434,11 @@ class ComfyMix:
     def cleanup(self):
         # Force the volume to commit changes 
         vol.commit()
+        # Detects preemptive interruption to fix pending_prompt
+        if self.prompts > 0:
+            pending_prompt = int(shared_dict.get("pending_prompt", 0))
+            shared_dict["pending_prompt"] = max(0, pending_prompt - self.prompts)
+            self.prompts = 0
         
         proc = getattr(self, "proc", None)
         if proc is not None:
