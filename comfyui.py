@@ -377,6 +377,7 @@ shared_dict = modal.Dict.from_name(app.name, create_if_missing=True)
 jobs_dict = modal.Dict.from_name(app.name+"_jobs", create_if_missing=True)
 # Reset the contents when redeployed, but doing it here will cleared it during spin up!
 #shared_dict.clear()
+num_prompts = 0
 
 
 uiport = 8188
@@ -583,7 +584,7 @@ async def proxy_prompt(request: Request):
 
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
     await shared_dict.put.aio("pending_prompt", pending_prompt + 1)
-    self.prompts += 1
+    num_prompts += 1
     #print(f"Increasing Pending Prompt to: {pending_prompt + 1}")
 
     # spin-up GPU instance
@@ -646,7 +647,7 @@ async def proxy_prompt(request: Request):
     if pending_prompt > 0:
         await shared_dict.put.aio("pending_prompt", pending_prompt - 1)
         #print(f"Decreasing Pending Prompt to: {pending_prompt - 1}")
-    self.prompts -= 1
+    num_prompts -= 1
     
     return new_resp
 
@@ -1405,7 +1406,7 @@ class ComfyCPU:
 class ComfyMix:
     @modal.enter(snap=True)
     def start_checkpoint(self):
-        self.prompts = 0
+        num_prompts = 0
         try:
             self.proc = subprocess.Popen(
                 f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
@@ -1418,7 +1419,7 @@ class ComfyMix:
     @modal.enter(snap=False)
     def start_restore(self):
         print("App Restored!")
-        self.prompts = 0
+        num_prompts = 0
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
         #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
@@ -1435,11 +1436,11 @@ class ComfyMix:
         # Force the volume to commit changes 
         vol.commit()
         # Detects preemptive interruption to fix pending_prompt
-        if self.prompts > 0:
+        if num_prompts > 0:
             pending_prompt = int(shared_dict.get("pending_prompt", 0))
-            shared_dict["pending_prompt"] = max(0, pending_prompt - self.prompts)
-            print(f"Preemptive/Interruption detected during Prompting! ({pending_prompt} - {self.prompts})")
-            self.prompts = 0
+            shared_dict["pending_prompt"] = max(0, pending_prompt - num_prompts)
+            print(f"Preemptive/Interruption detected during Prompting! ({pending_prompt} - {num_prompts})")
+            num_prompts = 0
         
         proc = getattr(self, "proc", None)
         if proc is not None:
