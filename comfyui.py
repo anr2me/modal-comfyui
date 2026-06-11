@@ -506,18 +506,27 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     resp = await anext(gen) # await gen.__anext__()
     
     # Filter hop-by-hop headers that must not be forwarded
-    '''HOP_BY_HOP = {
+    HOP_BY_HOP = {
         "transfer-encoding", "connection", "keep-alive",
         "proxy-authenticate", "proxy-authorization",
         "te", "trailers", "upgrade",
         "content-encoding",  # httpx already decoded it
+        # CORS — let your proxy set its own
+        "access-control-allow-origin",
+        "access-control-allow-credentials",
+        "access-control-allow-headers",
+        "access-control-allow-methods",
+        "access-control-expose-headers",
+        # vendor-specific
+        #"alt-svc",               # HTTP/3 hint, irrelevant for proxied response
+        #"modal-function-call-id", # upstream vendor header, not for client
     }
     filtered_headers = {
         k: v for k, v in resp.headers.items()
         if k.lower() not in HOP_BY_HOP
     }
-    '''
-    ESSENTIAL = {
+    
+    '''ESSENTIAL = {
         # partial content
         "content-range",
         "content-length", 
@@ -540,6 +549,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
         k: v for k, v in resp.headers.items()
         if k.lower() in ESSENTIAL  # whitelist instead of blacklist
     }
+    '''
 
     is_chunked = resp.headers.get("transfer-encoding", "").lower() == "chunked"
     is_json = "application/json" in resp.headers.get("content-type", "")
