@@ -580,6 +580,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
 @web_app.post("/queue")
 @web_app.post("/api/queue")
 async def proxy_prompt(request: Request):
+    global num_prompts
     url = await get_remote_url("ComfyGPU")
 
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
@@ -1406,6 +1407,7 @@ class ComfyCPU:
 class ComfyMix:
     @modal.enter(snap=True)
     def start_checkpoint(self):
+        global num_prompts
         num_prompts = 0
         try:
             self.proc = subprocess.Popen(
@@ -1419,6 +1421,7 @@ class ComfyMix:
     @modal.enter(snap=False)
     def start_restore(self):
         print("App Restored!")
+        global num_prompts
         num_prompts = 0
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
@@ -1433,6 +1436,7 @@ class ComfyMix:
     
     @modal.exit()
     def cleanup(self):
+        global num_prompts
         # Force the volume to commit changes 
         vol.commit()
         # Detects preemptive interruption to fix pending_prompt
