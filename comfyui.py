@@ -518,7 +518,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
         #"access-control-allow-methods",
         #"access-control-expose-headers",
         # vendor-specific
-        "alt-svc",               # HTTP/3 hint, irrelevant for proxied response
+        #"alt-svc",               # HTTP/3 hint, irrelevant for proxied response
         "modal-function-call-id", # upstream vendor header, not for client
     }
     filtered_headers = {
