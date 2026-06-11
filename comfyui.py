@@ -9,7 +9,7 @@ import modal
 GPU_MODEL = os.getenv("MODAL_GPU", "L4")
 GPU_NAME = GPU_MODEL.split(':')[0]
 GPU_COUNT = int(GPU_MODEL.split(":")[1]) if ":" in GPU_MODEL else 1
-MAXTIME = int(os.getenv("MODAL_MAXTIME", "3600")) # stream & websocket max lifetime before forcefully terminated
+MAXTIME = int(os.getenv("MODAL_MAXTIME", "3600")) # stream & websocket max lifetime before forcefully terminated, will also affects startup time when lower than MAXSTARTTIME.
 IDLETIME = int(os.getenv("MODAL_IDLETIME", "60")) # spin down on idle timeout
 WAITTIME = int(os.getenv("MODAL_WAITTIME", "20")) # wait time to finished progressbar animation when inference is done (ie. VHS save video node)
 MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300")) # ComfyUI & it's custom nodes initialization/startup timeout
