@@ -658,12 +658,12 @@ async def proxy_queue(request: Request):
     await wait_websocket_ready()
     
     # Forward request
-    new_resp = await forward_httpx(url, request, True)
+    new_resp = await forward_httpx(url, request, True, show_logs=True)
  
     return new_resp
 
+@web_app.get("/system_stats")
 @web_app.get("/api/system_stats")
-@web_app.get("/api/object_info")
 @web_app.post("/free")
 @web_app.post("/interrupt")
 @web_app.post("/api/interrupt")
@@ -682,6 +682,8 @@ async def proxy_interrupt(request: Request):
     return new_resp
 
 # Proxy history API routes
+@web_app.get("/object_info{path:path}")
+@web_app.get("/api/object_info{path:path}")
 @web_app.get("/history{path:path}")
 @web_app.post("/history{path:path}")
 @web_app.get("/api/history{path:path}")
@@ -735,7 +737,7 @@ async def proxy_jobs(request: Request, path: str):
     await wait_websocket_ready()
     
     # Forward request
-    new_resp = await forward_httpx(url, request, True, show_logs=True)
+    new_resp = await forward_httpx(url, request, True)
 
     # get the job from cache if not found
     if new_resp.status_code == 404 and path.startswith("/") and len(path)>1:
@@ -817,7 +819,7 @@ async def proxy_view(request: Request):
     await wait_websocket_ready()
     
     # Forward request
-    new_resp = await forward_httpx(url, request, False, show_logs=True) #stream=True 
+    new_resp = await forward_httpx(url, request, False) #stream=True 
 
     # Making sure the content is downloadable
     #headers = {} # dict(new_resp.headers)
