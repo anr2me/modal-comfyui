@@ -531,9 +531,9 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
         "expires",
         "vary",
         "content-disposition",
-        # "cross-origin-resource-policy",
-        # "cross-origin-opener-policy",
-        # "x-content-type-options",
+        "cross-origin-resource-policy",
+        "cross-origin-opener-policy",
+        "x-content-type-options",
     }
     
     filtered_headers = {
