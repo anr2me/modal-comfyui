@@ -346,7 +346,7 @@ def wait_for_port(port: int, timeout: int = 60):
 
 with image.imports():
     from fastapi.responses import StreamingResponse, JSONResponse, Response
-    from fastapi import Request, WebSocket 
+    from fastapi import Request, WebSocket, HTTPException, status
     #from fastapi.middleware.gzip import GZipMiddleware
     from starlette_compress import CompressMiddleware
     import httpx
@@ -481,28 +481,45 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     #    headers["Range"] = range_header
         
     # Load the full content into memory instead of streaming in chunk with request.stream()
-    body = await request.body()
+    try:
+        body = await request.body()
+    except Exception as e:
+        print(f"Request Body Throw: {e!r}")
+        
     if new_body:
         body = new_body
     
     # Forward to remote ComfyUI
     async def make_stream():
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            async with client.stream(
-                method=request.method,
-                url=f"{url}{request.url.path}",
-                params=request.query_params,
-                headers=headers,
-                content=body,
-                #stream=True,
-                #extensions={"decode_content": False}, 
-            ) as resp:
-                # Yield metadata as first item, then chunks
-                yield resp
-                async for chunk in resp.aiter_bytes(chunk_size=65536):
-                    #if show_logs:
-                    #    print(f"[{request.method}:{request.url.path}?{request.query_params}({len(chunk)})]: >..> {chunk} <..<")
-                    yield chunk
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                async with client.stream(
+                    method=request.method,
+                    url=f"{url}{request.url.path}",
+                    params=request.query_params,
+                    headers=headers,
+                    content=body,
+                    #stream=True,
+                    #extensions={"decode_content": False}, 
+                ) as resp:
+                    # Yield metadata as first item, then chunks
+                    yield resp
+                    async for chunk in resp.aiter_bytes(chunk_size=65536):
+                        #if show_logs:
+                        #    print(f"[{request.method}:{request.url.path}?{request.query_params}({len(chunk)})]: >..> {chunk} <..<")
+                        yield chunk
+        except httpx.TimeoutException:
+            # Return 504 when the upstream server fails to reply within the timeout period
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                detail="The upstream server took too long to respond."
+            )
+        except httpx.HTTPStatusError as exc:
+            # Handle other forwarding status errors
+            raise HTTPException(
+                status_code=exc.response.status_code,
+                detail="Upstream server error occurred."
+            )
 
     gen = make_stream()
 
