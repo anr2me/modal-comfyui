@@ -1108,7 +1108,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                     await shared_dict.put.aio("ws_ready", True)
                                     print(f"Internal websocket is Ready!({comfy_ws.request.headers.get("Host", "")})")
                                     if active_count > 0:
-                                        await send_logs_msg(websocket, f"GPU instance is ready.\n", LogsType.INFO)
+                                        await send_logs_msg(websocket, f"{active_count} Active GPU instance(s) detected.\n", LogsType.INFO)
                                     # Re-subscribe the Logs on GPU instance
                                     logs_enabled = await shared_dict.get.aio("logs_enabled", False)
                                     if logs_enabled and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
