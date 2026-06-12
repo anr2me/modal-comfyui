@@ -6,6 +6,7 @@ from pathlib import Path
 
 import modal
 
+# This runs on both locally and on container
 GPU_MODEL = os.getenv("MODAL_GPU", "L4")
 GPU_NAME = GPU_MODEL.split(':')[0]
 GPU_COUNT = int(GPU_MODEL.split(":")[1]) if ":" in GPU_MODEL else 1
@@ -15,6 +16,27 @@ IDLETIME = int(os.getenv("MODAL_IDLETIME", "60")) # spin down on idle timeout
 WAITTIME = int(os.getenv("MODAL_WAITTIME", "20")) # wait time to finished progressbar animation when inference is done (ie. VHS save video node)
 MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300")) # ComfyUI & it's custom nodes initialization/startup timeout
 JOBSCUTOFFTIME = int(os.getenv("MODAL_JOBSCUTOFFTIME", "86400")) # completed jobs history cutoff (ie. only shows jobs from the last 24 hours)
+
+def update_vars_from_env():
+    global GPU_MODEL
+    global GPU_NAME
+    global GPU_COUNT
+    global COMFYGPUARGS
+    global MAXTIME
+    global IDLETIME
+    global WAITTIME
+    global MAXSTARTTIME
+    global JOBSCUTOFFTIME
+    # Reassigned using Secrets Env vars on container
+    GPU_MODEL = os.getenv("MODAL_GPU", "L4")
+    GPU_NAME = GPU_MODEL.split(':')[0]
+    GPU_COUNT = int(GPU_MODEL.split(":")[1]) if ":" in GPU_MODEL else 1
+    COMFYGPUARGS = os.getenv("MODAL_COMFYGPUARGS", "")
+    MAXTIME = int(os.getenv("MODAL_MAXTIME", "3600"))
+    IDLETIME = int(os.getenv("MODAL_IDLETIME", "60"))
+    WAITTIME = int(os.getenv("MODAL_WAITTIME", "20"))
+    MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300"))
+    JOBSCUTOFFTIME = int(os.getenv("MODAL_JOBSCUTOFFTIME", "86400"))
 
 from models import models, models_ext
 from plugins import comfy_plugins, comfy_plugins_ext
@@ -400,7 +422,13 @@ app = modal.App(
     secrets=[
         modal.Secret.from_dict(
             {
+                "MODAL_GPU": GPU_MODEL,
                 "MODAL_COMFYGPUARGS": COMFYGPUARGS,
+                "MODAL_MAXTIME": MAXTIME,
+                "MODAL_IDLETIME": IDLETIME,
+                "MODAL_WAITTIME": WAITTIME,
+                "MODAL_MAXSTARTTIME": MAXSTARTTIME,
+                "MODAL_JOBSCUTOFFTIME": JOBSCUTOFFTIME,
             }
         ),
     ]
@@ -1321,7 +1349,7 @@ class ComfyGPU:
     @modal.enter(snap=True)
     def start_checkpoint(self):
         try:
-            COMFYGPUARGS = os.environ.get("MODAL_COMFYGPUARGS", "")
+            update_vars_from_env()
             print(f"Additional ComfyUI Arguments: {COMFYGPUARGS}")
             self.proc = subprocess.Popen(
                 f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYGPUARGS} --listen 0.0.0.0 --port {gpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
@@ -1333,6 +1361,7 @@ class ComfyGPU:
 
     @modal.enter(snap=False)
     def start_restore(self):
+        update_vars_from_env()
         active_count = shared_dict.get("active", 0)
         shared_dict["active"] = active_count + 1
     
@@ -1388,6 +1417,7 @@ class ComfyCPU:
     @modal.enter(snap=True)
     def start_checkpoint(self):
         try:
+            update_vars_from_env()
             self.proc = subprocess.Popen(
                 f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {cpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
             )
@@ -1398,6 +1428,7 @@ class ComfyCPU:
 
     @modal.enter(snap=False)
     def start_restore(self):
+        update_vars_from_env()
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
         #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
@@ -1437,6 +1468,7 @@ class ComfyCPU:
 class ComfyMix:
     @modal.enter(snap=True)
     def start_checkpoint(self):
+        update_vars_from_env()
         global num_prompts
         num_prompts = 0
         try:
@@ -1450,6 +1482,7 @@ class ComfyMix:
 
     @modal.enter(snap=False)
     def start_restore(self):
+        update_vars_from_env()
         print("App Restored!")
         global num_prompts
         num_prompts = 0
