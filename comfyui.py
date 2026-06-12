@@ -1335,7 +1335,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
         except (OSError, Exception) as e:
             # Handles connection refused, DNS issues, or handshake failures
             print(f"Failed to connect: {e!r}")
-            # NOTE: Responde status_code = 204, the GPU instance might be crashed!
+            # NOTE: Response status_code = 204, the GPU instance might be crashed!
             # Send an error message to EndUser's websocket
             await send_logs_msg(websocket, f"Failed to connect to GPU instance: {e!r}.\n", LogsType.ERROR)
             
@@ -1349,9 +1349,12 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
 async def proxy(request: Request, path: str):
     url = f"http://127.0.0.1:{uiport}"
     
-    # Forward request
-    new_resp = await forward_httpx(url, request, False)
-    
+    try:
+        # Forward request
+        new_resp = await forward_httpx(url, request, False)
+    except Exception as e:
+        print(f"[{request.method}:{request.url.path}] Throw: {e!r}")
+        
     return new_resp
     
 
