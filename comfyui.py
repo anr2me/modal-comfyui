@@ -422,13 +422,13 @@ app = modal.App(
     secrets=[
         modal.Secret.from_dict(
             {
-                "MODAL_GPU": GPU_MODEL,
-                "MODAL_COMFYGPUARGS": COMFYGPUARGS,
-                "MODAL_MAXTIME": MAXTIME,
-                "MODAL_IDLETIME": IDLETIME,
-                "MODAL_WAITTIME": WAITTIME,
-                "MODAL_MAXSTARTTIME": MAXSTARTTIME,
-                "MODAL_JOBSCUTOFFTIME": JOBSCUTOFFTIME,
+                "MODAL_GPU": str(GPU_MODEL),
+                "MODAL_COMFYGPUARGS": str(COMFYGPUARGS),
+                "MODAL_MAXTIME": str(MAXTIME),
+                "MODAL_IDLETIME": str(IDLETIME),
+                "MODAL_WAITTIME": str(WAITTIME),
+                "MODAL_MAXSTARTTIME": str(MAXSTARTTIME),
+                "MODAL_JOBSCUTOFFTIME": str(JOBSCUTOFFTIME),
             }
         ),
     ]
