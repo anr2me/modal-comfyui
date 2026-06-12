@@ -84,7 +84,7 @@ MODAL_WAITTIME=20
 MODAL_MAXSTARTTIME=300
 MODAL_JOBSCUTOFFTIME=86400
 ```
-You can access ComfyUI from the provided URL when successfully deployed.
+You can access ComfyUI from the provided persistent URL when successfully deployed.
 
 ## Features
 
