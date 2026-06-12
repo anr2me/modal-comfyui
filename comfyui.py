@@ -394,7 +394,17 @@ except ImportError:
     pass  # starlette_compress not installed locally; middleware skipped
 
 
-app = modal.App(name="modal-comfyui", image=image)
+app = modal.App(
+    name="modal-comfyui", 
+    image=image, 
+    secrets=[
+        modal.Secret.from_dict(
+            {
+                "MODAL_COMFYGPUARGS": COMFYGPUARGS,
+            }
+        ),
+    ]
+)
 shared_dict = modal.Dict.from_name(app.name, create_if_missing=True)
 jobs_dict = modal.Dict.from_name(app.name+"_jobs", create_if_missing=True)
 # Reset the contents when redeployed, but doing it here will cleared it during spin up!
@@ -1308,15 +1318,13 @@ async def proxy(request: Request, path: str):
 )
 @modal.concurrent(max_inputs=20)
 class ComfyGPU:
-    def __init__(self):
-        self.COMFYGPUARGS = COMFYGPUARGS
-        
     @modal.enter(snap=True)
     def start_checkpoint(self):
         try:
-            print(f"Additional ComfyUI Arguments: {self.COMFYGPUARGS}")
+            COMFYGPUARGS = os.environ.get("MODAL_COMFYGPUARGS", "")
+            print(f"Additional ComfyUI Arguments: {COMFYGPUARGS}")
             self.proc = subprocess.Popen(
-                f"comfy manager enable-legacy-gui && comfy launch --background -- {self.COMFYGPUARGS} --listen 0.0.0.0 --port {gpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+                f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYGPUARGS} --listen 0.0.0.0 --port {gpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
             )
             # Block here — snapshot is taken only after this returns
             wait_for_port(gpuport, timeout=MAXSTARTTIME)
