@@ -791,6 +791,7 @@ async def proxy_history(request: Request, path: str):
     # Forward request
     new_resp = await forward_httpx(url, request, True, new_body=body, show_logs=True)
 
+    # TODO: get all history (similar to /api/jobs ?)
     max_items = int(request.query_params.get("max_items", 200))
     offset = int(request.query_params.get("offset", -1))
 
@@ -801,10 +802,15 @@ async def proxy_history(request: Request, path: str):
         if job:
             new_resp = JSONResponse(content=job)
             
-    # Clear cached history too
-    elif new_resp.status_code == 200 and request.method=="POST" and bodyobj.get("clear", False):
-        print("Clearing All completed jobs!")
-        jobs_dict.clear()
+    # Clear/delete cached history too
+    elif new_resp.status_code == 200 and request.method=="POST":
+        if bodyobj.get("clear", False):
+            print("Clearing All completed jobs!")
+            await jobs_dict.clear.aio()
+        if "delete" in bodyobj:
+            to_delete = bodyobj["delete"]
+            for id_to_delete in to_delete:
+                await jobs_dict.pop.aio(str(id_to_delete), None)
     
     return new_resp
 
