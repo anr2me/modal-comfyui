@@ -1311,6 +1311,7 @@ class ComfyGPU:
     @modal.enter(snap=True)
     def start_checkpoint(self):
         try:
+            print(f"Additional ComfyUI Arguments: {COMFYGPUARGS}")
             self.proc = subprocess.Popen(
                 f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYGPUARGS} --listen 0.0.0.0 --port {gpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
             )
