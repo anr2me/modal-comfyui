@@ -1141,7 +1141,9 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                     if active_count>0 and inqueue_count==0 and pending_prompt==0 and not comfy_ws.request.headers.get("Host", "").startswith("127.0."):
                                         countdown = WAITTIME
                                         dc_time = time.time() + countdown
-                                        print(f"{inqueue_count}(+{pending_prompt}) Queue remaining in GPU instance, Disconnecting from GPU instance in {countdown} seconds.")
+                                        print(f"{inqueue_count}(+{pending_prompt}) Queue remaining in GPU instance. Disconnecting from GPU instance in {countdown} seconds.")
+                                        # Send to logs too
+                                        await send_logs_msg(websocket, f"No queued prompt left. Disconnecting from GPU instance in {countdown} seconds.\n", LogsType.INFO)
                                         # Force remote instance to commit changes on volume
                                         await do_vol_commit("ComfyGPU")
                                         # Commit the volume locally too
@@ -1198,7 +1200,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                     await comfy_ws.close()
                                 break
                             if active_count>0 and (inqueue_count>0 or pending_prompt>0) and comfy_ws.request.headers.get("Host", "").startswith("127.0."):
-                                print(f"{active_count} Active GPU instance detected, disconnecting from CPU instance.")
+                                print(f"{active_count} Active GPU instance detected. Disconnecting from CPU instance.")
                                 if comfy_ws.state != State.CLOSED:
                                     print("Internal websocket is Not Ready!")
                                     await shared_dict.put.aio("ws_ready", False)
@@ -1265,39 +1267,6 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
 async def proxy(request: Request, path: str):
     url = f"http://127.0.0.1:{uiport}"
     
-    # Strip Host from headers to prevent loopback
-    headers = {
-        k: v for k, v in request.headers.items()
-        if k.lower() not in (
-            "host",
-            "content-length",
-            "x-forwarded-proto",
-            "x-forwarded-for",
-            "x-forwarded-host",
-            "x-forwarded-port",
-        )
-    }
-    # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
-    #headers["accept-encoding"] = "gzip, deflate" #, br #"identity;q=1, *;q=0" 
-
-    '''body = await request.body()
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.request(
-            method=request.method,
-            url=f"{url}/{path}",
-            params=request.query_params,
-            headers=headers,
-            content=body,
-            #extensions={"decode_content": False},
-        )
-    # Return raw bytes with the original content-type
-    return Response(
-        content=resp.content,
-        status_code=resp.status_code,
-        #media_type=resp.headers.get("content-type"),
-        headers=resp.headers,
-    )
-    '''
     # Forward request
     new_resp = await forward_httpx(url, request, False)
     
