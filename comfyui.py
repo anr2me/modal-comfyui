@@ -655,8 +655,6 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
 
 @web_app.post("/prompt")
 @web_app.post("/api/prompt")
-@web_app.post("/queue")
-@web_app.post("/api/queue")
 async def proxy_prompt(request: Request):
     global num_prompts
     url = await get_remote_url("ComfyGPU")
@@ -734,6 +732,8 @@ async def proxy_prompt(request: Request):
 @web_app.get("/api/prompt")
 @web_app.get("/queue")
 @web_app.get("/api/queue")
+@web_app.post("/queue")
+@web_app.post("/api/queue")
 async def proxy_queue(request: Request):
     url = f"http://127.0.0.1:{uiport}"
     active_count = await shared_dict.get.aio("active", 0)
