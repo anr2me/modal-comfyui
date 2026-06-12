@@ -27,8 +27,8 @@ Good for testing wan2.2 or other video generation models.
 ### Models
 
 Copy `models.example.py` to `models.py` and edit it to manage your models. You can specify:
-- Hugging Face models(`models`) using `repo_id` and `filename`. Set your `HF_TOKEN` in `Secrets` for a faster download speed.
-- External models(`models_ext`, e.g. civitai) using a direct `url`.
+- Hugging Face models(`models`) using `repo_id` and `filename`. Set your `HF_TOKEN` in `huggingface-secret` Secrets for a faster download speed and gated models.
+- External models(`models_ext`, e.g. civitai) using a direct `url`. You can also set your `CIVITAI_TOKEN` in `custom-secret` Secrets to download gated models.
 
 Models are downloaded to volumes and symlinked to the specified `model_dir`.
 
