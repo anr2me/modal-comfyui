@@ -890,7 +890,12 @@ async def proxy_crystools(request: Request, path: str):
 
     # Check and tamper GPU info with fake GPUs
     # NOTE: Trying to access faked GPU will get status_code=400 (ie. PATCH /api/crystools/monitor/GPU/0 -> 400 Bad Request)
-    body = new_resp.body
+    try:
+        # NOTE: StreamingResponse doesn't have body and can throw exception here!
+        body = new_resp.body
+    except Exception as e:
+        print(f"NoBody Throw: {e!r}")
+        
     import json
     if path == "/monitor/GPU" and request.method == "GET":
         #await shared_dict.put.aio("crystools_enabled", True)
