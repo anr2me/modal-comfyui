@@ -1280,7 +1280,7 @@ async def proxy(request: Request, path: str):
     # Enforce using only encoding that will be automatically decoded (ie. gzip/deflate/br) by request
     #headers["accept-encoding"] = "gzip, deflate" #, br #"identity;q=1, *;q=0" 
 
-    body = await request.body()
+    '''body = await request.body()
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.request(
             method=request.method,
@@ -1297,6 +1297,11 @@ async def proxy(request: Request, path: str):
         #media_type=resp.headers.get("content-type"),
         headers=resp.headers,
     )
+    '''
+    # Forward request
+    new_resp = await forward_httpx(url, request, False)
+    
+    return new_resp
     
 
 @app.cls(
