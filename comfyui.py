@@ -763,7 +763,8 @@ async def proxy_object(request: Request, path: str):
     new_resp = await forward_httpx(url, request, True, show_logs=True)
  
     return new_resp
-    
+
+@web_app.post("/api/v2/manager/reboot")
 @web_app.get("/system_stats")
 @web_app.get("/api/system_stats")
 @web_app.post("/free")
