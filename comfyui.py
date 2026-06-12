@@ -886,7 +886,7 @@ async def proxy_crystools(request: Request, path: str):
     await wait_websocket_ready()
 
     # Forward request
-    new_resp = await forward_httpx(url, request, True)
+    new_resp = await forward_httpx(url, request, True, show_logs=True)
 
     # Check and tamper GPU info with fake GPUs
     # NOTE: Trying to access faked GPU will get status_code=400 (ie. PATCH /api/crystools/monitor/GPU/0 -> 400 Bad Request)
