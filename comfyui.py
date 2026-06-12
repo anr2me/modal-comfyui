@@ -1308,12 +1308,15 @@ async def proxy(request: Request, path: str):
 )
 @modal.concurrent(max_inputs=20)
 class ComfyGPU:
+    def __init__(self):
+        self.COMFYGPUARGS = COMFYGPUARGS
+        
     @modal.enter(snap=True)
     def start_checkpoint(self):
         try:
-            print(f"Additional ComfyUI Arguments: {COMFYGPUARGS}")
+            print(f"Additional ComfyUI Arguments: {self.COMFYGPUARGS}")
             self.proc = subprocess.Popen(
-                f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYGPUARGS} --listen 0.0.0.0 --port {gpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+                f"comfy manager enable-legacy-gui && comfy launch --background -- {self.COMFYGPUARGS} --listen 0.0.0.0 --port {gpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
             )
             # Block here — snapshot is taken only after this returns
             wait_for_port(gpuport, timeout=MAXSTARTTIME)
