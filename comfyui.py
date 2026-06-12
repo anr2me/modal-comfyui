@@ -609,9 +609,10 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
 
     is_chunked = resp.headers.get("transfer-encoding", "").lower() == "chunked"
     is_json = "application/json" in resp.headers.get("content-type", "")
+    is_empty = int(resp.headers.get("content-length", "-1")) == 0
 
     # Stream only non-JSON chunked responses (SSE, binary, etc.)
-    if is_chunked and not is_json and not try_json: # or (resp.status_code==206 and not resp.headers.get("content-length", "")):
+    if is_chunked and not is_json and not try_json and not is_empty: # or (resp.status_code==206 and not resp.headers.get("content-length", "")):
         if show_logs:
             print(f"[{request.method}:{request.url.path}?{request.query_params}]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>>> ")
         # Remaining yields are byte chunks — client/stream stays open
