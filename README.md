@@ -77,8 +77,8 @@ MODAL_GPU=RTX-PRO-6000 modal deploy comfyui.py
 You can find the GPU types available on modal.com at https://modal.com/docs/guide/gpu
 
 Other Environment Variables you can use are:
-```
-MODAL_COMFYGPUARGS=--use-flash-attention
+```bash
+MODAL_COMFYGPUARGS="--use-flash-attention"
 MODAL_MAXTIME=3600
 MODAL_IDLETIME=60
 MODAL_WAITTIME=20
