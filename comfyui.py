@@ -534,7 +534,7 @@ async def forward_httpx(url: str, request: Request, try_json: bool = False, time
     is_json = "application/json" in resp.headers.get("content-type", "")
 
     # Stream only non-JSON chunked responses (SSE, binary, etc.)
-    if is_chunked and not is_json: # or (resp.status_code==206 and not resp.headers.get("content-length", "")):
+    if is_chunked and not is_json and not try_json: # or (resp.status_code==206 and not resp.headers.get("content-length", "")):
         if show_logs:
             print(f"[{request.method}:{request.url.path}?{request.query_params}]: {request.headers} >> {body} ==> [[{resp.status_code}]] =>> {resp.headers} >>>> ")
         # Remaining yields are byte chunks — client/stream stays open
@@ -886,11 +886,16 @@ async def proxy_crystools(request: Request, path: str):
     await wait_websocket_ready()
 
     # Forward request
-    new_resp = await forward_httpx(url, request, True)
+    new_resp = await forward_httpx(url, request, True, show_logs=True)
 
     # Check and tamper GPU info with fake GPUs
     # NOTE: Trying to access faked GPU will get status_code=400 (ie. PATCH /api/crystools/monitor/GPU/0 -> 400 Bad Request)
-    body = new_resp.body
+    try:
+        # NOTE: StreamingResponse doesn't have body and can throw exception here!
+        body = new_resp.body
+    except Exception as e:
+        print(f"NoBody Throw: {e!r}")
+        
     import json
     if path == "/monitor/GPU" and request.method == "GET":
         #await shared_dict.put.aio("crystools_enabled", True)
@@ -1123,7 +1128,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                         # Force remote instance to commit changes on volume
                                         await do_vol_commit("ComfyGPU")
                                         # Commit the volume locally too
-                                        vol.commit()
+                                        await vol.commit.aio()
                                         #print("Internal websocket is Not Ready anymore!")
                                         #await shared_dict.put.aio("ws_ready", False)
                                         #await comfy_ws.close()
