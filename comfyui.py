@@ -1123,7 +1123,7 @@ async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, reques
                                         # Force remote instance to commit changes on volume
                                         await do_vol_commit("ComfyGPU")
                                         # Commit the volume locally too
-                                        vol.commit()
+                                        await vol.commit.aio()
                                         #print("Internal websocket is Not Ready anymore!")
                                         #await shared_dict.put.aio("ws_ready", False)
                                         #await comfy_ws.close()
