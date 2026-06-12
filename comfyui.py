@@ -748,6 +748,22 @@ async def proxy_queue(request: Request):
  
     return new_resp
 
+@web_app.get("/object_info{path:path}")
+@web_app.get("/api/object_info{path:path}")
+async def proxy_object(request: Request, path: str):
+    url = f"http://127.0.0.1:{uiport}"
+    active_count = await shared_dict.get.aio("active", 0)
+    if active_count > 0:
+        url = await get_remote_url("ComfyGPU")
+
+    # wait until internal websocket is connected and ready
+    await wait_websocket_ready()
+    
+    # Forward request
+    new_resp = await forward_httpx(url, request, True, show_logs=True)
+ 
+    return new_resp
+    
 @web_app.get("/system_stats")
 @web_app.get("/api/system_stats")
 @web_app.post("/free")
@@ -768,8 +784,6 @@ async def proxy_interrupt(request: Request):
     return new_resp
 
 # Proxy history API routes
-@web_app.get("/object_info{path:path}")
-@web_app.get("/api/object_info{path:path}")
 @web_app.get("/history{path:path}")
 @web_app.post("/history{path:path}")
 @web_app.get("/api/history{path:path}")
