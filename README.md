@@ -78,6 +78,7 @@ You can find the GPU types available on modal.com at https://modal.com/docs/guid
 
 Other Environment Variables you can use are:
 ```
+MODAL_COMFYGPUARGS=--use-flash-attention
 MODAL_MAXTIME=3600
 MODAL_IDLETIME=60
 MODAL_WAITTIME=20
