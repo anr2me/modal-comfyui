@@ -124,6 +124,11 @@ def download_external_model(url: str, filename: str, model_dir: str):
     cached_path = Path(cache_dir) / filename
     if not cached_path.exists():
         print(f"Downloading {filename} from {url}...")
+        # Use CivitAI token when available
+        uri = url
+        if url.startswith("https://civitai.com/") or url.startswith("https://civitai.red/"):
+            token = os.environ.get("CIVITAI_TOKEN")
+            uri = f"{url}{'&' if '?' in url else '?'}token={token}"
         _ = subprocess.run(
             [
                 "aria2c",
@@ -137,7 +142,7 @@ def download_external_model(url: str, filename: str, model_dir: str):
                 filename,
                 "-d",
                 cache_dir,
-                url,
+                uri,
             ],
             check=True,
             stdout=subprocess.DEVNULL,
@@ -212,13 +217,28 @@ def download_all():
     #shutil.copytree(COMFYUI_ROOT / "models", base_dir / "models", copy_function=copy_if_not_exists, symlinks=False, ignore_dangling_symlinks=True, dirs_exist_ok=True)
 
 
-def _hf_secrets() -> list[modal.Secret]:
-    """Prefer Modal Secret 'huggingface-secret'; fall back to local HF_TOKEN
+def get_secrets() -> list[modal.Secret]:
+    """Prefer Modal Secret 'huggingface-secret' or 'custom-secret'; fall back to local HF_TOKEN and CIVITAI_TOKEN 
     env. Public models work even when both are absent (warned)."""
+    secrets = []
+    # Try with 'custom-secret'
+    try:
+        s = modal.Secret.from_name("custom-secret")
+        s.hydrate()  # from_name is lazy, force the existence check here
+        secrets.append(s)
+    except modal.exception.NotFoundError:
+        token = os.environ.get("CIVITAI_TOKEN", "")
+        if not token:
+            print(
+                "Warning: no Modal Secret 'custom-secret' and no CIVITAI_TOKEN env. "
+                "Gated models will fail."
+            )
+        secrets.append(modal.Secret.from_dict({"CIVITAI_TOKEN": token}))
+    # Try with 'huggingface-secret'
     try:
         s = modal.Secret.from_name("huggingface-secret")
         s.hydrate()  # from_name is lazy, force the existence check here
-        return [s]
+        secrets.append(s)
     except modal.exception.NotFoundError:
         token = os.environ.get("HF_TOKEN", "")
         if not token:
@@ -227,7 +247,8 @@ def _hf_secrets() -> list[modal.Secret]:
                 "Public models will download with throttled bandwidth; "
                 "gated models will fail."
             )
-        return [modal.Secret.from_dict({"HF_TOKEN": token})]
+        secrets.append(modal.Secret.from_dict({"HF_TOKEN": token}))
+    return secrets
 
 
 # use extra model paths when available
@@ -244,7 +265,7 @@ else:
 # download models
 image = image.env(
     {"HF_HUB_ENABLE_HF_TRANSFER": "1", "HF_XET_HIGH_PERFORMANCE": "1"}
-).run_function(download_all, volumes={"/cache": vol}, secrets=_hf_secrets())
+).run_function(download_all, volumes={"/cache": vol}, secrets=get_secrets())
 
 # setup custom nodes
 workflow_file_path = Path(__file__).parent / "workflow_api.json"
