@@ -8,7 +8,7 @@ Good for testing wan2.2 or other video generation models.
 
 - A Modal account
 - Python installed
-- `uv` installed
+- [`uv`](https://docs.astral.sh/uv/getting-started/installation/) installed
 
 ## Installation
 
