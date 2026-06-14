@@ -749,6 +749,7 @@ async def proxy_queue(request: Request):
  
     return new_resp
 
+@web_app.post("/api/v2/manager{path:path}") 
 @web_app.get("/object_info{path:path}")
 @web_app.get("/api/object_info{path:path}")
 async def proxy_object(request: Request, path: str):
@@ -765,7 +766,6 @@ async def proxy_object(request: Request, path: str):
  
     return new_resp
 
-@web_app.post("/api/v2/manager/reboot")
 @web_app.get("/system_stats")
 @web_app.get("/api/system_stats")
 @web_app.post("/free")
@@ -1355,6 +1355,7 @@ async def proxy(request: Request, path: str):
         new_resp = await forward_httpx(url, request, False)
     except Exception as e:
         print(f"[{request.method}:{request.url.path}] Throw: {e!r}")
+        new_resp = JSONResponse(content={"detail": str(e)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
     return new_resp
     
