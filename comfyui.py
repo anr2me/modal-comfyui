@@ -38,11 +38,7 @@ def update_vars_from_env():
     MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300"))
     JOBSCUTOFFTIME = int(os.getenv("MODAL_JOBSCUTOFFTIME", "86400"))
 
-from models import models, models_ext
-from plugins import comfy_plugins, comfy_plugins_ext
-
 root_dir = Path(__file__).parent
-
 base_dir = Path("/cache/ComfyUI")
 input_dir = Path("/cache/ComfyUI/input")
 output_dir = Path("/cache/ComfyUI/output")
@@ -206,15 +202,8 @@ def download_external_plugin(url: str, branch: str, install: str):
 
 
 def download_all():
-    # prepare base directory
-    Path(base_dir).mkdir(parents=True, exist_ok=True)
-    Path(input_dir).mkdir(parents=True, exist_ok=True)
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-    Path(cusnodes_dir).mkdir(parents=True, exist_ok=True)
-    Path(models_dir).mkdir(parents=True, exist_ok=True)
-    Path(str(user_dir / "default/workflows")).mkdir(parents=True, exist_ok=True)
-    #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
-
+    from models import models, models_ext
+    
     for model in models:
         hf_download(model["repo_id"], model["filename"], model["model_dir"])
 
@@ -274,6 +263,15 @@ def get_secrets() -> list[modal.Secret]:
     return secrets
 
 
+# prepare directories
+Path(base_dir).mkdir(parents=True, exist_ok=True)
+Path(input_dir).mkdir(parents=True, exist_ok=True)
+Path(output_dir).mkdir(parents=True, exist_ok=True)
+Path(cusnodes_dir).mkdir(parents=True, exist_ok=True)
+Path(models_dir).mkdir(parents=True, exist_ok=True)
+Path(str(user_dir / "default/workflows")).mkdir(parents=True, exist_ok=True)
+#subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
+
 # use extra model paths when available
 extra_file_path = Path(__file__).parent / "extra_model_paths.yaml"
 if extra_file_path.exists():
@@ -285,11 +283,6 @@ if extra_file_path.exists():
 else:
     print(f"Extra Model Paths file ({extra_file_path}) Not Found!")
 
-# download models
-image = image.env(
-    {"HF_HUB_ENABLE_HF_TRANSFER": "1", "HF_XET_HIGH_PERFORMANCE": "1"}
-).run_function(download_all, volumes={"/cache": vol}, secrets=get_secrets())
-
 # setup custom nodes
 workflow_file_path = Path(__file__).parent / "workflow_api.json"
 if workflow_file_path.exists():
@@ -300,6 +293,8 @@ else:
     print(
         f"Warning: {workflow_file_path} not found. API endpoint might not work without a workflow."
     )
+
+from plugins import comfy_plugins, comfy_plugins_ext
 
 if comfy_plugins:
     image = image.run_commands("comfy node install " + " ".join(comfy_plugins), volumes={"/cache": vol}) #, gpu=GPU_MODEL
@@ -330,7 +325,7 @@ if comfy_plugins_ext:
         if plugin_deps:
             image = image.uv_pip_install(plugin_deps.split(), extra_options="--no-deps") #, gpu=GPU_MODEL
 
-# install missing dependencies or override with a compatible version
+# install missing/additional dependencies or override broken one with a compatible version
 def install_wheels():
     import torch, subprocess, sys
     ver = ".".join(torch.__version__.split(".")[:2])
@@ -340,7 +335,6 @@ def install_wheels():
     # nunchaku
     url = f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{ver}-cp{sys.version_info.major}{sys.version_info.minor}-cp{sys.version_info.major}{sys.version_info.minor}-linux_x86_64.whl"
     subprocess.check_call([sys.executable, "-m", "uv", "pip", "install", "--no-deps", url])
-    
     
 image = (
     image
@@ -356,7 +350,11 @@ image = (
     #.uv_pip_install("transformers~=4.42.4") # extra_options="--no-deps --no-build-isolation" # Fix KeyError: 'default' issue on bytedance Lance
     #.uv_pip_install("peft~=0.10.0") # compatible peft version for transformers 4.40–4.42
 )
-#print("Done install missing dependencies.")
+
+# download models
+image = image.env(
+    {"HF_HUB_ENABLE_HF_TRANSFER": "1", "HF_XET_HIGH_PERFORMANCE": "1"}
+).run_function(download_all, volumes={"/cache": vol}, secrets=get_secrets())
 
 # Disable ultralytics' Anonymized Google Analytics
 image = image.run_commands("yolo settings sync=False")
