@@ -201,6 +201,16 @@ def download_external_plugin(url: str, branch: str, install: str):
     # TODO (git pull, install dependencies)
 
 
+def prepare_directories():
+    Path(base_dir).mkdir(parents=True, exist_ok=True)
+    Path(input_dir).mkdir(parents=True, exist_ok=True)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    Path(cusnodes_dir).mkdir(parents=True, exist_ok=True)
+    Path(models_dir).mkdir(parents=True, exist_ok=True)
+    Path(str(user_dir / "default/workflows")).mkdir(parents=True, exist_ok=True)
+    #subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
+
+
 def download_all():
     from models import models, models_ext
     
@@ -264,13 +274,7 @@ def get_secrets() -> list[modal.Secret]:
 
 
 # prepare directories
-Path(base_dir).mkdir(parents=True, exist_ok=True)
-Path(input_dir).mkdir(parents=True, exist_ok=True)
-Path(output_dir).mkdir(parents=True, exist_ok=True)
-Path(cusnodes_dir).mkdir(parents=True, exist_ok=True)
-Path(models_dir).mkdir(parents=True, exist_ok=True)
-Path(str(user_dir / "default/workflows")).mkdir(parents=True, exist_ok=True)
-#subprocess.run(['rsync', '-a', '/root/comfy/ComfyUI/', '/cache/ComfyUI/'], volumes={"/cache": vol})
+image = image.run_function(prepare_directories, volumes={"/cache": vol})
 
 # use extra model paths when available
 extra_file_path = Path(__file__).parent / "extra_model_paths.yaml"
