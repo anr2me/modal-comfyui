@@ -334,12 +334,13 @@ if comfy_plugins_ext:
 def install_wheels():
     import torch, subprocess, sys
     ver = ".".join(torch.__version__.split(".")[:2])
-    # nunchaku
-    url = f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{ver}-cp{sys.version_info.major}{sys.version_info.minor}-cp{sys.version_info.major}{sys.version_info.minor}-linux_x86_64.whl"
-    subprocess.check_call([sys.executable, "-m", "uv", "pip", "install", "--no-deps", url])
     # flash-attn
     url = f"https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.9.0/flash_attn-2.8.3+cu130torch{ver}-cp{sys.version_info.major}{sys.version_info.minor}-cp{sys.version_info.major}{sys.version_info.minor}-linux_x86_64.whl"
     subprocess.check_call([sys.executable, "-m", "uv", "pip", "install", "--no-deps", url])
+    # nunchaku
+    url = f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{ver}-cp{sys.version_info.major}{sys.version_info.minor}-cp{sys.version_info.major}{sys.version_info.minor}-linux_x86_64.whl"
+    subprocess.check_call([sys.executable, "-m", "uv", "pip", "install", "--no-deps", url])
+    
     
 image = (
     image
@@ -348,6 +349,7 @@ image = (
     #.uv_pip_install("flash-attn", extra_options="--no-build-isolation") # need to build with nvcc
     .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130")
     .uv_pip_install("flash-attn-4[cu13]", extra_options="--no-build-isolation", pre=True) # use dependencies
+    .uv_pip_install("llama-cpp-python[server]", extra_options="--no-build-isolation --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130", pre=True) # use dependencies
     # Detect pytorch version and install wheels inside the container
     .run_function(install_wheels)
     #.uv_pip_install("tokenizers~=0.19.1", extra_options="--only-binary=tokenizers --no-deps", pre=True) # needed for transformers<4.43
