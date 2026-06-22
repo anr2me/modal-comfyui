@@ -93,7 +93,7 @@ You can access ComfyUI from the provided persistent URL when successfully deploy
 
 ## Features
 
-- **Auto-scaling**: Scales down to zero when not in use to save costs (modal's serverless can also auto-scales vertically, where CPU cores and RAM size can grow automatically as needed).
+- **Auto-scaling**: Scales down to zero when not in use to save costs (modal's serverless can also auto-scales vertically, where CPU cores and RAM size can grow automatically as needed, so you don't need to overprovision them).
 - **GPU Snapshots**: Fast startup times using Modal's GPU snapshots (cold-start can be under 3 seconds).
 - **Model Caching**: Uses Modal Volumes to cache models across runs (modal's persistent volume is free for the first 1 TiB).
 - **Custom Node Management**: Integrated with `comfy-cli` for easy plugin installation.
