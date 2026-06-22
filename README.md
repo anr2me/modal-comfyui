@@ -6,13 +6,17 @@ Good for testing wan2.2 or other video generation models.
 
 ## Prerequisites
 
-- A Modal account
+- A [Modal](https://modal.com/) account
 - Python installed
 - [`uv`](https://docs.astral.sh/uv/getting-started/installation/) installed
 
 ## Installation
 
-1. Clone this repository.
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/anr2me/modal-comfyui.git
+   cd modal-comfyui
+   ```
 2. Install the Modal client:
    ```bash
    uv sync
