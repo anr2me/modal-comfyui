@@ -34,7 +34,7 @@ Copy `models.example.py` to `models.py` and edit it to manage your models. You c
 - Hugging Face models(`models`) using `repo_id` and `filename`. Set your `HF_TOKEN` in `huggingface-secret` Secrets for a faster download speed and gated models.
 - External models(`models_ext`, e.g. civitai) using a direct `url`. You can also set your `CIVITAI_TOKEN` in `custom-secret` Secrets to download gated models.
 
-Models are downloaded to volumes and symlinked to the specified `model_dir`.
+Models are downloaded to persistent volumes and symlinked to the specified `model_dir`.
 
 `model_dir` accepts two styles:
 - **Relative path** (recommended for standard ComfyUI folders): resolved under `/root/comfy/ComfyUI/models/`. e.g. `"checkpoints"` → `/root/comfy/ComfyUI/models/checkpoints`.
