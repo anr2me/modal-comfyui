@@ -207,6 +207,14 @@ if comfy_plugins_ext:
     for plugin in comfy_plugins_ext:
         image = install_ext_plugin(image, plugin)
 
+# Bake in the reverse-proxy fix so workflow save works behind Modal's edge
+# proxy, independent of user plugin config (see vendor_nodes/reverse_proxy_fix).
+image = image.add_local_dir(
+    root_dir / "vendor_nodes" / "reverse_proxy_fix",
+    "/root/comfy/ComfyUI/custom_nodes/reverse_proxy_fix",
+    copy=True,
+)
+
 
 def wait_for_port(port: int, timeout: int = 60):
     """Block until the port is accepting connections."""
