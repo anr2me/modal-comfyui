@@ -87,6 +87,7 @@ def get_comfyui_path() -> Path:
             comfyui_path = Path(result.split(":", 1)[1].strip())
             COMFYUI_ROOT = comfyui_path
             COMFY_MODELS_ROOT = Path(COMFYUI_ROOT / "models")
+            print(f"Comfy Which: {result}")
             print(f"ComfyUI Path: {comfyui_path}")
         else:
             print("Path not found in output")
@@ -297,7 +298,7 @@ def install_ext_plugin(image: modal.Image, plugin: dict) -> modal.Image:
     files), an ``install`` script (.py), and ``ext_deps`` (a list of extra pip
     packages). User-supplied values are shell-quoted before use.
     """
-    # TODO: Do these with mounted volume (ie. within image.run_function) so we can install plugins on volume
+    # TODO: Do these with mounted volume (ie. within image.run_function) so we can install plugins on volume, but venv might also need to be in volume.
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
     Path(nodes_dir).mkdir(parents=True, exist_ok=True)
     url = plugin["url"]
