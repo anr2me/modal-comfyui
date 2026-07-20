@@ -183,26 +183,6 @@ def download_external_model(url: str, filename: str, model_dir: str):
     print(f"Linked {filename} to {target_path}")
 
 
-def download_external_plugin(url: str, branch: str, install: str):
-    import subprocess
-
-    _ = subprocess.run(
-            [
-                "git",
-                "clone",
-                "--recurse-submodules",
-                "--single-branch", 
-                "--branch",
-                branch,
-                url,
-            ],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-    )
-    # TODO (git pull, install dependencies)
-
-
 def prepare_directories():
     Path(base_dir).mkdir(parents=True, exist_ok=True)
     Path(input_dir).mkdir(parents=True, exist_ok=True)
@@ -317,6 +297,7 @@ def install_ext_plugin(image: modal.Image, plugin: dict) -> modal.Image:
     files), an ``install`` script (.py), and ``ext_deps`` (a list of extra pip
     packages). User-supplied values are shell-quoted before use.
     """
+    # TODO: Do these with mounted volume (ie. within image.run_function) so we can install plugins on volume
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
     Path(nodes_dir).mkdir(parents=True, exist_ok=True)
     url = plugin["url"]
@@ -372,14 +353,14 @@ def install_wheels():
 
 image = (
     image
-    .uv_pip_install("sageattention~=2.2.0", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels")
+    # Detect pytorch version and install prebuilt wheels inside the container
+    .run_function(install_wheels) #, gpu=GPU_MODEL
+    .uv_pip_install("sageattention", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") # ~=2.2.0 
     .uv_pip_install("sageattn3", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels")
     #.uv_pip_install("flash-attn", extra_options="--no-build-isolation") # need to build with nvcc
     .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130")
     .uv_pip_install("flash-attn-4[cu13]", extra_options="--no-build-isolation", pre=True) # use dependencies
     .uv_pip_install("llama-cpp-python[server]", extra_options="--no-build-isolation --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130", pre=True) # use dependencies
-    # Detect pytorch version and install wheels inside the container
-    .run_function(install_wheels)
     #.uv_pip_install("tokenizers~=0.19.1", extra_options="--only-binary=tokenizers --no-deps", pre=True) # needed for transformers<4.43
     #.uv_pip_install("transformers~=4.42.4") # extra_options="--no-deps --no-build-isolation" # Fix KeyError: 'default' issue on bytedance Lance
     #.uv_pip_install("peft~=0.10.0") # compatible peft version for transformers 4.40–4.42
