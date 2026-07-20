@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -299,36 +300,63 @@ else:
         f"Warning: {workflow_file_path} not found. API endpoint might not work without a workflow."
     )
 
-from plugins import comfy_plugins, comfy_plugins_ext
+from plugins import comfy_plugins
+
+try:
+    from plugins import comfy_plugins_ext
+except ImportError:
+    comfy_plugins_ext = []
 
 if comfy_plugins:
     image = image.run_commands("comfy node install " + " ".join(comfy_plugins), volumes={"/cache": vol}) #, gpu=GPU_MODEL
 
-if comfy_plugins_ext:
+def install_ext_plugin(image: modal.Image, plugin: dict) -> modal.Image:
+    """Install one external custom node from git into ComfyUI's custom_nodes.
+
+    Supports optional ``branch``, ``requirements`` (a list of requirement
+    files), an ``install`` script (.py), and ``ext_deps`` (a list of extra pip
+    packages). User-supplied values are shell-quoted before use.
+    """
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
     Path(nodes_dir).mkdir(parents=True, exist_ok=True)
+    url = plugin["url"]
+    name = url.rstrip("/").rsplit("/", 1)[-1].removesuffix(".git")
+    work_dir = f"{nodes_dir}/{shlex.quote(name)}"
+
+    branch = plugin.get("branch", "").strip()
+    branch_opt = f"--branch {shlex.quote(branch)} " if branch else ""
+    image = image.run_commands(
+        f"cd {nodes_dir} && git clone --recurse-submodules --single-branch "
+        f"{branch_opt}{shlex.quote(url)}"
+    )
+
+    requirements = plugin.get("requirements") or []
+    if requirements:
+        files = " ".join(f"-r {shlex.quote(f)}" for f in requirements)
+        # --no-deps so a node's requirements can't pull a CPU-only torch over
+        # the CUDA build; use "ext_deps" below to add back what's needed.
+        image = image.run_commands(
+            f"cd {work_dir} && uv pip install --no-deps "
+            f"--python $(command -v python) --compile-bytecode {files}"
+        )
+
+    install = plugin.get("install", "").strip()
+    if install:
+        if install.endswith(".py"):
+            image = image.run_commands(f"cd {work_dir} && python {shlex.quote(install)}")
+        else:
+            print(f"Unsupported installation script: {install}")
+
+    ext_deps = plugin.get("ext_deps") or []
+    if ext_deps:
+        image = image.uv_pip_install(ext_deps, extra_options="--no-deps") #, gpu=GPU_MODEL
+
+    return image
+
+
+if comfy_plugins_ext:
     for plugin in comfy_plugins_ext:
-        folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
-        # clone the repository, including it's submodules
-        image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']}")
-        # install dependencies from one or more requirements files (usually .txt or .toml files, but can support any extension)
-        plugin_reqs = plugin.get("requirements", "").strip()
-        if plugin_reqs:
-            formatted_reqs = " ".join(f"-r {file}" for file in plugin_reqs.split())
-            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && uv pip install --no-deps --python $(command -v python) --compile-bytecode {formatted_reqs}")
-
-        # run installation script (usually install.py or setup.py)
-        plugin_install = plugin.get("install", "").strip()
-        if plugin_install:
-            if plugin_install.endswith(".py"):
-                image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install}")
-            else:
-                print(f"Unsupported installation script: {plugin_install}")
-
-        # install optional packages or packages that got dependency issue with other custom nodes due to pinned to an incompatible version
-        plugin_deps = plugin.get("dependencies", "").strip()
-        if plugin_deps:
-            image = image.uv_pip_install(plugin_deps.split(), extra_options="--no-deps") #, gpu=GPU_MODEL
+        image = install_ext_plugin(image, plugin)
 
 # install missing/additional dependencies or override broken one with a compatible version
 def install_wheels():
@@ -340,7 +368,8 @@ def install_wheels():
     # nunchaku
     url = f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{ver}-cp{sys.version_info.major}{sys.version_info.minor}-cp{sys.version_info.major}{sys.version_info.minor}-linux_x86_64.whl"
     subprocess.check_call([sys.executable, "-m", "uv", "pip", "install", "--no-deps", url])
-    
+
+
 image = (
     image
     .uv_pip_install("sageattention~=2.2.0", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels")
