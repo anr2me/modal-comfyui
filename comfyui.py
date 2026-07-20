@@ -88,7 +88,7 @@ def get_comfyui_path() -> Path:
             import json
             try:
                 obj = json.loads(result)
-                comfyui_path = (obj.get("data") or {}).get("workspace_path", COMFYUI_ROOT)
+                comfyui_path = Path((obj.get("data") or {}).get("workspace_path", str(COMFYUI_ROOT)))
             except Exception as e:
                 comfyui_path = Path(result.split(":", 1)[1].strip())
                 
