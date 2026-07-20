@@ -84,10 +84,17 @@ def get_comfyui_path() -> Path:
     try:
         result = subprocess.check_output(["comfy", "which"], text=True)
         if ":" in result:
-            comfyui_path = Path(result.split(":", 1)[1].strip())
+            # Newer comfy-cli use JSON format
+            import json
+            try:
+                obj = json.loads(result)
+                comfyui_path = (obj.get("data") or {}).get("workspace_path", COMFYUI_ROOT)
+            except Exception as e:
+                comfyui_path = Path(result.split(":", 1)[1].strip())
+                
             COMFYUI_ROOT = comfyui_path
             COMFY_MODELS_ROOT = Path(COMFYUI_ROOT / "models")
-            print(f"Comfy Which: {result}")
+            #print(f"Comfy Which: {result}")
             print(f"ComfyUI Path: {comfyui_path}")
         else:
             print("Path not found in output")
