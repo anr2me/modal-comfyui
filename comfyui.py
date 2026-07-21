@@ -59,7 +59,7 @@ image = (
     modal.Image.debian_slim(python_version="3.12")
     .add_local_python_source("models", "plugins", copy=True)
     .run_commands("apt-get update")
-    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "curl", "wget", "ffmpeg") #rav1e
+    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "curl", "wget", "axel", "ffmpeg") #rav1e
     .uv_pip_install(["pip", "uv"], extra_options="--upgrade")
     .uv_pip_install(["aiohttp", "fastapi", "websockets", "httpx", "brotli", "zstandard", "starlette", "starlette-compress", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
@@ -180,14 +180,21 @@ def download_external_model(url: str, filename: str, model_dir: str):
             #        "-o", os.path.join(cache_dir, filename),
             #        uri,
             #    ],
+            #result = subprocess.run(
+            #    [
+            #        "wget",
+            #        "-c",
+            #        "--tries=5",
+            #        "--waitretry=3",
+            #        "--timeout=30",
+            #        "-O", os.path.join(cache_dir, filename),
+            #        uri,
+            #    ],
             result = subprocess.run(
                 [
-                    "wget",
-                    "-c",
-                    "--tries=5",
-                    "--waitretry=3",
-                    "--timeout=30",
-                    "-O", os.path.join(cache_dir, filename),
+                    "axel",
+                    "-n", "16",
+                    "-o", os.path.join(cache_dir, filename),
                     uri,
                 ],
                 check=True,
