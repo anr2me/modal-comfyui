@@ -75,7 +75,7 @@ def download_external_model(url: str, filename: str, model_dir: str):
                     "aria2c",
                     "--console-log-level=info",
                     "--summary-interval=0",
-                    '--header="Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"',
+                    "--header=Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                     "-x",
                     "16",
                     "-s",
