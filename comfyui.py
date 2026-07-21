@@ -165,6 +165,7 @@ def download_external_model(url: str, filename: str, model_dir: str):
                     "aria2c",
                     "--console-log-level=info",
                     "--summary-interval=0",
+                    "--user-agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'",
                     "-x",
                     "16",
                     "-s",
