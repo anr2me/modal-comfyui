@@ -332,7 +332,7 @@ def install_ext_plugin(image: modal.Image, plugin: dict) -> modal.Image:
     install = plugin.get("install", "").strip()
     if install:
         if install.endswith(".py"):
-            image = image.run_commands(f"cd {work_dir} && uv run --no-project --python $(command -v python) {shlex.quote(install)}")
+            image = image.run_commands(f"cd {work_dir} && python {shlex.quote(install)}") # uv run --no-project --python $(command -v python) 
         else:
             print(f"Unsupported installation script: {install}")
 
