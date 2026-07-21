@@ -59,7 +59,7 @@ image = (
     modal.Image.debian_slim(python_version="3.12")
     .add_local_python_source("models", "plugins", copy=True)
     .run_commands("apt-get update")
-    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "ffmpeg") #rav1e
+    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "curl", "wget", "ffmpeg") #rav1e
     .uv_pip_install(["pip", "uv"], extra_options="--upgrade")
     .uv_pip_install(["aiohttp", "fastapi", "websockets", "httpx", "brotli", "zstandard", "starlette", "starlette-compress", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
@@ -161,7 +161,7 @@ def download_external_model(url: str, filename: str, model_dir: str):
         
         try:
             result = subprocess.run(
-                [
+                ["""
                     "aria2c",
                     "--console-log-level=info", #error
                     "--summary-interval=0",
@@ -175,6 +175,10 @@ def download_external_model(url: str, filename: str, model_dir: str):
                     filename,
                     "-d",
                     cache_dir,
+                    uri,"""
+                    "curl", "-L", "-f", "-C -", 
+                    "--retry", "5", "--retry-delay", "2",
+                    "-o", os.path.join(cache_dir, filename),
                     uri,
                 ],
                 check=True,
