@@ -160,8 +160,8 @@ def download_external_model(url: str, filename: str, model_dir: str):
             uri = f"{url}{'&' if '?' in url else '?'}token={token}"
         
         try:
-            result = subprocess.run(
-                """[
+            """result = subprocess.run(
+                [
                     "aria2c",
                     "--console-log-level=info", #error
                     "--summary-interval=0",
@@ -177,6 +177,7 @@ def download_external_model(url: str, filename: str, model_dir: str):
                     cache_dir,
                     uri,
                 ],"""
+            result = subprocess.run(
                 [
                     "curl", "-L", "-f", "-C -", 
                     "--retry", "5", "--retry-delay", "2",
