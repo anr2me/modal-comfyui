@@ -69,27 +69,32 @@ def download_external_model(url: str, filename: str, model_dir: str):
     cached_path = Path(cache_dir) / filename
     if not cached_path.exists():
         print(f"Downloading {filename} from {url}...")
-        _ = subprocess.run(
-            [
-                "aria2c",
-                "--console-log-level=info",
-                "--summary-interval=0",
-                '--header="Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"',
-                "-x",
-                "16",
-                "-s",
-                "16",
-                "-o",
-                filename,
-                "-d",
-                cache_dir,
-                url,
-            ],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
+        try:
+            _ = subprocess.run(
+                [
+                    "aria2c",
+                    "--console-log-level=info",
+                    "--summary-interval=0",
+                    '--header="Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"',
+                    "-x",
+                    "16",
+                    "-s",
+                    "16",
+                    "-o",
+                    filename,
+                    "-d",
+                    cache_dir,
+                    url,
+                ],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        except subprocess.CalledProcessError as e:
+            print("STDOUT:", e.stdout)
+            print("STDERR:", e.stderr)
+            raise
 
     target_dir = resolve_model_dir(model_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
