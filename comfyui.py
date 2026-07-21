@@ -175,7 +175,7 @@ def download_external_model(url: str, filename: str, model_dir: str):
             #    ],
             result = subprocess.run(
                 [
-                    "curl", "-L", "-f", "-C -", 
+                    "curl", "-L", "-f", "-C", "-", 
                     "--retry", "5", "--retry-delay", "2",
                     "-o", os.path.join(cache_dir, filename),
                     uri,
