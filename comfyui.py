@@ -158,25 +158,32 @@ def download_external_model(url: str, filename: str, model_dir: str):
         if url.startswith("https://civitai.com/") or url.startswith("https://civitai.red/"):
             token = os.environ.get("CIVITAI_TOKEN")
             uri = f"{url}{'&' if '?' in url else '?'}token={token}"
-        _ = subprocess.run(
-            [
-                "aria2c",
-                "--console-log-level=info",
-                "--summary-interval=0",
-                "-x",
-                "1",
-                "-s",
-                "1",
-                "-o",
-                filename,
-                "-d",
-                cache_dir,
-                uri,
-            ],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        
+        try:
+            result = subprocess.run(
+                [
+                    "aria2c",
+                    "--console-log-level=info",
+                    "--summary-interval=0",
+                    "-x",
+                    "16",
+                    "-s",
+                    "16",
+                    "-o",
+                    filename,
+                    "-d",
+                    cache_dir,
+                    uri,
+                ],
+                check=True,
+                stdout=subprocess.PIPE, # DEVNULL 
+                stderr=subprocess.PIPE, # DEVNULL
+                text=True,
+            )
+        except subprocess.CalledProcessError as e:
+            print("STDOUT:", e.stdout)
+            print("STDERR:", e.stderr)
+            raise
 
     target_dir = resolve_model_dir(model_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
