@@ -173,11 +173,21 @@ def download_external_model(url: str, filename: str, model_dir: str):
             #        "-d", cache_dir,
             #        uri,
             #    ],
+            #result = subprocess.run(
+            #    [
+            #        "curl", "-L", "-f", "-C", "-", 
+            #        "--retry", "5", "--retry-delay", "3",
+            #        "-o", os.path.join(cache_dir, filename),
+            #        uri,
+            #    ],
             result = subprocess.run(
                 [
-                    "curl", "-L", "-f", "-C", "-", 
-                    "--retry", "5", "--retry-delay", "2",
-                    "-o", os.path.join(cache_dir, filename),
+                    "wget",
+                    "-c",
+                    "--tries=5",
+                    "--waitretry=3",
+                    "--timeout=30",
+                    "-O", os.path.join(cache_dir, filename),
                     uri,
                 ],
                 check=True,
