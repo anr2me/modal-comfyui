@@ -361,7 +361,7 @@ def install_ext_plugin(image: modal.Image, plugin: dict) -> modal.Image:
     install = plugin.get("install", "").strip()
     if install:
         if install.endswith(".py"):
-            image = image.run_commands(f"cd {work_dir} && python {shlex.quote(install)}") # uv run --no-project --python $(command -v python) 
+            image = image.run_commands(f"cd {work_dir} && python {shlex.quote(install)}") # uv run --no-project --python $(command -v python) #, gpu=GPU_MODEL 
         else:
             print(f"Unsupported installation script: {install}")
 
@@ -396,7 +396,7 @@ image = (
     .uv_pip_install("sageattn3", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels")
     #.uv_pip_install("flash-attn", extra_options="--no-build-isolation") # need to build with nvcc
     .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130")
-    .uv_pip_install("flash-attn-4[cu13]", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130", pre=True) # use dependencies
+    .uv_pip_install("'flash-attn-4[cu13]' 'torch~=2.10.0'", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130", pre=True) # use dependencies
     .uv_pip_install("llama-cpp-python[server]", extra_options="--no-build-isolation --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130", pre=True) # use dependencies
     #.uv_pip_install("tokenizers~=0.19.1", extra_options="--only-binary=tokenizers --no-deps", pre=True) # needed for transformers<4.43
     #.uv_pip_install("transformers~=4.42.4") # extra_options="--no-deps --no-build-isolation" # Fix KeyError: 'default' issue on bytedance Lance
