@@ -161,7 +161,7 @@ def download_external_model(url: str, filename: str, model_dir: str):
         _ = subprocess.run(
             [
                 "aria2c",
-                "--console-log-level=error",
+                "--console-log-level=info",
                 "--summary-interval=0",
                 "-x",
                 "16",
