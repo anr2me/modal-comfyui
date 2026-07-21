@@ -13,27 +13,26 @@ comfy_plugins = [
 ]
 
 comfy_plugins_ext = [
-    # External downloads (via git).
+    # External custom nodes installed directly from git.
     # {
-    #     "url": "URL",
-    #     "branch": "BRANCH",
-    #     "requirements": "requirements.txt", # and/or "pyproject.toml"
-    #     "install": "install.py", # or "setup.py"
-    #     "dependencies": "numpy<2 setuptools<82", # in case requirements.txt breaks something by installing a specific version
+    #     "url": "https://github.com/owner/repo.git",
+    #     "branch": "main",  # optional branch or tag name; omit to use the repo's default branch
+    #     "requirements": ["requirements.txt", "pyproject.toml"],  # optional req files
+    #     "install": "install.py",  # optional install script (.py)
+    #     "ext_deps": ["numpy<2", "setuptools<=81"],  # optional extra pip packages
     # },
     {
         "url": "https://github.com/Echoflare/ComfyUI-Reverse-Proxy-Fix.git", 
-        "branch": "main",
     },
     {
         "url": "https://github.com/Comfy-Org/ComfyUI-Manager.git", 
         "branch": "main",
-        "requirements": "pyproject.toml requirements.txt",
+        "requirements": ["pyproject.toml", "requirements.txt"],
     },
     {
         "url": "https://github.com/Lightricks/ComfyUI-LTXVideo.git", 
         "branch": "master",
-        "requirements": "requirements.txt",
-        "dependencies": "kornia~=0.6.12"
+        "requirements": ["requirements.txt"],
+        "ext_deps": ["kornia~=0.6.12"],
     },
 ]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -58,7 +59,7 @@ image = (
     modal.Image.debian_slim(python_version="3.12")
     .add_local_python_source("models", "plugins", copy=True)
     .run_commands("apt-get update")
-    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "ffmpeg") #rav1e
+    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "curl", "wget", "axel", "ffmpeg") #rav1e
     .uv_pip_install(["pip", "uv"], extra_options="--upgrade")
     .uv_pip_install(["aiohttp", "fastapi", "websockets", "httpx", "brotli", "zstandard", "starlette", "starlette-compress", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
@@ -83,9 +84,17 @@ def get_comfyui_path() -> Path:
     try:
         result = subprocess.check_output(["comfy", "which"], text=True)
         if ":" in result:
-            comfyui_path = Path(result.split(":", 1)[1].strip())
+            # Newer comfy-cli use JSON format
+            import json
+            try:
+                obj = json.loads(result)
+                comfyui_path = Path((obj.get("data") or {}).get("workspace_path", str(COMFYUI_ROOT)))
+            except Exception as e:
+                comfyui_path = Path(result.split(":", 1)[1].strip())
+                
             COMFYUI_ROOT = comfyui_path
             COMFY_MODELS_ROOT = Path(COMFYUI_ROOT / "models")
+            #print(f"Comfy Which: {result}")
             print(f"ComfyUI Path: {comfyui_path}")
         else:
             print("Path not found in output")
@@ -149,25 +158,54 @@ def download_external_model(url: str, filename: str, model_dir: str):
         if url.startswith("https://civitai.com/") or url.startswith("https://civitai.red/"):
             token = os.environ.get("CIVITAI_TOKEN")
             uri = f"{url}{'&' if '?' in url else '?'}token={token}"
-        _ = subprocess.run(
-            [
-                "aria2c",
-                "--console-log-level=error",
-                "--summary-interval=0",
-                "-x",
-                "16",
-                "-s",
-                "16",
-                "-o",
-                filename,
-                "-d",
-                cache_dir,
-                uri,
-            ],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        
+        try:
+            #result = subprocess.run(
+            #    [
+            #        "aria2c",
+            #        "--console-log-level=info", #error
+            #        "--summary-interval=0",
+            #        "--header='Accept: */*'",
+            #        "--user-agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'",
+            #        "-x", "16",
+            #        "-s", "16",
+            #        "-o", filename,
+            #        "-d", cache_dir,
+            #        uri,
+            #    ],
+            #result = subprocess.run(
+            #    [
+            #        "curl", "-L", "-f", "-C", "-", 
+            #        "--retry", "5", "--retry-delay", "3",
+            #        "-o", os.path.join(cache_dir, filename),
+            #        uri,
+            #    ],
+            #result = subprocess.run(
+            #    [
+            #        "wget",
+            #        "-c",
+            #        "--tries=5",
+            #        "--waitretry=3",
+            #        "--timeout=30",
+            #        "-O", os.path.join(cache_dir, filename),
+            #        uri,
+            #    ],
+            result = subprocess.run(
+                [
+                    "axel",
+                    "-n", "16",
+                    "-o", os.path.join(cache_dir, filename),
+                    uri,
+                ],
+                check=True,
+                stdout=subprocess.PIPE, # DEVNULL 
+                stderr=subprocess.PIPE, # DEVNULL
+                text=True,
+            )
+        except subprocess.CalledProcessError as e:
+            print("STDOUT:", e.stdout)
+            print("STDERR:", e.stderr)
+            raise
 
     target_dir = resolve_model_dir(model_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -180,26 +218,6 @@ def download_external_model(url: str, filename: str, model_dir: str):
     # Create symlink
     target_path.symlink_to(cached_path)
     print(f"Linked {filename} to {target_path}")
-
-
-def download_external_plugin(url: str, branch: str, install: str):
-    import subprocess
-
-    _ = subprocess.run(
-            [
-                "git",
-                "clone",
-                "--recurse-submodules",
-                "--single-branch", 
-                "--branch",
-                branch,
-                url,
-            ],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-    )
-    # TODO (git pull, install dependencies)
 
 
 def prepare_directories():
@@ -299,36 +317,64 @@ else:
         f"Warning: {workflow_file_path} not found. API endpoint might not work without a workflow."
     )
 
-from plugins import comfy_plugins, comfy_plugins_ext
+from plugins import comfy_plugins
+
+try:
+    from plugins import comfy_plugins_ext
+except ImportError:
+    comfy_plugins_ext = []
 
 if comfy_plugins:
     image = image.run_commands("comfy node install " + " ".join(comfy_plugins), volumes={"/cache": vol}) #, gpu=GPU_MODEL
 
-if comfy_plugins_ext:
+def install_ext_plugin(image: modal.Image, plugin: dict) -> modal.Image:
+    """Install one external custom node from git into ComfyUI's custom_nodes.
+
+    Supports optional ``branch``, ``requirements`` (a list of requirement
+    files), an ``install`` script (.py), and ``ext_deps`` (a list of extra pip
+    packages). User-supplied values are shell-quoted before use.
+    """
+    # TODO: Do these with mounted volume (ie. within image.run_function) so we can install plugins on volume, but venv might also need to be in volume.
     nodes_dir = str(get_comfyui_path() / "custom_nodes")
     Path(nodes_dir).mkdir(parents=True, exist_ok=True)
+    url = plugin["url"]
+    name = url.rstrip("/").rsplit("/", 1)[-1].removesuffix(".git")
+    work_dir = f"{nodes_dir}/{shlex.quote(name)}"
+
+    branch = plugin.get("branch", "").strip()
+    branch_opt = f"--branch {shlex.quote(branch)} " if branch else ""
+    image = image.run_commands(
+        f"cd {nodes_dir} && git clone --recurse-submodules --single-branch "
+        f"{branch_opt}{shlex.quote(url)}"
+    )
+
+    requirements = plugin.get("requirements") or []
+    if requirements:
+        files = " ".join(f"-r {shlex.quote(f)}" for f in requirements)
+        # --no-deps so a node's requirements can't pull a CPU-only torch over
+        # the CUDA build; use "ext_deps" below to add back what's needed.
+        image = image.run_commands(
+            f"cd {work_dir} && uv pip install --no-deps "
+            f"--python $(command -v python) --compile-bytecode {files}"
+        )
+
+    install = plugin.get("install", "").strip()
+    if install:
+        if install.endswith(".py"):
+            image = image.run_commands(f"cd {work_dir} && python {shlex.quote(install)}") # uv run --no-project --python $(command -v python) #, gpu=GPU_MODEL 
+        else:
+            print(f"Unsupported installation script: {install}")
+
+    ext_deps = plugin.get("ext_deps") or []
+    if ext_deps:
+        image = image.uv_pip_install(ext_deps, extra_options="--no-deps") #, gpu=GPU_MODEL
+
+    return image
+
+
+if comfy_plugins_ext:
     for plugin in comfy_plugins_ext:
-        folder_name = plugin['url'].rstrip('/').rsplit('/', 1)[-1].removesuffix('.git')
-        # clone the repository, including it's submodules
-        image = image.run_commands(f"cd {nodes_dir} && git clone --recurse-submodules --single-branch --branch {plugin['branch']} {plugin['url']}")
-        # install dependencies from one or more requirements files (usually .txt or .toml files, but can support any extension)
-        plugin_reqs = plugin.get("requirements", "").strip()
-        if plugin_reqs:
-            formatted_reqs = " ".join(f"-r {file}" for file in plugin_reqs.split())
-            image = image.run_commands(f"cd {nodes_dir}/{folder_name} && uv pip install --no-deps --python $(command -v python) --compile-bytecode {formatted_reqs}")
-
-        # run installation script (usually install.py or setup.py)
-        plugin_install = plugin.get("install", "").strip()
-        if plugin_install:
-            if plugin_install.endswith(".py"):
-                image = image.run_commands(f"cd {nodes_dir}/{folder_name} && python {plugin_install}")
-            else:
-                print(f"Unsupported installation script: {plugin_install}")
-
-        # install optional packages or packages that got dependency issue with other custom nodes due to pinned to an incompatible version
-        plugin_deps = plugin.get("dependencies", "").strip()
-        if plugin_deps:
-            image = image.uv_pip_install(plugin_deps.split(), extra_options="--no-deps") #, gpu=GPU_MODEL
+        image = image.pipe(install_ext_plugin, plugin) #install_ext_plugin(image, plugin)
 
 # install missing/additional dependencies or override broken one with a compatible version
 def install_wheels():
@@ -340,17 +386,19 @@ def install_wheels():
     # nunchaku
     url = f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{ver}-cp{sys.version_info.major}{sys.version_info.minor}-cp{sys.version_info.major}{sys.version_info.minor}-linux_x86_64.whl"
     subprocess.check_call([sys.executable, "-m", "uv", "pip", "install", "--no-deps", url])
-    
+
+
 image = (
     image
-    .uv_pip_install("sageattention~=2.2.0", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels")
+    # Detect pytorch version and install prebuilt wheels inside the container
+    .run_function(install_wheels) #, gpu=GPU_MODEL
+    .uv_pip_install("sageattention", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels") # ~=2.2.0 
     .uv_pip_install("sageattn3", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels")
     #.uv_pip_install("flash-attn", extra_options="--no-build-isolation") # need to build with nvcc
     .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130")
-    .uv_pip_install("flash-attn-4[cu13]", extra_options="--no-build-isolation", pre=True) # use dependencies
+    .uv_pip_install("flash-attn-4[cu13]", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130", pre=True) # use dependencies
+    .uv_pip_install("torch~=2.10.0", extra_options="--extra-index-url https://download.pytorch.org/whl/cu130") # use dependencies
     .uv_pip_install("llama-cpp-python[server]", extra_options="--no-build-isolation --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130", pre=True) # use dependencies
-    # Detect pytorch version and install wheels inside the container
-    .run_function(install_wheels)
     #.uv_pip_install("tokenizers~=0.19.1", extra_options="--only-binary=tokenizers --no-deps", pre=True) # needed for transformers<4.43
     #.uv_pip_install("transformers~=4.42.4") # extra_options="--no-deps --no-build-isolation" # Fix KeyError: 'default' issue on bytedance Lance
     #.uv_pip_install("peft~=0.10.0") # compatible peft version for transformers 4.40–4.42
@@ -362,7 +410,7 @@ image = image.env(
 ).run_function(download_all, volumes={"/cache": vol}, secrets=get_secrets())
 
 # Disable ultralytics' Anonymized Google Analytics
-image = image.run_commands("yolo settings sync=False")
+image = image.run_commands(["yolo settings sync=False", "uv pip show torch"])
 
 # Testing for vulnerability on custom nodes
 nodes_dir = str(get_comfyui_path() / "custom_nodes")
