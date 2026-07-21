@@ -163,9 +163,10 @@ def download_external_model(url: str, filename: str, model_dir: str):
             result = subprocess.run(
                 [
                     "aria2c",
-                    "--console-log-level=info",
+                    "--console-log-level=error",
                     "--summary-interval=0",
-                    "--user-agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'",
+                    "--header='Accept: */*'",
+                    #"--user-agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'",
                     "-x",
                     "16",
                     "-s",
