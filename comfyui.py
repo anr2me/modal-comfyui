@@ -345,7 +345,7 @@ def install_ext_plugin(image: modal.Image, plugin: dict) -> modal.Image:
 
 if comfy_plugins_ext:
     for plugin in comfy_plugins_ext:
-        image = install_ext_plugin(image, plugin)
+        image = image.pipe(install_ext_plugin, plugin) #install_ext_plugin(image, plugin)
 
 # install missing/additional dependencies or override broken one with a compatible version
 def install_wheels():
