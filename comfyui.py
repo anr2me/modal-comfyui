@@ -161,7 +161,7 @@ def download_external_model(url: str, filename: str, model_dir: str):
         
         try:
             result = subprocess.run(
-                ["""
+                """[
                     "aria2c",
                     "--console-log-level=info", #error
                     "--summary-interval=0",
@@ -175,7 +175,9 @@ def download_external_model(url: str, filename: str, model_dir: str):
                     filename,
                     "-d",
                     cache_dir,
-                    uri,"""
+                    uri,
+                ],"""
+                [
                     "curl", "-L", "-f", "-C -", 
                     "--retry", "5", "--retry-delay", "2",
                     "-o", os.path.join(cache_dir, filename),
