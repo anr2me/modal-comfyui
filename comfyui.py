@@ -380,7 +380,7 @@ image = image.env(
 ).run_function(download_all, volumes={"/cache": vol}, secrets=get_secrets())
 
 # Disable ultralytics' Anonymized Google Analytics
-image = image.run_commands("yolo settings sync=False")
+image = image.run_commands(["yolo settings sync=False", "uv pip show torch"])
 
 # Testing for vulnerability on custom nodes
 nodes_dir = str(get_comfyui_path() / "custom_nodes")
