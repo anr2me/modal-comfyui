@@ -77,7 +77,6 @@ def download_external_model(url: str, filename: str, model_dir: str):
                 token_hdr = f"Authorization: Bearer {token}"
             
         try:
-            token_hdr = ""
             _ = subprocess.run(
                 [
                     "axel",
