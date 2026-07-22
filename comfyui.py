@@ -76,17 +76,22 @@ def download_external_model(url: str, filename: str, model_dir: str):
             if token:
                 uri = f"{url}{'&' if '?' in url else '?'}token={token}"
             
-        _ = subprocess.run(
-            [
-                "axel",
-                "-n", "16",
-                "-o", cached_path,
-                uri,
-            ],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        try:
+            _ = subprocess.run(
+                [
+                    "axel",
+                    "-n", "16",
+                    "-o", cached_path,
+                    uri,
+                ],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        except subprocess.CalledProcessError as e:
+            print("STDERR:", e.stderr)
+            raise
 
     target_dir = resolve_model_dir(model_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
