@@ -69,12 +69,19 @@ def download_external_model(url: str, filename: str, model_dir: str):
     cached_path = Path(cache_dir) / filename
     if not cached_path.exists():
         print(f"Downloading {filename} from {url}...")
+        # Use CivitAI token when available
+        uri = url
+        if url.startswith("https://civitai.com/") or url.startswith("https://civitai.red/"):
+            token = os.environ.get("CIVITAI_TOKEN", "")
+            if token:
+                uri = f"{url}{'&' if '?' in url else '?'}token={token}"
+            
         _ = subprocess.run(
             [
                 "axel",
                 "-n", "16",
                 "-o", cached_path,
-                url,
+                uri,
             ],
             check=True,
             stdout=subprocess.DEVNULL,
@@ -122,14 +129,15 @@ def _hf_secrets() -> list[modal.Secret]:
         s.hydrate()  # from_name is lazy, force the existence check here
         return [s]
     except modal.exception.NotFoundError:
-        token = os.environ.get("HF_TOKEN", "")
-        if not token:
+        hf_token = os.environ.get("HF_TOKEN", "")
+        civ_token = os.environ.get("CIVITAI_TOKEN", "")
+        if not hf_token:
             print(
                 "Warning: no Modal Secret 'huggingface-secret' and no HF_TOKEN env. "
                 "Public models will download with throttled bandwidth; "
                 "gated models will fail."
             )
-        return [modal.Secret.from_dict({"HF_TOKEN": token})]
+        return [modal.Secret.from_dict({"HF_TOKEN": hf_token, "CIVITAI_TOKEN": civ_token})]
 
 # download models
 image = image.env(
