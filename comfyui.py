@@ -71,17 +71,9 @@ def download_external_model(url: str, filename: str, model_dir: str):
         print(f"Downloading {filename} from {url}...")
         _ = subprocess.run(
             [
-                "aria2c",
-                "--console-log-level=error",
-                "--summary-interval=0",
-                "-x",
-                "16",
-                "-s",
-                "16",
-                "-o",
-                filename,
-                "-d",
-                cache_dir,
+                "axel",
+                "-n", "16",
+                "-o", cached_path,
                 url,
             ],
             check=True,
@@ -116,7 +108,7 @@ vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True)
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .add_local_python_source("models", "plugins", copy=True)
-    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
+    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "axel")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"))
     .run_commands("comfy --skip-prompt install --nvidia")
     .run_commands("git lfs install")
