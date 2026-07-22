@@ -98,6 +98,11 @@ You can access ComfyUI from the provided persistent URL when successfully deploy
 - **Model Caching**: Uses Modal Volumes to cache models across runs (modal's persistent volume is free for the first 1 TiB).
 - **Custom Node Management**: Integrated with `comfy-cli` for easy plugin installation.
 - **Mixed CPU and GPU instance**: Works on your workflows using CPU-only instance for cheaper rates, but runs workflows on GPU instance seamlessly. Also have persistent completed jobs across sessions with their output assets accessible from Media Assets panel.
+- **Pre-installed Wheels**:
+  - FlashAttention 2.x, 3, and 4
+  - SageAttention 2.x and 3
+  - llama-cpp-python
+  - nunchaku
 
 ## Contributing
 
