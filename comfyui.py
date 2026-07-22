@@ -156,8 +156,9 @@ def download_external_model(url: str, filename: str, model_dir: str):
         # Use CivitAI token when available
         uri = url
         if url.startswith("https://civitai.com/") or url.startswith("https://civitai.red/"):
-            token = os.environ.get("CIVITAI_TOKEN")
-            uri = f"{url}{'&' if '?' in url else '?'}token={token}"
+            token = os.environ.get("CIVITAI_TOKEN", "")
+            if token:
+                uri = f"{url}{'&' if '?' in url else '?'}token={token}"
         
         try:
             #result = subprocess.run(
@@ -268,27 +269,36 @@ def get_secrets() -> list[modal.Secret]:
         s.hydrate()  # from_name is lazy, force the existence check here
         secrets.append(s)
     except modal.exception.NotFoundError:
-        token = os.environ.get("CIVITAI_TOKEN", "")
-        if not token:
+        civ_token = os.environ.get("CIVITAI_TOKEN", "")
+        if not civ_token:
             print(
                 "Warning: no Modal Secret 'custom-secret' and no CIVITAI_TOKEN env. "
                 "Gated models will fail."
             )
-        secrets.append(modal.Secret.from_dict({"CIVITAI_TOKEN": token}))
+        secrets.append(modal.Secret.from_dict({"CIVITAI_TOKEN": civ_token}))
     # Try with 'huggingface-secret'
     try:
         s = modal.Secret.from_name("huggingface-secret")
         s.hydrate()  # from_name is lazy, force the existence check here
         secrets.append(s)
     except modal.exception.NotFoundError:
-        token = os.environ.get("HF_TOKEN", "")
-        if not token:
+        hf_token = os.environ.get("HF_TOKEN", "")
+        if not hf_token:
             print(
                 "Warning: no Modal Secret 'huggingface-secret' and no HF_TOKEN env. "
                 "Public models will download with throttled bandwidth; "
                 "gated models will fail."
             )
-        secrets.append(modal.Secret.from_dict({"HF_TOKEN": token}))
+        else:
+            secrets.append(modal.Secret.from_dict({"HF_TOKEN": hf_token}))
+        civ_token = os.environ.get("CIVITAI_TOKEN", "")
+        if not civ_token:
+            print(
+                "Warning: no Modal Secret 'custom-secret' and no CIVITAI_TOKEN env. "
+                "Gated models will fail."
+            )
+        else:
+            secrets.append(modal.Secret.from_dict({"CIVITAI_TOKEN": civ_token}))
     return secrets
 
 
