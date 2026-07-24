@@ -388,12 +388,12 @@ if comfy_plugins_ext:
 
 # Bake in the reverse-proxy fix so workflow save works behind Modal's edge
 # proxy, independent of user plugin config (see vendor_nodes/reverse_proxy_fix).
-#nodes_dir = str(get_comfyui_path() / "custom_nodes")
-image = image.add_local_dir(
-    root_dir / "vendor_nodes" / "reverse_proxy_fix",
-    "/root/comfy/ComfyUI/custom_nodes/reverse_proxy_fix",
-    copy=True,
-)
+#nodes_dir = str(get_comfyui_path() / "custom_nodes") # may need to mount volume
+#image = image.add_local_dir(
+#    root_dir / "vendor_nodes" / "reverse_proxy_fix",
+#    "/root/comfy/ComfyUI/custom_nodes/reverse_proxy_fix",
+#    copy=True,
+#)
 
 # install missing/additional dependencies or override broken one with a compatible version
 def install_wheels():
