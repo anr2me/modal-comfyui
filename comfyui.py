@@ -157,12 +157,12 @@ def download_external_model(url: str, filename: str, model_dir: str):
     if not cached_path.exists():
         print(f"Downloading {filename} from {url}...")
         # Use CivitAI token when available
-        uri = url
+        token_hdr = ""
         if url.startswith("https://civitai.com/") or url.startswith("https://civitai.red/"):
             token = os.environ.get("CIVITAI_TOKEN", "")
             if token:
-                uri = f"{url}{'&' if '?' in url else '?'}token={token}"
-        
+                token_hdr = f"Authorization: Bearer {token}"
+            
         try:
             #result = subprocess.run(
             #    [
@@ -197,17 +197,18 @@ def download_external_model(url: str, filename: str, model_dir: str):
             result = subprocess.run(
                 [
                     "axel",
+                    "-H", token_hdr,
                     "-n", "16",
-                    "-o", os.path.join(cache_dir, filename),
-                    uri,
+                    "-o", cached_path,
+                    url,
                 ],
                 check=True,
-                stdout=subprocess.PIPE, # DEVNULL 
+                stdout=subprocess.DEVNULL 
                 stderr=subprocess.PIPE, # DEVNULL
                 text=True,
             )
         except subprocess.CalledProcessError as e:
-            print("STDOUT:", e.stdout)
+            #print("STDOUT:", e.stdout)
             print("STDERR:", e.stderr)
             raise
 
