@@ -11,33 +11,36 @@ import modal
 GPU_MODEL = os.getenv("MODAL_GPU", "L4")
 GPU_NAME = GPU_MODEL.split(':')[0]
 GPU_COUNT = int(GPU_MODEL.split(":")[1]) if ":" in GPU_MODEL else 1
-COMFYGPUARGS = os.getenv("MODAL_COMFYGPUARGS", "") # additional ComfyUI arguments on GPU instance
 MAXTIME = int(os.getenv("MODAL_MAXTIME", "3600")) # stream & websocket max lifetime before forcefully terminated, will also affects startup time when lower than MAXSTARTTIME.
 IDLETIME = int(os.getenv("MODAL_IDLETIME", "60")) # spin down on idle timeout
 WAITTIME = int(os.getenv("MODAL_WAITTIME", "20")) # wait time to finished progressbar animation when inference is done (ie. VHS save video node)
 MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300")) # ComfyUI & it's custom nodes initialization/startup timeout
-JOBSCUTOFFTIME = int(os.getenv("MODAL_JOBSCUTOFFTIME", "86400")) # completed jobs history cutoff (ie. only shows jobs from the last 24 hours)
+COMFY_VER = os.getenv("COMFY_VER", "latest") # ComfyUI version to install (default to latest stable)
+COMFYGPU_ARGS = os.getenv("COMFYGPU_ARGS", "") # additional ComfyUI arguments on GPU instance
+JOBS_CUTOFFTIME = int(os.getenv("JOBS_CUTOFFTIME", "86400")) # completed jobs history cutoff (ie. only shows jobs from the last 24 hours)
 
 def update_vars_from_env():
     global GPU_MODEL
     global GPU_NAME
     global GPU_COUNT
-    global COMFYGPUARGS
     global MAXTIME
     global IDLETIME
     global WAITTIME
     global MAXSTARTTIME
-    global JOBSCUTOFFTIME
+    global COMFY_VER
+    global COMFYGPU_ARGS
+    global JOBS_CUTOFFTIME
     # Reassigned using Secrets Env vars on container
     GPU_MODEL = os.getenv("MODAL_GPU", "L4")
     GPU_NAME = GPU_MODEL.split(':')[0]
     GPU_COUNT = int(GPU_MODEL.split(":")[1]) if ":" in GPU_MODEL else 1
-    COMFYGPUARGS = os.getenv("MODAL_COMFYGPUARGS", "")
     MAXTIME = int(os.getenv("MODAL_MAXTIME", "3600"))
     IDLETIME = int(os.getenv("MODAL_IDLETIME", "60"))
     WAITTIME = int(os.getenv("MODAL_WAITTIME", "20"))
     MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300"))
-    JOBSCUTOFFTIME = int(os.getenv("MODAL_JOBSCUTOFFTIME", "86400"))
+    COMFY_VER = os.getenv("COMFY_VER", "latest")
+    COMFYGPU_ARGS = os.getenv("COMFYGPU_ARGS", "")
+    JOBS_CUTOFFTIME = int(os.getenv("JOBS_CUTOFFTIME", "86400"))
 
 root_dir = Path(__file__).parent
 base_dir = Path("/cache/ComfyUI")
@@ -69,7 +72,7 @@ image = (
     .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
     #.run_commands("git config --global core.fileMode false")
     #.run_commands("git config --global pull.rebase") 
-    .run_commands("comfy --skip-prompt install --restore --nvidia --cuda-version 13.0", volumes={"/cache": vol}) # --workspace /cache/ComfyUI
+    .run_commands(f"comfy --skip-prompt install --restore --nvidia --cuda-version 13.0 --version {COMFY_VER}", volumes={"/cache": vol}) # --workspace /cache/ComfyUI
     #  || cd /cache/ComfyUI && comfy --here install --restore && cd - 
     #.run_commands(f"comfy --skip-prompt --workspace /cache/ComfyUI set-default {base_dir}", volumes={"/cache": vol})
     #.run_commands(f"comfy --skip-prompt set-default {COMFYUI_ROOT} --launch-extras='--network-mode personal_cloud --security-level normal'") # Allow installing custom nodes from Manager
@@ -495,12 +498,13 @@ app = modal.App(
         modal.Secret.from_dict(
             {
                 "MODAL_GPU": str(GPU_MODEL),
-                "MODAL_COMFYGPUARGS": str(COMFYGPUARGS),
                 "MODAL_MAXTIME": str(MAXTIME),
                 "MODAL_IDLETIME": str(IDLETIME),
                 "MODAL_WAITTIME": str(WAITTIME),
                 "MODAL_MAXSTARTTIME": str(MAXSTARTTIME),
-                "MODAL_JOBSCUTOFFTIME": str(JOBSCUTOFFTIME),
+                "COMFY_VER": str(COMFY_VER),
+                "COMFYGPU_ARGS": str(COMFYGPU_ARGS),
+                "JOBS_CUTOFFTIME": str(JOBS_CUTOFFTIME),
             }
         ),
     ]
@@ -943,9 +947,9 @@ async def proxy_jobs(request: Request, path: str):
                         for item in jobs
                     ])
                 # current time in milliseconds (create_time is in ms)
-                cutoff = time.time() * 1000 - (JOBSCUTOFFTIME * 1000)
+                cutoff = time.time() * 1000 - (JOBS_CUTOFFTIME * 1000)
                 # retrieve the full jobs (filter out old jobs when needed)
-                jobs = [v async for _, v in jobs_dict.items.aio() if JOBSCUTOFFTIME < 0 or v.get("create_time", 0) >= cutoff]
+                jobs = [v async for _, v in jobs_dict.items.aio() if JOBS_CUTOFFTIME < 0 or v.get("create_time", 0) >= cutoff]
     
                 # update pagination
                 if pagination:
@@ -1449,9 +1453,9 @@ class ComfyGPU:
     def start_checkpoint(self):
         try:
             update_vars_from_env()
-            print(f"Additional ComfyUI Arguments: {COMFYGPUARGS}")
+            print(f"Additional ComfyUI Arguments: {COMFYGPU_ARGS}")
             self.proc = subprocess.Popen(
-                f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYGPUARGS} --listen 0.0.0.0 --port {gpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+                f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYGPU_ARGS} --listen 0.0.0.0 --port {gpuport} --enable-cors-header '*' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
             )
             # Block here — snapshot is taken only after this returns
             wait_for_port(gpuport, timeout=MAXSTARTTIME)

@@ -70,6 +70,10 @@ To deploy ComfyUI as a persistent app using the default L4 GPU:
 ```bash
 modal deploy comfyui.py
 ```
+Or rebuild the image and deploy (ie. after removing models at persistent volume to redownload them):
+```bash
+MODAL_FORCE_BUILD=1 modal deploy comfyui.py
+```
 Or deploy with cleared `shared_dict` (ie. when the App forcefully stopped):
 ```bash
 python comfyui.py
@@ -82,12 +86,13 @@ You can find the GPU types available on modal.com at https://modal.com/docs/guid
 
 Other Environment Variables you can use are:
 ```bash
-MODAL_COMFYGPUARGS="--use-flash-attention"
+COMFY_VER="nightly"
+COMFYGPU_ARGS="--use-flash-attention"
+JOBS_CUTOFFTIME=86400
 MODAL_MAXTIME=3600
 MODAL_IDLETIME=60
 MODAL_WAITTIME=20
 MODAL_MAXSTARTTIME=300
-MODAL_JOBSCUTOFFTIME=86400
 ```
 You can access ComfyUI from the provided persistent URL when successfully deployed.
 
