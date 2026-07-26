@@ -422,7 +422,8 @@ image = (
     .uv_pip_install("sageattn3", extra_options="--no-build-isolation --extra-index-url https://comfy-org.github.io/wheels")
     #.uv_pip_install("flash-attn", extra_options="--no-build-isolation") # need to build with nvcc
     .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130")
-    .uv_pip_install("flash-attn-4[cu13]", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130", pre=True) # use dependencies
+    # Also install the latest ultralytics, in case a custom node installed an old version with exploitable bugs.
+    .uv_pip_install(["flash-attn-4[cu13]", "ultralytics"], extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130", pre=True) # use dependencies
     .uv_pip_install("torch~=2.10.0", extra_options="--extra-index-url https://download.pytorch.org/whl/cu130") # use dependencies
     .uv_pip_install("llama-cpp-python[server]", extra_options="--no-build-isolation --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130", pre=True) # use dependencies
     #.uv_pip_install("tokenizers~=0.19.1", extra_options="--only-binary=tokenizers --no-deps", pre=True) # needed for transformers<4.43
@@ -435,11 +436,8 @@ image = image.env(
     {"HF_HUB_ENABLE_HF_TRANSFER": "1", "HF_XET_HIGH_PERFORMANCE": "1"}
 ).run_function(download_all, volumes={"/cache": vol}, secrets=get_secrets())
 
-# Install the latest ultralytics, in case a custom node installed an old version with exploitable bugs.
-image = (image.uv_pip_install("ultralytics", extra_options="--upgrade")
-         # Disable ultralytics' Anonymized Google Analytics
-         .run_commands(["yolo settings sync=False", "uv pip show torch"])
-)
+# Disable ultralytics' Anonymized Google Analytics
+image = image.run_commands(["yolo settings sync=False", "uv pip show torch"])
 
 # Testing for vulnerability on custom nodes
 nodes_dir = str(COMFYUI_ROOT / "custom_nodes")
