@@ -80,8 +80,9 @@ image = (
 )
 
 
-def get_comfyui_path() -> Path:
-    global COMFYUI_ROOT, COMFY_MODELS_ROOT
+def detect_comfyui_path() -> Path:
+    global COMFYUI_ROOT
+    global COMFY_MODELS_ROOT
     comfyui_path = COMFYUI_ROOT
     #return COMFYUI_ROOT
     try:
@@ -226,6 +227,7 @@ def download_external_model(url: str, filename: str, model_dir: str):
 
 
 def prepare_directories():
+    detect_comfyui_path()
     Path(base_dir).mkdir(parents=True, exist_ok=True)
     Path(input_dir).mkdir(parents=True, exist_ok=True)
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -349,7 +351,7 @@ def install_ext_plugin(image: modal.Image, plugin: dict) -> modal.Image:
     packages). User-supplied values are shell-quoted before use.
     """
     # TODO: Do these with mounted volume (ie. within image.run_function) so we can install plugins on volume, but venv might also need to be in volume.
-    nodes_dir = str(get_comfyui_path() / "custom_nodes")
+    nodes_dir = str(COMFYUI_ROOT / "custom_nodes")
     Path(nodes_dir).mkdir(parents=True, exist_ok=True)
     url = plugin["url"]
     name = url.rstrip("/").rsplit("/", 1)[-1].removesuffix(".git")
@@ -440,7 +442,7 @@ image = (image.uv_pip_install("ultralytics", extra_options="--upgrade")
 )
 
 # Testing for vulnerability on custom nodes
-nodes_dir = str(get_comfyui_path() / "custom_nodes")
+nodes_dir = str(COMFYUI_ROOT / "custom_nodes")
 image = image.run_commands(
     f"python -m venv /tmp/temp_venv && "
     f"/tmp/temp_venv/bin/pip install bandit[toml] && "
