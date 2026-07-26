@@ -498,12 +498,13 @@ app = modal.App(
         modal.Secret.from_dict(
             {
                 "MODAL_GPU": str(GPU_MODEL),
-                "MODAL_COMFYGPUARGS": str(COMFYGPUARGS),
                 "MODAL_MAXTIME": str(MAXTIME),
                 "MODAL_IDLETIME": str(IDLETIME),
                 "MODAL_WAITTIME": str(WAITTIME),
                 "MODAL_MAXSTARTTIME": str(MAXSTARTTIME),
-                "MODAL_JOBSCUTOFFTIME": str(JOBSCUTOFFTIME),
+                "COMFY_VER": str(COMFY_VER),
+                "COMFYGPU_ARGS": str(COMFYGPU_ARGS),
+                "JOBS_CUTOFFTIME": str(JOBS_CUTOFFTIME),
             }
         ),
     ]
