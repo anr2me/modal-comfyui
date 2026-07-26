@@ -82,12 +82,12 @@ You can find the GPU types available on modal.com at https://modal.com/docs/guid
 
 Other Environment Variables you can use are:
 ```bash
-MODAL_COMFYGPUARGS="--use-flash-attention"
+COMFYGPU_ARGS="--use-flash-attention"
+JOBS_CUTOFFTIME=86400
 MODAL_MAXTIME=3600
 MODAL_IDLETIME=60
 MODAL_WAITTIME=20
 MODAL_MAXSTARTTIME=300
-MODAL_JOBSCUTOFFTIME=86400
 ```
 You can access ComfyUI from the provided persistent URL when successfully deployed.
 
