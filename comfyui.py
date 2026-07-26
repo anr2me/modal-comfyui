@@ -64,7 +64,7 @@ image = (
     .run_commands("apt-get update")
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "curl", "wget", "axel", "ffmpeg") #rav1e
     .uv_pip_install(["pip", "uv"], extra_options="--upgrade")
-    .uv_pip_install(["aiohttp", "fastapi", "websockets", "httpx", "brotli", "zstandard", "starlette", "starlette-compress", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0", "ultralytics"], extra_options="--upgrade")
+    .uv_pip_install(["aiohttp", "fastapi", "websockets", "httpx", "brotli", "zstandard", "starlette", "starlette-compress", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
     .uv_pip_install(["torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec~=0.10.0"], extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
@@ -371,6 +371,7 @@ def install_ext_plugin(image: modal.Image, plugin: dict) -> modal.Image:
             f"--python $(command -v python) --compile-bytecode {files}"
         )
 
+    # Note: Installer script might not be able to detect CUDA availability when running in CPU-only container.
     install = plugin.get("install", "").strip()
     if install:
         if install.endswith(".py"):
@@ -431,8 +432,11 @@ image = image.env(
     {"HF_HUB_ENABLE_HF_TRANSFER": "1", "HF_XET_HIGH_PERFORMANCE": "1"}
 ).run_function(download_all, volumes={"/cache": vol}, secrets=get_secrets())
 
-# Disable ultralytics' Anonymized Google Analytics
-image = image.run_commands(["yolo settings sync=False", "uv pip show torch"])
+# Install the latest ultralytics, in case a custom node installed an old version with exploitable bugs.
+image = (image.uv_pip_install("ultralytics", extra_options="--upgrade")
+         # Disable ultralytics' Anonymized Google Analytics
+         .run_commands(["yolo settings sync=False", "uv pip show torch"])
+)
 
 # Testing for vulnerability on custom nodes
 nodes_dir = str(get_comfyui_path() / "custom_nodes")
