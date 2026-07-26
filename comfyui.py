@@ -203,7 +203,7 @@ def download_external_model(url: str, filename: str, model_dir: str):
                     url,
                 ],
                 check=True,
-                stdout=subprocess.DEVNULL 
+                stdout=subprocess.DEVNULL, 
                 stderr=subprocess.PIPE, # DEVNULL
                 text=True,
             )
