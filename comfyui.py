@@ -72,7 +72,7 @@ image = (
     .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
     #.run_commands("git config --global core.fileMode false")
     #.run_commands("git config --global pull.rebase") 
-    .run_commands("comfy --skip-prompt install --restore --nvidia --cuda-version 13.0 --version {COMFY_VER}", volumes={"/cache": vol}) # --workspace /cache/ComfyUI
+    .run_commands(f"comfy --skip-prompt install --restore --nvidia --cuda-version 13.0 --version {COMFY_VER}", volumes={"/cache": vol}) # --workspace /cache/ComfyUI
     #  || cd /cache/ComfyUI && comfy --here install --restore && cd - 
     #.run_commands(f"comfy --skip-prompt --workspace /cache/ComfyUI set-default {base_dir}", volumes={"/cache": vol})
     #.run_commands(f"comfy --skip-prompt set-default {COMFYUI_ROOT} --launch-extras='--network-mode personal_cloud --security-level normal'") # Allow installing custom nodes from Manager
