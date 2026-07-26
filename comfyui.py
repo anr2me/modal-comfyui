@@ -15,6 +15,7 @@ MAXTIME = int(os.getenv("MODAL_MAXTIME", "3600")) # stream & websocket max lifet
 IDLETIME = int(os.getenv("MODAL_IDLETIME", "60")) # spin down on idle timeout
 WAITTIME = int(os.getenv("MODAL_WAITTIME", "20")) # wait time to finished progressbar animation when inference is done (ie. VHS save video node)
 MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300")) # ComfyUI & it's custom nodes initialization/startup timeout
+COMFY_VER = os.getenv("COMFY_VER", "latest") # ComfyUI version to install (default to latest stable)
 COMFYGPU_ARGS = os.getenv("COMFYGPU_ARGS", "") # additional ComfyUI arguments on GPU instance
 JOBS_CUTOFFTIME = int(os.getenv("JOBS_CUTOFFTIME", "86400")) # completed jobs history cutoff (ie. only shows jobs from the last 24 hours)
 
@@ -26,6 +27,7 @@ def update_vars_from_env():
     global IDLETIME
     global WAITTIME
     global MAXSTARTTIME
+    global COMFY_VER
     global COMFYGPU_ARGS
     global JOBS_CUTOFFTIME
     # Reassigned using Secrets Env vars on container
@@ -36,6 +38,7 @@ def update_vars_from_env():
     IDLETIME = int(os.getenv("MODAL_IDLETIME", "60"))
     WAITTIME = int(os.getenv("MODAL_WAITTIME", "20"))
     MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300"))
+    COMFY_VER = os.getenv("COMFY_VER", "latest")
     COMFYGPU_ARGS = os.getenv("COMFYGPU_ARGS", "")
     JOBS_CUTOFFTIME = int(os.getenv("JOBS_CUTOFFTIME", "86400"))
 
@@ -69,7 +72,7 @@ image = (
     .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
     #.run_commands("git config --global core.fileMode false")
     #.run_commands("git config --global pull.rebase") 
-    .run_commands("comfy --skip-prompt install --restore --nvidia --cuda-version 13.0", volumes={"/cache": vol}) # --workspace /cache/ComfyUI
+    .run_commands("comfy --skip-prompt install --restore --nvidia --cuda-version 13.0 --version {COMFY_VER}", volumes={"/cache": vol}) # --workspace /cache/ComfyUI
     #  || cd /cache/ComfyUI && comfy --here install --restore && cd - 
     #.run_commands(f"comfy --skip-prompt --workspace /cache/ComfyUI set-default {base_dir}", volumes={"/cache": vol})
     #.run_commands(f"comfy --skip-prompt set-default {COMFYUI_ROOT} --launch-extras='--network-mode personal_cloud --security-level normal'") # Allow installing custom nodes from Manager
