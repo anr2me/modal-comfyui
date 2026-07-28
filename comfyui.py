@@ -424,7 +424,7 @@ image = (
     .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130")
     # Also install the latest ultralytics, in case a custom node installed an old version with exploitable bugs.
     .uv_pip_install(["flash-attn-4[cu13]", "ultralytics"], extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130", pre=True) # use dependencies
-    .uv_pip_install("torch~=2.10.0", extra_options="--extra-index-url https://download.pytorch.org/whl/cu130") # use dependencies
+    .uv_pip_install(["torch~=2.10.0", "torchvision~=0.25.0", "torchaudio~=2.10.0"], extra_options="--extra-index-url https://download.pytorch.org/whl/cu130") # Fix torch version after changed by FA4 / ultralytics
     .uv_pip_install("llama-cpp-python[server]", extra_options="--no-build-isolation --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130", pre=True) # use dependencies
     #.uv_pip_install("tokenizers~=0.19.1", extra_options="--only-binary=tokenizers --no-deps", pre=True) # needed for transformers<4.43
     #.uv_pip_install("transformers~=4.42.4") # extra_options="--no-deps --no-build-isolation" # Fix KeyError: 'default' issue on bytedance Lance
