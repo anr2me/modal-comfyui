@@ -69,25 +69,30 @@ def download_external_model(url: str, filename: str, model_dir: str):
     cached_path = Path(cache_dir) / filename
     if not cached_path.exists():
         print(f"Downloading {filename} from {url}...")
-        _ = subprocess.run(
-            [
-                "aria2c",
-                "--console-log-level=error",
-                "--summary-interval=0",
-                "-x",
-                "16",
-                "-s",
-                "16",
-                "-o",
-                filename,
-                "-d",
-                cache_dir,
-                url,
-            ],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        # Use CivitAI token when available
+        token_hdr = ""
+        if url.startswith("https://civitai.com/") or url.startswith("https://civitai.red/"):
+            token = os.environ.get("CIVITAI_TOKEN", "")
+            if token:
+                token_hdr = f"Authorization: Bearer {token}"
+            
+        try:
+            _ = subprocess.run(
+                [
+                    "axel",
+                    "-H", token_hdr,
+                    "-n", "16",
+                    "-o", cached_path,
+                    url,
+                ],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        except subprocess.CalledProcessError as e:
+            print("STDERR:", e.stderr)
+            raise
 
     target_dir = resolve_model_dir(model_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -116,7 +121,7 @@ vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True)
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .add_local_python_source("models", "plugins", copy=True)
-    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2")
+    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "axel")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"))
     .run_commands("comfy --skip-prompt install --nvidia")
     .run_commands("git lfs install")
@@ -130,14 +135,15 @@ def _hf_secrets() -> list[modal.Secret]:
         s.hydrate()  # from_name is lazy, force the existence check here
         return [s]
     except modal.exception.NotFoundError:
-        token = os.environ.get("HF_TOKEN", "")
-        if not token:
+        hf_token = os.environ.get("HF_TOKEN", "")
+        civ_token = os.environ.get("CIVITAI_TOKEN", "")
+        if not hf_token:
             print(
                 "Warning: no Modal Secret 'huggingface-secret' and no HF_TOKEN env. "
                 "Public models will download with throttled bandwidth; "
                 "gated models will fail."
             )
-        return [modal.Secret.from_dict({"HF_TOKEN": token})]
+        return [modal.Secret.from_dict({"HF_TOKEN": hf_token, "CIVITAI_TOKEN": civ_token})]
 
 # download models
 image = image.env(
