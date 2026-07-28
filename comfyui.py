@@ -1482,6 +1482,80 @@ class ComfyGPU:
     
     @modal.web_server(gpuport, startup_timeout=30)
     def web(self):
+        BACKEND_HTTP = "http://localhost:8001"
+        BACKEND_WS = "ws://localhost:8001"
+        STRIP_HEADERS = {"modal-function-call-id"}
+        HOP_BY_HOP = {"connection", "keep-alive", "transfer-encoding", "content-length", "content-encoding"}
+
+        app = FastAPI()
+        client = httpx.AsyncClient(base_url=BACKEND_HTTP)
+
+        def filtered(headers):
+            return {k: v for k, v in headers.items() if k.lower() not in STRIP_HEADERS | HOP_BY_HOP}
+
+        @app.on_event("shutdown")
+        async def shutdown():
+            await client.aclose()
+
+        @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
+        async def proxy_http(path: str, request: Request):
+            req = client.build_request(
+                request.method,
+                f"/{path}",
+                params=request.query_params,
+                headers=filtered(request.headers),
+                content=request.stream(),   # stream request body in
+            )
+            backend_resp = await client.send(req, stream=True)
+
+            async def body_iter():
+                async for chunk in backend_resp.aiter_bytes():
+                    yield chunk
+                await backend_resp.aclose()
+
+            return StreamingResponse(
+                body_iter(),
+                status_code=backend_resp.status_code,
+                headers=filtered(backend_resp.headers),
+            )
+
+        @app.websocket("/{path:path}")
+        async def proxy_ws(websocket: WebSocket, path: str):
+            await websocket.accept()
+            headers = filtered(websocket.headers)
+            qs = websocket.url.query
+            backend_url = f"{BACKEND_WS}/{path}" + (f"?{qs}" if qs else "")
+
+            async with websockets.connect(backend_url, extra_headers=headers) as backend_ws:
+
+                async def client_to_backend():
+                    try:
+                        while True:
+                            msg = await websocket.receive()
+                            if msg["type"] == "websocket.disconnect":
+                                break
+                            if "text" in msg:
+                                await backend_ws.send(msg["text"])
+                            elif "bytes" in msg:
+                                await backend_ws.send(msg["bytes"])
+                    except WebSocketDisconnect:
+                        pass
+
+                async def backend_to_client():
+                    async for message in backend_ws:
+                        if isinstance(message, str):
+                            await websocket.send_text(message)
+                        else:
+                            await websocket.send_bytes(message)
+
+                done, pending = await asyncio.wait(
+                    [asyncio.create_task(client_to_backend()), asyncio.create_task(backend_to_client())],
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                for task in pending:
+                    task.cancel()
+            
+        return app
         print("App Ready!")
 
     @modal.method()
