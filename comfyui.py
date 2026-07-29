@@ -284,7 +284,7 @@ class ComfyUI:
             "modal-function-call-id", # modal header that could cause images not to shows up (ie. rendering issue) on client side.
         }
         HOP_BY_HOP = {
-            "connection", "keep-alive", 
+            "connection", "keep-alive", "origin",
             "transfer-encoding", "content-length", "content-encoding",
         }
         WS_HANDSHAKE_HEADERS = {
