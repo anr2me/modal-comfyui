@@ -1482,6 +1482,7 @@ class ComfyGPU:
     
     @modal.asgi_app()
     def api(self):
+        import asyncio
         from websockets.asyncio.client import connect as ws_connect
         
         BACKEND_HTTP = f"http://localhost:{gpuport}"
