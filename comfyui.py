@@ -269,6 +269,7 @@ class ComfyUI:
     @modal.asgi_app()
     def ui(self):
         import asyncio
+        from fastapi import FastAPI
         from websockets.asyncio.client import connect as ws_connect
         from starlette_compress import CompressMiddleware
         
