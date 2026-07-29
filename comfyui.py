@@ -556,7 +556,7 @@ async def send_logs_msg(websocket: WebSocket, msg: str, logs_type: LogsType = 0)
 async def fix_gpu_active_count():
     # Fix active count, in the case where the GPU container got SIGKILLed (which couldn't reached @modal.exit stage)
     GpuClass = modal.Cls.from_name(app.name, "ComfyGPU")
-    stats = await GpuClass().web.get_current_stats.aio()
+    stats = await GpuClass().ui.get_current_stats.aio()
     active_count = stats.num_total_runners
     await shared_dict.put.aio("active", active_count)
     print(f"Detected Active GPU instance(s): {active_count}")
@@ -566,7 +566,7 @@ async def fix_gpu_active_count():
     
 async def get_remote_url(class_name: str) -> str:
     remote_cls = modal.Cls.from_name(app.name, class_name)
-    url = await remote_cls().web.get_web_url.aio()
+    url = await remote_cls().ui.get_web_url.aio()
     return url
 
 async def do_vol_commit(class_name: str):
@@ -1481,7 +1481,7 @@ class ComfyGPU:
         print("App Restored!")
     
     @modal.asgi_app()
-    def web(self):
+    def ui(self):
         import asyncio
         from websockets.asyncio.client import connect as ws_connect
         from starlette_compress import CompressMiddleware
@@ -1649,7 +1649,7 @@ class ComfyCPU:
         print("App Restored!")
     
     @modal.web_server(cpuport, startup_timeout=30)
-    def web(self):
+    def ui(self):
         print("App Ready!")
 
     @modal.exit()
@@ -1705,7 +1705,7 @@ class ComfyMix:
         wait_for_port(uiport, timeout=30)
     
     @modal.asgi_app()
-    def web(self):
+    def ui(self):
         print("App Ready!")
         return web_app
     
