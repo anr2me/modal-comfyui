@@ -239,7 +239,17 @@ def wait_for_port(port: int, timeout: int = 60):
         except OSError:
             time.sleep(0.5)
     raise TimeoutError(f"ComfyUI never became ready on port {port}")
-    
+
+with image.imports():
+    import asyncio
+    import httpx
+    import websockets
+    from fastapi import FastAPI, Request, WebSocket # Request must not be imported inside a function when using "from __future__ import annotations" 
+    from fastapi.responses import StreamingResponse
+    from starlette.websockets import WebSocketDisconnect
+    from starlette_compress import CompressMiddleware
+    from websockets.asyncio.client import connect as ws_connect
+
 app = modal.App(name="modal-comfyui", image=image)
 
 
@@ -268,15 +278,6 @@ class ComfyUI:
     
     @modal.asgi_app()
     def ui(self):
-        import asyncio
-        import httpx
-        import websockets
-        from fastapi import FastAPI, Request, WebSocket
-        from fastapi.responses import StreamingResponse
-        from starlette.websockets import WebSocketDisconnect
-        from starlette_compress import CompressMiddleware
-        from websockets.asyncio.client import connect as ws_connect
-
         BACKEND_HTTP = f"http://127.0.0.1:{COMFY_PORT}"
         BACKEND_WS = f"ws://127.0.0.1:{COMFY_PORT}"
         STRIP_HEADERS = {
@@ -320,10 +321,11 @@ class ComfyUI:
 
         @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
         async def proxy_http(path: str, request: Request):
+            query = request.url.query  # str, the raw query as received
+            url = f"/{path}" + (f"?{query}" if query else "")
             req = client.build_request(
                 request.method,
-                f"/{path}",
-                params=request.url.query_bytes,
+                url,
                 headers=filtered(request.headers),
                 content=request.stream,   # stream request body in
             )
