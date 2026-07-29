@@ -288,10 +288,9 @@ class ComfyUI:
             "transfer-encoding", "content-length", "content-encoding",
         }
         WS_HANDSHAKE_HEADERS = {
-            "host", "connection", "upgrade",
-            "sec-websocket-key", "sec-websocket-version",
-            "sec-websocket-extensions", "sec-websocket-protocol", "sec-websocket-accept",
-            "keep-alive", "transfer-encoding", "content-length", "content-encoding",
+            "host", "connection", "upgrade", "origin",
+            "sec-websocket-key", "sec-websocket-version", "sec-websocket-accept",
+            "sec-websocket-extensions", "sec-websocket-protocol",
         }
 
         app = FastAPI()
