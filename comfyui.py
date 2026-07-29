@@ -424,11 +424,11 @@ image = (
     .uv_pip_install("flash-attn-3", extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130")
     # Also install the latest ultralytics, in case a custom node installed an old version with exploitable bugs.
     .uv_pip_install(["flash-attn-4[cu13]", "ultralytics"], extra_options="--no-build-isolation --extra-index-url https://download.pytorch.org/whl/cu130", pre=True) # use dependencies
-    .uv_pip_install("torch~=2.10.0", extra_options="--extra-index-url https://download.pytorch.org/whl/cu130") # use dependencies
     .uv_pip_install("llama-cpp-python[server]", extra_options="--no-build-isolation --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130", pre=True) # use dependencies
     #.uv_pip_install("tokenizers~=0.19.1", extra_options="--only-binary=tokenizers --no-deps", pre=True) # needed for transformers<4.43
     #.uv_pip_install("transformers~=4.42.4") # extra_options="--no-deps --no-build-isolation" # Fix KeyError: 'default' issue on bytedance Lance
     #.uv_pip_install("peft~=0.10.0") # compatible peft version for transformers 4.40–4.42
+    .uv_pip_install(["torch~=2.10.0", "torchvision~=0.25.0", "torchaudio~=2.10.0"], extra_options="--extra-index-url https://download.pytorch.org/whl/cu130") # Fix torch version after changed by FA4 / ultralytics
 )
 
 # download models
@@ -1480,9 +1480,113 @@ class ComfyGPU:
         wait_for_port(gpuport, timeout=30)
         print("App Restored!")
     
-    @modal.web_server(gpuport, startup_timeout=30)
+    @modal.asgi_app()
     def web(self):
+        import asyncio
+        from websockets.asyncio.client import connect as ws_connect
+        from starlette_compress import CompressMiddleware
+        
+        BACKEND_HTTP = f"http://127.0.0.1:{gpuport}"
+        BACKEND_WS = f"ws://127.0.0.1:{gpuport}"
+        STRIP_HEADERS = {
+            "modal-function-call-id", # modal header that could cause images not to shows up (ie. rendering issue) on client side.
+        }
+        HOP_BY_HOP = {
+            "connection", "keep-alive", 
+            "transfer-encoding", "content-length", "content-encoding",
+        }
+        WS_HANDSHAKE_HEADERS = {
+            "host", "connection", "upgrade",
+            "sec-websocket-key", "sec-websocket-version",
+            "sec-websocket-extensions", "sec-websocket-protocol", "sec-websocket-accept",
+            "keep-alive", "transfer-encoding", "content-length", "content-encoding",
+        }
+
+        app = FastAPI()
+        client = httpx.AsyncClient(base_url=BACKEND_HTTP)
+        
+        # Enable automatic compression
+        app.add_middleware(
+            CompressMiddleware, # All-in-One compression middleware (Zstd, Brotli, and Gzip)
+            zstd_level=10,      # Standard Zstd compression level (1-19)
+            brotli_quality=6,   # Brotli: 0 to 11
+            gzip_level=5,       # Gzip: 1 to 9
+            minimum_size=1000,  # Bytes: skip small payloads to protect CPU overhead
+        )
+
+        def filtered(headers):
+            return {k: v for k, v in headers.items() if k.lower() not in STRIP_HEADERS | HOP_BY_HOP}
+
+        def filtered_ws(headers):
+            return {
+                k: v for k, v in headers.items()
+                if k.lower() not in (STRIP_HEADERS | WS_HANDSHAKE_HEADERS)
+            }
+
+        @app.on_event("shutdown")
+        async def shutdown():
+            await client.aclose()
+
+        @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
+        async def proxy_http(path: str, request: Request):
+            req = client.build_request(
+                request.method,
+                f"/{path}",
+                params=request.query_params,
+                headers=filtered(request.headers),
+                content=request.stream(),   # stream request body in
+            )
+            backend_resp = await client.send(req, stream=True)
+
+            async def body_iter():
+                async for chunk in backend_resp.aiter_bytes():
+                    yield chunk
+                await backend_resp.aclose()
+
+            return StreamingResponse(
+                body_iter(),
+                status_code=backend_resp.status_code,
+                headers=filtered(backend_resp.headers),
+            )
+
+        @app.websocket("/{path:path}")
+        async def proxy_ws(websocket: WebSocket, path: str):
+            await websocket.accept()
+            headers = filtered_ws(websocket.headers)
+            qs = websocket.url.query
+            backend_url = f"{BACKEND_WS}/{path}" + (f"?{qs}" if qs else "")
+
+            async with ws_connect(backend_url, additional_headers=headers) as backend_ws:
+
+                async def client_to_backend():
+                    try:
+                        while True:
+                            msg = await websocket.receive()
+                            if msg["type"] == "websocket.disconnect":
+                                break
+                            if "text" in msg:
+                                await backend_ws.send(msg["text"])
+                            elif "bytes" in msg:
+                                await backend_ws.send(msg["bytes"])
+                    except WebSocketDisconnect:
+                        pass
+
+                async def backend_to_client():
+                    async for message in backend_ws:
+                        if isinstance(message, str):
+                            await websocket.send_text(message)
+                        else:
+                            await websocket.send_bytes(message)
+
+                done, pending = await asyncio.wait(
+                    [asyncio.create_task(client_to_backend()), asyncio.create_task(backend_to_client())],
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                for task in pending:
+                    task.cancel()
+            
         print("App Ready!")
+        return app
 
     @modal.method()
     def vol_commit(self):
@@ -1601,7 +1705,7 @@ class ComfyMix:
         wait_for_port(uiport, timeout=30)
     
     @modal.asgi_app()
-    def api(self):
+    def web(self):
         print("App Ready!")
         return web_app
     
