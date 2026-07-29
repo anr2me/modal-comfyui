@@ -1496,7 +1496,7 @@ class ComfyGPU:
             "transfer-encoding", "content-length", "content-encoding",
         }
         WS_HANDSHAKE_HEADERS = {
-            "host", "connection", "upgrade",
+            "host", "connection", "upgrade", "origin",
             "sec-websocket-key", "sec-websocket-version",
             "sec-websocket-extensions", "sec-websocket-protocol", "sec-websocket-accept",
             "keep-alive", "transfer-encoding", "content-length", "content-encoding",
@@ -1529,10 +1529,11 @@ class ComfyGPU:
 
         @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
         async def proxy_http(path: str, request: Request):
+            query = request.url.query  # str, the raw query as received
+            url = f"/{path}" + (f"?{query}" if query else "")
             req = client.build_request(
                 request.method,
-                f"/{path}",
-                params=request.query_params,
+                url,
                 headers=filtered(request.headers),
                 content=request.stream(),   # stream request body in
             )
