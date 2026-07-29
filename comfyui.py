@@ -128,7 +128,7 @@ image = (
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"))
     .run_commands(f"comfy --skip-prompt install --nvidia --version {COMFY_VER}")
     .run_commands("git lfs install")
-    .uv_pip_install(["websockets"])
+    .uv_pip_install(["websockets", "starlette-compress", "brotli", "zstandard"])
 )
 
 def _hf_secrets() -> list[modal.Secret]:
