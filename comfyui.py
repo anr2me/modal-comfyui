@@ -284,7 +284,7 @@ class ComfyUI:
             "modal-function-call-id", # modal header that could cause images not to shows up (ie. rendering issue) on client side.
         }
         HOP_BY_HOP = {
-            "connection", "keep-alive", "origin",
+            "connection", "keep-alive", 
             "transfer-encoding", "content-length", "content-encoding",
         }
         WS_HANDSHAKE_HEADERS = {
@@ -306,13 +306,19 @@ class ComfyUI:
         )
 
         def filtered(headers):
-            return {k: v for k, v in headers.items() if k.lower() not in STRIP_HEADERS | HOP_BY_HOP}
-
+            h = {k: v for k, v in headers.items() if k.lower() not in STRIP_HEADERS | HOP_BY_HOP}
+            h["Host"] = f"127.0.0.1:{COMFY_PORT}"
+            h["Origin"] = f"http://127.0.0.1:{COMFY_PORT}"
+            return h
+    
         def filtered_ws(headers):
-            return {
+            h = {
                 k: v for k, v in headers.items()
                 if k.lower() not in (STRIP_HEADERS | WS_HANDSHAKE_HEADERS)
             }
+            h["Host"] = f"127.0.0.1:{COMFY_PORT}"
+            h["Origin"] = f"http://127.0.0.1:{COMFY_PORT}"
+            return h
 
         @app.on_event("shutdown")
         async def shutdown():
