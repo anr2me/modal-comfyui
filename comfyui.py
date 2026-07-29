@@ -22,6 +22,8 @@ COMFY_MODELS_ROOT = Path("/root/comfy/ComfyUI/models")
 GPU_TYPE = os.getenv("MODAL_GPU", "L4")
 COMFY_VER = os.getenv("COMFY_VER", "latest")
 
+COMFY_PORT = 8000
+
 def resolve_model_dir(model_dir: str) -> Path:
     """Resolve model_dir: absolute paths are used as-is, relative paths are
     placed under /root/comfy/ComfyUI/models/ (e.g. "checkpoints")."""
@@ -253,19 +255,123 @@ class ComfyUI:
     @modal.enter(snap=True)
     def start_checkpoint(self):
         self.proc = subprocess.Popen(
-            "comfy launch --background -- --listen 0.0.0.0 --port 8000", shell=True
+            f"comfy launch --background -- --listen 0.0.0.0 --port {COMFY_PORT}", shell=True
         )
         # Block here — snapshot is taken only after this returns
-        wait_for_port(8000, timeout=300)
+        wait_for_port(COMFY_PORT, timeout=300)
 
     @modal.enter(snap=False)
     def start_restore(self):
-        wait_for_port(8000, timeout=30)
+        wait_for_port(COMFY_PORT, timeout=30)
         print("App Restored!")
     
-    @modal.web_server(8000, startup_timeout=300)
+    @modal.asgi_app()
     def ui(self):
+        import asyncio
+        from websockets.asyncio.client import connect as ws_connect
+        from starlette_compress import CompressMiddleware
+        
+        BACKEND_HTTP = f"http://127.0.0.1:{COMFY_PORT}"
+        BACKEND_WS = f"ws://127.0.0.1:{COMFY_PORT}"
+        STRIP_HEADERS = {
+            "modal-function-call-id", # modal header that could cause images not to shows up (ie. rendering issue) on client side.
+        }
+        HOP_BY_HOP = {
+            "connection", "keep-alive", 
+            "transfer-encoding", "content-length", "content-encoding",
+        }
+        WS_HANDSHAKE_HEADERS = {
+            "host", "connection", "upgrade",
+            "sec-websocket-key", "sec-websocket-version",
+            "sec-websocket-extensions", "sec-websocket-protocol", "sec-websocket-accept",
+            "keep-alive", "transfer-encoding", "content-length", "content-encoding",
+        }
+
+        app = FastAPI()
+        client = httpx.AsyncClient(base_url=BACKEND_HTTP)
+        
+        # Enable automatic compression
+        app.add_middleware(
+            CompressMiddleware, # All-in-One compression middleware (Zstd, Brotli, and Gzip)
+            zstd_level=10,      # Standard Zstd compression level (1-19)
+            brotli_quality=6,   # Brotli: 0 to 11
+            gzip_level=5,       # Gzip: 1 to 9
+            minimum_size=1000,  # Bytes: skip small payloads to protect CPU overhead
+        )
+
+        def filtered(headers):
+            return {k: v for k, v in headers.items() if k.lower() not in STRIP_HEADERS | HOP_BY_HOP}
+
+        def filtered_ws(headers):
+            return {
+                k: v for k, v in headers.items()
+                if k.lower() not in (STRIP_HEADERS | WS_HANDSHAKE_HEADERS)
+            }
+
+        @app.on_event("shutdown")
+        async def shutdown():
+            await client.aclose()
+
+        @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
+        async def proxy_http(path: str, request: Request):
+            req = client.build_request(
+                request.method,
+                f"/{path}",
+                params=request.query_params,
+                headers=filtered(request.headers),
+                content=request.stream(),   # stream request body in
+            )
+            backend_resp = await client.send(req, stream=True)
+
+            async def body_iter():
+                async for chunk in backend_resp.aiter_bytes():
+                    yield chunk
+                await backend_resp.aclose()
+
+            return StreamingResponse(
+                body_iter(),
+                status_code=backend_resp.status_code,
+                headers=filtered(backend_resp.headers),
+            )
+
+        @app.websocket("/{path:path}")
+        async def proxy_ws(websocket: WebSocket, path: str):
+            await websocket.accept()
+            headers = filtered_ws(websocket.headers)
+            qs = websocket.url.query
+            backend_url = f"{BACKEND_WS}/{path}" + (f"?{qs}" if qs else "")
+
+            async with ws_connect(backend_url, additional_headers=headers) as backend_ws:
+
+                async def client_to_backend():
+                    try:
+                        while True:
+                            msg = await websocket.receive()
+                            if msg["type"] == "websocket.disconnect":
+                                break
+                            if "text" in msg:
+                                await backend_ws.send(msg["text"])
+                            elif "bytes" in msg:
+                                await backend_ws.send(msg["bytes"])
+                    except WebSocketDisconnect:
+                        pass
+
+                async def backend_to_client():
+                    async for message in backend_ws:
+                        if isinstance(message, str):
+                            await websocket.send_text(message)
+                        else:
+                            await websocket.send_bytes(message)
+
+                done, pending = await asyncio.wait(
+                    [asyncio.create_task(client_to_backend()), asyncio.create_task(backend_to_client())],
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                for task in pending:
+                    task.cancel()
+            
         print("App Ready!")
+        return app
     
     @modal.exit()
     def cleanup(self):
