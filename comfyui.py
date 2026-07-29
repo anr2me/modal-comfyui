@@ -1481,7 +1481,7 @@ class ComfyGPU:
         print("App Restored!")
     
     @modal.asgi_app()
-    def api(self):
+    def web(self):
         import asyncio
         from websockets.asyncio.client import connect as ws_connect
         from starlette_compress import CompressMiddleware
@@ -1705,7 +1705,7 @@ class ComfyMix:
         wait_for_port(uiport, timeout=30)
     
     @modal.asgi_app()
-    def api(self):
+    def web(self):
         print("App Ready!")
         return web_app
     
