@@ -1482,8 +1482,8 @@ class ComfyGPU:
     
     @modal.web_server(gpuport, startup_timeout=30)
     def web(self):
-        BACKEND_HTTP = "http://localhost:8001"
-        BACKEND_WS = "ws://localhost:8001"
+        BACKEND_HTTP = f"http://localhost:{gpuport}"
+        BACKEND_WS = f"ws://localhost:{gpuport}"
         STRIP_HEADERS = {"modal-function-call-id"}
         HOP_BY_HOP = {"connection", "keep-alive", "transfer-encoding", "content-length", "content-encoding"}
 
@@ -1555,8 +1555,8 @@ class ComfyGPU:
                 for task in pending:
                     task.cancel()
             
-        return app
         print("App Ready!")
+        return app
 
     @modal.method()
     def vol_commit(self):
