@@ -128,7 +128,7 @@ image = (
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"))
     .run_commands(f"comfy --skip-prompt install --nvidia --version {COMFY_VER}")
     .run_commands("git lfs install")
-    .uv_pip_install(["fastapi", "websockets", "starlette-compress", "brotli", "zstandard"])
+    .uv_pip_install(["fastapi", "httpx", "websockets", "starlette-compress", "brotli", "zstandard"])
 )
 
 def _hf_secrets() -> list[modal.Secret]:
@@ -269,6 +269,7 @@ class ComfyUI:
     @modal.asgi_app()
     def ui(self):
         import asyncio
+        import httpx
         from fastapi import FastAPI
         from websockets.asyncio.client import connect as ws_connect
         from starlette_compress import CompressMiddleware
