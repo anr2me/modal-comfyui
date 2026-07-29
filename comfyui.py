@@ -253,7 +253,7 @@ class ComfyUI:
     @modal.enter(snap=True)
     def start_checkpoint(self):
         self.proc = subprocess.Popen(
-            "comfy launch --background -- --listen 0.0.0.0 --port 8000", shell=True
+            "comfy launch --background -- --listen 0.0.0.0 --port 8000 --enable-cors-header '*' ", shell=True
         )
         # Block here — snapshot is taken only after this returns
         wait_for_port(8000, timeout=300)
