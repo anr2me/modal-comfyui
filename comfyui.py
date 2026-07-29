@@ -320,13 +320,12 @@ class ComfyUI:
 
         @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
         async def proxy_http(path: str, request: Request):
-            print(f"Route = /{path} => {request}")
             req = client.build_request(
                 request.method,
                 f"/{path}",
-                params=request.query_params,
+                params=request.url.query_bytes,
                 headers=filtered(request.headers),
-                content=request.stream(),   # stream request body in
+                content=request.stream,   # stream request body in
             )
             backend_resp = await client.send(req, stream=True)
 
