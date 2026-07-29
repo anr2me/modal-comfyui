@@ -327,7 +327,7 @@ class ComfyUI:
                 request.method,
                 url,
                 headers=filtered(request.headers),
-                content=request.stream,   # stream request body in
+                content=request.stream(),   # stream request body in
             )
             backend_resp = await client.send(req, stream=True)
 
