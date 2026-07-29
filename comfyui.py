@@ -324,6 +324,7 @@ class ComfyUI:
                 headers=filtered(request.headers),
                 content=request.stream(),   # stream request body in
             )
+            print(f"Req = {req}")
             backend_resp = await client.send(req, stream=True)
 
             async def body_iter():
