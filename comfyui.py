@@ -276,7 +276,7 @@ class ComfyUI:
         from starlette.websockets import WebSocketDisconnect
         from starlette_compress import CompressMiddleware
         from websockets.asyncio.client import connect as ws_connect
-        
+
         BACKEND_HTTP = f"http://127.0.0.1:{COMFY_PORT}"
         BACKEND_WS = f"ws://127.0.0.1:{COMFY_PORT}"
         STRIP_HEADERS = {
@@ -320,6 +320,7 @@ class ComfyUI:
 
         @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
         async def proxy_http(path: str, request: Request):
+            print(f"Route = /{path} => {request}")
             req = client.build_request(
                 request.method,
                 f"/{path}",
