@@ -31,6 +31,7 @@ comfy_plugins_ext = [
     {
         "url": "https://github.com/komikndr/raylight.git", 
         "requirements": ["requirements.txt"],
+        "ext_deps": ["yunchang", "msgpack"],
     },
     {
         "url": "https://github.com/Lightricks/ComfyUI-LTXVideo.git", 
