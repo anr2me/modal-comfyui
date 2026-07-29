@@ -1488,12 +1488,24 @@ class ComfyGPU:
         BACKEND_WS = f"ws://localhost:{gpuport}"
         STRIP_HEADERS = {"modal-function-call-id"}
         HOP_BY_HOP = {"connection", "keep-alive", "transfer-encoding", "content-length", "content-encoding"}
+        WS_HANDSHAKE_HEADERS = {
+            "host", "connection", "upgrade",
+            "sec-websocket-key", "sec-websocket-version",
+            "sec-websocket-extensions", "sec-websocket-protocol", "sec-websocket-accept",
+            "keep-alive", "transfer-encoding", "content-length", "content-encoding",
+        }
 
         app = FastAPI()
         client = httpx.AsyncClient(base_url=BACKEND_HTTP)
 
         def filtered(headers):
             return {k: v for k, v in headers.items() if k.lower() not in STRIP_HEADERS | HOP_BY_HOP}
+
+        def filtered_ws(headers):
+            return {
+                k: v for k, v in headers.items()
+                if k.lower() not in (STRIP_HEADERS | WS_HANDSHAKE_HEADERS)
+            }
 
         @app.on_event("shutdown")
         async def shutdown():
@@ -1524,7 +1536,7 @@ class ComfyGPU:
         @app.websocket("/{path:path}")
         async def proxy_ws(websocket: WebSocket, path: str):
             await websocket.accept()
-            headers = filtered(websocket.headers)
+            headers = filtered_ws(websocket.headers)
             qs = websocket.url.query
             backend_url = f"{BACKEND_WS}/{path}" + (f"?{qs}" if qs else "")
 
