@@ -270,9 +270,12 @@ class ComfyUI:
     def ui(self):
         import asyncio
         import httpx
-        from fastapi import FastAPI
-        from websockets.asyncio.client import connect as ws_connect
+        import websockets
+        from fastapi import FastAPI, Request, WebSocket
+        from fastapi.responses import StreamingResponse
+        from starlette.websockets import WebSocketDisconnect
         from starlette_compress import CompressMiddleware
+        from websockets.asyncio.client import connect as ws_connect
         
         BACKEND_HTTP = f"http://127.0.0.1:{COMFY_PORT}"
         BACKEND_WS = f"ws://127.0.0.1:{COMFY_PORT}"
@@ -324,7 +327,6 @@ class ComfyUI:
                 headers=filtered(request.headers),
                 content=request.stream(),   # stream request body in
             )
-            print(f"Req = {req}")
             backend_resp = await client.send(req, stream=True)
 
             async def body_iter():
