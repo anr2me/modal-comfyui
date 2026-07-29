@@ -1484,11 +1484,12 @@ class ComfyGPU:
     def api(self):
         import asyncio
         from websockets.asyncio.client import connect as ws_connect
+        from starlette_compress import CompressMiddleware
         
-        BACKEND_HTTP = f"http://localhost:{gpuport}"
-        BACKEND_WS = f"ws://localhost:{gpuport}"
+        BACKEND_HTTP = f"http://127.0.0.1:{gpuport}"
+        BACKEND_WS = f"ws://127.0.0.1:{gpuport}"
         STRIP_HEADERS = {
-            "x-modal-function-call-id",
+            "modal-function-call-id", # modal header that could cause images not to shows up (ie. rendering issue) on client side.
         }
         HOP_BY_HOP = {
             "connection", "keep-alive", 
@@ -1503,6 +1504,15 @@ class ComfyGPU:
 
         app = FastAPI()
         client = httpx.AsyncClient(base_url=BACKEND_HTTP)
+        
+        # Enable automatic compression
+        app.add_middleware(
+            CompressMiddleware, # All-in-One compression middleware (Zstd, Brotli, and Gzip)
+            zstd_level=10,      # Standard Zstd compression level (1-19)
+            brotli_quality=6,   # Brotli: 0 to 11
+            gzip_level=5,       # Gzip: 1 to 9
+            minimum_size=1000,  # Bytes: skip small payloads to protect CPU overhead
+        )
 
         def filtered(headers):
             return {k: v for k, v in headers.items() if k.lower() not in STRIP_HEADERS | HOP_BY_HOP}
