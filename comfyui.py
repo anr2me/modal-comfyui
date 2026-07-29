@@ -1487,8 +1487,13 @@ class ComfyGPU:
         
         BACKEND_HTTP = f"http://localhost:{gpuport}"
         BACKEND_WS = f"ws://localhost:{gpuport}"
-        STRIP_HEADERS = {"modal-function-call-id"}
-        HOP_BY_HOP = {"connection", "keep-alive", "transfer-encoding", "content-length", "content-encoding"}
+        STRIP_HEADERS = {
+            #"modal-function-call-id",
+        }
+        HOP_BY_HOP = {
+            "connection", "keep-alive", 
+            "transfer-encoding", "content-length", "content-encoding",
+        }
         WS_HANDSHAKE_HEADERS = {
             "host", "connection", "upgrade",
             "sec-websocket-key", "sec-websocket-version",
