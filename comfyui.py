@@ -1480,8 +1480,10 @@ class ComfyGPU:
         wait_for_port(gpuport, timeout=30)
         print("App Restored!")
     
-    @modal.web_server(gpuport, startup_timeout=30)
-    def web(self):
+    @modal.asgi_app()
+    def api(self):
+        from websockets.asyncio.client import connect as ws_connect
+        
         BACKEND_HTTP = f"http://localhost:{gpuport}"
         BACKEND_WS = f"ws://localhost:{gpuport}"
         STRIP_HEADERS = {"modal-function-call-id"}
@@ -1526,7 +1528,7 @@ class ComfyGPU:
             qs = websocket.url.query
             backend_url = f"{BACKEND_WS}/{path}" + (f"?{qs}" if qs else "")
 
-            async with websockets.connect(backend_url, extra_headers=headers) as backend_ws:
+            async with ws_connect(backend_url, additional_headers=headers) as backend_ws:
 
                 async def client_to_backend():
                     try:
