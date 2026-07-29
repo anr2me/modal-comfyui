@@ -41,6 +41,7 @@ models = [
         "filename": "split_files/vae/ace_1.5_vae.safetensors",
         "model_dir": "vae",
     },
+    
     {
         "repo_id": "Comfy-Org/ERNIE-Image",
         "filename": "diffusion_models/ernie-image-turbo.safetensors",
@@ -61,6 +62,36 @@ models = [
         "filename": "vae/flux2-vae.safetensors",
         "model_dir": "vae",
     },
+
+    {
+        "repo_id": "Comfy-Org/Bernini-R",
+        "filename": "diffusion_models/wan2.1_bernini_1.3B_fp16.safetensors", 
+        "model_dir": "diffusion_models",
+    },
+    {
+        "repo_id": "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+        "filename": "split_files/diffusion_models/wan2.1_vace_1.3B_fp16.safetensors",
+        "model_dir": "diffusion_models",
+    },
+    {
+        "repo_id": "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+        "filename": "split_files/clip_vision/clip_vision_h.safetensors",
+        "model_dir": "clip_vision",
+    },
+    {
+        "repo_id": "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+        "filename": "split_files/text_encoders/umt5_xxl_fp16.safetensors",
+        "model_dir": "text_encoders",
+    },
+    {
+        "repo_id": "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+        "filename": "split_files/vae/wan_2.1_vae.safetensors",
+        "model_dir": "vae",
+    },
+]
+
+models_ext = [
+    # External downloads (
 ]
 
 models_ext = [
