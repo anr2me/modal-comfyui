@@ -124,7 +124,7 @@ vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True)
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .add_local_python_source("models", "plugins", copy=True)
-    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "axel")
+    .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "axel", "websockets")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"))
     .run_commands(f"comfy --skip-prompt install --nvidia --version {COMFY_VER}")
     .run_commands("git lfs install")
