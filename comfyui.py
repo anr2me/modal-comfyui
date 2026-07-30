@@ -288,7 +288,7 @@ class ComfyUI:
             "transfer-encoding", "content-length", "content-encoding",
         }
         WS_HANDSHAKE_HEADERS = {
-            #"host", 
+            "host", 
             #"connection", 
             #"upgrade", 
             "origin",
