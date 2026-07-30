@@ -288,9 +288,12 @@ class ComfyUI:
             "transfer-encoding", "content-length", "content-encoding",
         }
         WS_HANDSHAKE_HEADERS = {
-            "host", "connection", "upgrade", "origin",
-            "sec-websocket-key", "sec-websocket-version", "sec-websocket-accept",
-            "sec-websocket-extensions", "sec-websocket-protocol",
+            "host", 
+            #"connection", 
+            #"upgrade", 
+            "origin",
+            #"sec-websocket-key", "sec-websocket-version", "sec-websocket-accept",
+            #"sec-websocket-extensions", "sec-websocket-protocol",
         }
 
         app = FastAPI()
@@ -310,9 +313,13 @@ class ComfyUI:
             return h
     
         def filtered_ws(headers):
+            for k, v in headers.items():
+                if k.lower() in WS_HANDSHAKE_HEADERS:
+                    print(f"{k}:{v}\n")
             h = {
                 k: v for k, v in headers.items()
-                if k.lower() not in (STRIP_HEADERS | WS_HANDSHAKE_HEADERS)
+                if k.lower() not in (#STRIP_HEADERS | 
+                                     WS_HANDSHAKE_HEADERS)
             }
             return h
 
