@@ -313,9 +313,9 @@ class ComfyUI:
             return h
     
         def filtered_ws(headers):
-            print(f"{k}:{v}\n") for k, v in headers.items()
-                if k.lower() in (#STRIP_HEADERS | 
-                                     WS_HANDSHAKE_HEADERS)
+            for k, v in headers.items():
+                if k.lower() in WS_HANDSHAKE_HEADERS:
+                    print(f"{k}:{v}\n")
             h = {
                 k: v for k, v in headers.items()
                 if k.lower() not in (#STRIP_HEADERS | 
