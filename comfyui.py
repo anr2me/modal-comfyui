@@ -294,8 +294,16 @@ class ComfyUI:
             "sec-websocket-extensions", "sec-websocket-protocol",
         }
 
-        app = FastAPI()
-        client = httpx.AsyncClient(base_url=BACKEND_HTTP)
+        client = httpx.AsyncClient(base_url=BACKEND_HTTP, timeout=30)
+        
+        @asynccontextmanager
+        async def lifespan(app: FastAPI):
+            # startup (runs before the app starts serving)
+            yield
+            # shutdown (runs when the app is stopping)
+            await client.aclose()
+    
+        app = FastAPI(lifespan=lifespan)
         
         # Enable automatic compression
         app.add_middleware(
@@ -318,10 +326,7 @@ class ComfyUI:
             }
             return h
 
-        @app.on_event("shutdown")
-        async def shutdown():
-            await client.aclose()
-
+        
         @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
         async def proxy_http(path: str, request: Request):
             query = request.url.query  # str, the raw query as received
