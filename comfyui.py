@@ -245,10 +245,12 @@ with image.imports():
     import httpx
     import websockets
     from fastapi import FastAPI, Request, WebSocket # Request must not be imported inside a function when using "from __future__ import annotations" 
-    from fastapi.responses import StreamingResponse
+    from fastapi.responses import StreamingResponse, JSONResponse
     from starlette.websockets import WebSocketDisconnect
     from starlette_compress import CompressMiddleware
+    from websockets.exceptions import ConnectionClosed
     from websockets.asyncio.client import connect as ws_connect
+    from contextlib import asynccontextmanager
 
 app = modal.App(name="modal-comfyui", image=image)
 
@@ -266,7 +268,7 @@ class ComfyUI:
     @modal.enter(snap=True)
     def start_checkpoint(self):
         self.proc = subprocess.Popen(
-            f"comfy launch --background -- --listen 0.0.0.0 --port {COMFY_PORT} --enable-cors-header '*'", shell=True
+            f"comfy launch --background -- --listen 0.0.0.0 --port {COMFY_PORT} --enable-cors-header 'http://127.0.0.1:{COMFY_PORT}'", shell=True
         )
         # Block here — snapshot is taken only after this returns
         wait_for_port(COMFY_PORT, timeout=300)
@@ -289,12 +291,20 @@ class ComfyUI:
         }
         WS_HANDSHAKE_HEADERS = {
             "host", "connection", "upgrade", "origin",
-            "sec-websocket-key", "sec-websocket-version", "sec-websocket-accept",
-            "sec-websocket-extensions", "sec-websocket-protocol",
+            "sec-websocket-key", "sec-websocket-version", 
+            "sec-websocket-extensions", "sec-websocket-accept",
         }
 
-        app = FastAPI()
-        client = httpx.AsyncClient(base_url=BACKEND_HTTP)
+        client = httpx.AsyncClient(base_url=BACKEND_HTTP, timeout=httpx.Timeout(30.0, read=300.0))
+        
+        @asynccontextmanager
+        async def lifespan(app: FastAPI):
+            # startup (runs before the app starts serving)
+            yield
+            # shutdown (runs when the app is stopping)
+            await client.aclose()
+    
+        app = FastAPI(lifespan=lifespan)
         
         # Enable automatic compression
         app.add_middleware(
@@ -304,6 +314,7 @@ class ComfyUI:
             gzip_level=5,       # Gzip: 1 to 9
             minimum_size=1000,  # Bytes: skip small payloads to protect CPU overhead
         )
+
 
         def filtered(headers):
             h = {k: v for k, v in headers.items() if k.lower() not in STRIP_HEADERS | HOP_BY_HOP}
@@ -316,10 +327,7 @@ class ComfyUI:
             }
             return h
 
-        @app.on_event("shutdown")
-        async def shutdown():
-            await client.aclose()
-
+        
         @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
         async def proxy_http(path: str, request: Request):
             query = request.url.query  # str, the raw query as received
@@ -330,13 +338,23 @@ class ComfyUI:
                 headers=filtered(request.headers),
                 content=request.stream(),   # stream request body in
             )
-            backend_resp = await client.send(req, stream=True)
+            
+            try:
+                backend_resp = await client.send(req, stream=True)
+            except httpx.ConnectError:
+                return JSONResponse({"error": "backend unavailable"}, status_code=502)
+            except httpx.TimeoutException:
+                return JSONResponse({"error": "backend timeout"}, status_code=504)
 
             async def body_iter():
-                async for chunk in backend_resp.aiter_bytes():
-                    yield chunk
-                await backend_resp.aclose()
-
+                try:
+                    async for chunk in backend_resp.aiter_bytes():
+                        yield chunk
+                except httpx.StreamError:
+                    pass  # client or backend disconnected mid-stream; nothing more we can do
+                finally:
+                    await backend_resp.aclose()
+                    
             return StreamingResponse(
                 body_iter(),
                 status_code=backend_resp.status_code,
@@ -350,8 +368,13 @@ class ComfyUI:
             qs = websocket.url.query
             backend_url = f"{BACKEND_WS}/{path}" + (f"?{qs}" if qs else "")
 
-            async with ws_connect(backend_url, additional_headers=headers) as backend_ws:
+            try:
+                backend_ws = await ws_connect(backend_url, additional_headers=headers).__aenter__()
+            except Exception:
+                await websocket.close(code=1011)  # internal error
+                return
 
+            try:
                 async def client_to_backend():
                     try:
                         while True:
@@ -362,15 +385,18 @@ class ComfyUI:
                                 await backend_ws.send(msg["text"])
                             elif "bytes" in msg:
                                 await backend_ws.send(msg["bytes"])
-                    except WebSocketDisconnect:
+                    except (WebSocketDisconnect, ConnectionClosed):
                         pass
 
                 async def backend_to_client():
-                    async for message in backend_ws:
-                        if isinstance(message, str):
-                            await websocket.send_text(message)
-                        else:
-                            await websocket.send_bytes(message)
+                    try:
+                        async for message in backend_ws:
+                            if isinstance(message, str):
+                                await websocket.send_text(message)
+                            else:
+                                await websocket.send_bytes(message)
+                    except ConnectionClosed:
+                        pass
 
                 done, pending = await asyncio.wait(
                     [asyncio.create_task(client_to_backend()), asyncio.create_task(backend_to_client())],
@@ -378,6 +404,10 @@ class ComfyUI:
                 )
                 for task in pending:
                     task.cancel()
+            finally:
+                await backend_ws.close()
+                if websocket.client_state.name != "DISCONNECTED":
+                    await websocket.close()
             
         print("App Ready!")
         return app
