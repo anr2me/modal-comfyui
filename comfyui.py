@@ -248,6 +248,7 @@ with image.imports():
     from fastapi.responses import StreamingResponse, JSONResponse
     from starlette.websockets import WebSocketDisconnect
     from starlette_compress import CompressMiddleware
+    from websockets.exceptions import ConnectionClosed
     from websockets.asyncio.client import connect as ws_connect
     from contextlib import asynccontextmanager
 
@@ -367,8 +368,13 @@ class ComfyUI:
             qs = websocket.url.query
             backend_url = f"{BACKEND_WS}/{path}" + (f"?{qs}" if qs else "")
 
-            async with ws_connect(backend_url, additional_headers=headers) as backend_ws:
+            try:
+                backend_ws = await ws_connect(backend_url, additional_headers=headers).__aenter__()
+            except Exception:
+                await websocket.close(code=1011)  # internal error
+                return
 
+            try:
                 async def client_to_backend():
                     try:
                         while True:
@@ -379,15 +385,18 @@ class ComfyUI:
                                 await backend_ws.send(msg["text"])
                             elif "bytes" in msg:
                                 await backend_ws.send(msg["bytes"])
-                    except WebSocketDisconnect:
+                    except (WebSocketDisconnect, ConnectionClosed):
                         pass
 
                 async def backend_to_client():
-                    async for message in backend_ws:
-                        if isinstance(message, str):
-                            await websocket.send_text(message)
-                        else:
-                            await websocket.send_bytes(message)
+                    try:
+                        async for message in backend_ws:
+                            if isinstance(message, str):
+                                await websocket.send_text(message)
+                            else:
+                                await websocket.send_bytes(message)
+                    except ConnectionClosed:
+                        pass
 
                 done, pending = await asyncio.wait(
                     [asyncio.create_task(client_to_backend()), asyncio.create_task(backend_to_client())],
@@ -395,6 +404,10 @@ class ComfyUI:
                 )
                 for task in pending:
                     task.cancel()
+            finally:
+                await backend_ws.close()
+                if websocket.client_state.name != "DISCONNECTED":
+                    await websocket.close()
             
         print("App Ready!")
         return app
