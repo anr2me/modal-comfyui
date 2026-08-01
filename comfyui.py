@@ -247,7 +247,6 @@ with image.imports():
     from fastapi import FastAPI, Request, WebSocket # Request must not be imported inside a function when using "from __future__ import annotations" 
     from fastapi.responses import StreamingResponse
     from starlette.websockets import WebSocketDisconnect
-    from starlette.middleware.cors import CORSMiddleware
     from starlette_compress import CompressMiddleware
     from websockets.asyncio.client import connect as ws_connect
     from contextlib import asynccontextmanager
