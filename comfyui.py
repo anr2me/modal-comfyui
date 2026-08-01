@@ -267,7 +267,7 @@ class ComfyUI:
     @modal.enter(snap=True)
     def start_checkpoint(self):
         self.proc = subprocess.Popen(
-            f"comfy launch --background -- --listen 0.0.0.0 --port {COMFY_PORT}", shell=True
+            f"comfy launch --background -- --listen 0.0.0.0 --port {COMFY_PORT} --enable-cors-header 'http://127.0.0.1:{COMFY_PORT}'", shell=True
         )
         # Block here — snapshot is taken only after this returns
         wait_for_port(COMFY_PORT, timeout=300)
@@ -306,14 +306,6 @@ class ComfyUI:
             minimum_size=1000,  # Bytes: skip small payloads to protect CPU overhead
         )
 
-        # Enable CORS header for localhost/127.0.0.1
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
 
         def filtered(headers):
             h = {k: v for k, v in headers.items() if k.lower() not in STRIP_HEADERS | HOP_BY_HOP}
