@@ -250,6 +250,7 @@ with image.imports():
     from starlette.middleware.cors import CORSMiddleware
     from starlette_compress import CompressMiddleware
     from websockets.asyncio.client import connect as ws_connect
+    from contextlib import asynccontextmanager
 
 app = modal.App(name="modal-comfyui", image=image)
 
