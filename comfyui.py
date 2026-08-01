@@ -291,8 +291,8 @@ class ComfyUI:
         }
         WS_HANDSHAKE_HEADERS = {
             "host", "connection", "upgrade", "origin",
-            "sec-websocket-key", "sec-websocket-version", "sec-websocket-accept",
-            "sec-websocket-extensions", "sec-websocket-protocol",
+            "sec-websocket-key", "sec-websocket-version", 
+            "sec-websocket-extensions", "sec-websocket-accept",
         }
 
         client = httpx.AsyncClient(base_url=BACKEND_HTTP, timeout=httpx.Timeout(30.0, read=300.0))
