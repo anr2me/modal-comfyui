@@ -337,13 +337,23 @@ class ComfyUI:
                 headers=filtered(request.headers),
                 content=request.stream(),   # stream request body in
             )
-            backend_resp = await client.send(req, stream=True)
+            
+            try:
+                backend_resp = await client.send(req, stream=True)
+            except httpx.ConnectError:
+                return JSONResponse({"error": "backend unavailable"}, status_code=502)
+            except httpx.TimeoutException:
+                return JSONResponse({"error": "backend timeout"}, status_code=504)
 
             async def body_iter():
-                async for chunk in backend_resp.aiter_bytes():
-                    yield chunk
-                await backend_resp.aclose()
-
+                try:
+                    async for chunk in backend_resp.aiter_bytes():
+                        yield chunk
+                except httpx.StreamError:
+                    pass  # client or backend disconnected mid-stream; nothing more we can do
+                finally:
+                    await backend_resp.aclose()
+                    
             return StreamingResponse(
                 body_iter(),
                 status_code=backend_resp.status_code,
