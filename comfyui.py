@@ -245,7 +245,7 @@ with image.imports():
     import httpx
     import websockets
     from fastapi import FastAPI, Request, WebSocket # Request must not be imported inside a function when using "from __future__ import annotations" 
-    from fastapi.responses import StreamingResponse
+    from fastapi.responses import StreamingResponse, JSONResponse
     from starlette.websockets import WebSocketDisconnect
     from starlette_compress import CompressMiddleware
     from websockets.asyncio.client import connect as ws_connect
@@ -294,7 +294,7 @@ class ComfyUI:
             "sec-websocket-extensions", "sec-websocket-protocol",
         }
 
-        client = httpx.AsyncClient(base_url=BACKEND_HTTP, timeout=30)
+        client = httpx.AsyncClient(base_url=BACKEND_HTTP, timeout=httpx.Timeout(30.0, read=300.0))
         
         @asynccontextmanager
         async def lifespan(app: FastAPI):
