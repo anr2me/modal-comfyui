@@ -89,7 +89,7 @@ Other Environment Variables you can use are:
 ```bash
 COMFY_VER="nightly"
 COMFYGPU_ARGS="--use-flash-attention"
-JOBS_CUTOFFTIME=86400
+JOBS_CUTOFFTIME=172800
 MODAL_MAXTIME=3600
 MODAL_IDLETIME=60
 MODAL_WAITTIME=20
@@ -105,6 +105,7 @@ You can access ComfyUI from the provided persistent URL when successfully deploy
 - **Custom Node Management**: Integrated with `comfy-cli` for easy plugin installation.
 - **Mixed CPU and GPU instance**: Works on your workflows using CPU-only instance for cheaper rates, but runs workflows on GPU instance seamlessly. Also have persistent completed jobs across sessions with their output assets accessible from Media Assets panel.
 - **Pre-installed Wheels**:
+  - PyTorch+CUDA 13.0
   - FlashAttention 2.x, 3, and 4
   - SageAttention 2.x and 3
   - llama-cpp-python
