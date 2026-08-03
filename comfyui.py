@@ -469,12 +469,17 @@ def wait_for_port(port: int, timeout: int = 60):
 
 
 with image.imports():
-    from fastapi.responses import StreamingResponse, JSONResponse, Response
-    from fastapi import Request, WebSocket, HTTPException, status
-    #from fastapi.middleware.gzip import GZipMiddleware
-    from starlette_compress import CompressMiddleware
+    import asyncio
     import httpx
     import websockets
+    from fastapi import Request, WebSocket, HTTPException, status
+    from fastapi.responses import StreamingResponse, JSONResponse, Response
+    #from fastapi.middleware.gzip import GZipMiddleware
+    from starlette.websockets import WebSocketState, WebSocketDisconnect
+    from starlette_compress import CompressMiddleware
+    from websockets.exceptions import ConnectionClosedError, ConnectionClosed
+    from websockets.asyncio.client import connect as ws_connect
+    from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
@@ -537,7 +542,6 @@ class LogsType(IntEnum):
 async def send_logs_msg(websocket: WebSocket, msg: str, logs_type: LogsType = 0):
     import json
     from datetime import datetime
-    from starlette.websockets import WebSocketState
     
     if websocket.client_state != WebSocketState.DISCONNECTED:
         prefixtype = ""
@@ -585,7 +589,7 @@ async def do_vol_commit(class_name: str):
 
 async def wait_websocket_ready():
     import time
-    import asyncio
+    
     print("Waiting for Internal websocket to be Ready...")
     deadline = time.time() + MAXSTARTTIME
     while time.time() < deadline:
@@ -759,7 +763,6 @@ async def proxy_prompt(request: Request):
     # wait until websocket is connected to GPU instance
     print("Waiting for GPU websocket to be Ready...")
     import time
-    import asyncio
     sid = ""
     deadline = time.time() + MAXSTARTTIME
     while time.time() < deadline:
@@ -914,7 +917,6 @@ async def proxy_history(request: Request, path: str):
 @web_app.get("/api/jobs{path:path}")
 async def proxy_jobs(request: Request, path: str):
     import json
-    import asyncio
     import time
     
     url = f"http://127.0.0.1:{uiport}"
@@ -1127,12 +1129,9 @@ async def proxy_api(request: Request, path: str):
 async def proxy_websocket(websocket: WebSocket): # (websocket: WebSocket, request: Request)
     await websocket.accept()
 
-    import asyncio
     import json
     import time
-    from starlette.websockets import WebSocketState
-    from websockets.connection import State
-    from websockets.exceptions import ConnectionClosedError
+    from websockets.connection import State 
     
     # Strip Host from headers to prevent loopback
     headers = {
@@ -1482,10 +1481,6 @@ class ComfyGPU:
     
     @modal.asgi_app()
     def ui(self):
-        import asyncio
-        from websockets.asyncio.client import connect as ws_connect
-        from starlette_compress import CompressMiddleware
-        
         BACKEND_HTTP = f"http://127.0.0.1:{gpuport}"
         BACKEND_WS = f"ws://127.0.0.1:{gpuport}"
         STRIP_HEADERS = {
@@ -1498,12 +1493,20 @@ class ComfyGPU:
         WS_HANDSHAKE_HEADERS = {
             "host", "connection", "upgrade", "origin",
             "sec-websocket-key", "sec-websocket-version",
-            "sec-websocket-extensions", "sec-websocket-protocol", "sec-websocket-accept",
+            "sec-websocket-extensions", "sec-websocket-accept", #, "sec-websocket-protocol"
             "keep-alive", "transfer-encoding", "content-length", "content-encoding",
         }
 
-        app = FastAPI()
-        client = httpx.AsyncClient(base_url=BACKEND_HTTP)
+        client = httpx.AsyncClient(base_url=BACKEND_HTTP, timeout=httpx.Timeout(30.0, read=300.0))
+        
+        @asynccontextmanager
+        async def lifespan(app: FastAPI):
+            # startup (runs before the app starts serving)
+            yield
+            # shutdown (runs when the app is stopping)
+            await client.aclose()
+    
+        app = FastAPI(lifespan=lifespan)
         
         # Enable automatic compression
         app.add_middleware(
@@ -1537,12 +1540,22 @@ class ComfyGPU:
                 headers=filtered(request.headers),
                 content=request.stream(),   # stream request body in
             )
-            backend_resp = await client.send(req, stream=True)
+            
+            try:
+                backend_resp = await client.send(req, stream=True)
+            except httpx.ConnectError:
+                return JSONResponse({"error": "backend unavailable"}, status_code=502)
+            except httpx.TimeoutException:
+                return JSONResponse({"error": "backend timeout"}, status_code=504)
 
             async def body_iter():
-                async for chunk in backend_resp.aiter_bytes():
-                    yield chunk
-                await backend_resp.aclose()
+                try:
+                    async for chunk in backend_resp.aiter_bytes():
+                        yield chunk
+                except httpx.StreamError:
+                    pass  # client or backend disconnected mid-stream; nothing more we can do
+                finally:
+                    await backend_resp.aclose()
 
             return StreamingResponse(
                 body_iter(),
@@ -1557,8 +1570,13 @@ class ComfyGPU:
             qs = websocket.url.query
             backend_url = f"{BACKEND_WS}/{path}" + (f"?{qs}" if qs else "")
 
-            async with ws_connect(backend_url, additional_headers=headers) as backend_ws:
+            try:
+                backend_ws = await ws_connect(backend_url, additional_headers=headers).__aenter__()
+            except Exception:
+                await websocket.close(code=1011)  # internal error
+                return
 
+            try:
                 async def client_to_backend():
                     try:
                         while True:
@@ -1569,15 +1587,18 @@ class ComfyGPU:
                                 await backend_ws.send(msg["text"])
                             elif "bytes" in msg:
                                 await backend_ws.send(msg["bytes"])
-                    except WebSocketDisconnect:
+                    except (WebSocketDisconnect, ConnectionClosed):
                         pass
 
                 async def backend_to_client():
-                    async for message in backend_ws:
-                        if isinstance(message, str):
-                            await websocket.send_text(message)
-                        else:
-                            await websocket.send_bytes(message)
+                    try:
+                        async for message in backend_ws:
+                            if isinstance(message, str):
+                                await websocket.send_text(message)
+                            else:
+                                await websocket.send_bytes(message)
+                    except ConnectionClosed:
+                        pass
 
                 done, pending = await asyncio.wait(
                     [asyncio.create_task(client_to_backend()), asyncio.create_task(backend_to_client())],
@@ -1585,6 +1606,10 @@ class ComfyGPU:
                 )
                 for task in pending:
                     task.cancel()
+            finally:
+                await backend_ws.close()
+                if websocket.client_state.name != "DISCONNECTED":
+                    await websocket.close()
             
         print("App Ready!")
         return app
