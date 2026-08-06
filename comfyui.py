@@ -1647,57 +1647,6 @@ class ComfyGPU:
                 pass
         print("App CleanUp!")
 
-@app.cls(
-    max_containers=1,
-    #cpu=2.0, memory=4096,
-    volumes={"/cache": vol},
-    scaledown_window=IDLETIME,  # idle 1 minutes to shutdown
-    enable_memory_snapshot=True,
-    experimental_options={"enable_gpu_snapshot": True},
-    startup_timeout=MAXSTARTTIME, # container's startup timeout
-    timeout=MAXTIME, # execution timeout, this will also be websocket timeout
-)
-@modal.concurrent(max_inputs=20)
-class ComfyCPU:
-    @modal.enter(snap=True)
-    def start_checkpoint(self):
-        try:
-            update_vars_from_env()
-            self.proc = subprocess.Popen(
-                f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {cpuport} --enable-cors-header 'http://127.0.0.1:{cpuport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
-            )
-            # Block here — snapshot is taken only after this returns
-            wait_for_port(cpuport, timeout=MAXSTARTTIME)
-        except Exception as e:
-            print(f"ComfyCPU Throw: {e!r}")
-
-    @modal.enter(snap=False)
-    def start_restore(self):
-        update_vars_from_env()
-        # On restore, sockets may need to be rebound
-        #self.proc = subprocess.Popen(
-        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
-        #)
-        wait_for_port(cpuport, timeout=30)
-        print("App Restored!")
-    
-    @modal.web_server(cpuport, startup_timeout=30)
-    def ui(self):
-        print("App Ready!")
-
-    @modal.exit()
-    def cleanup(self):
-        # Force the volume to commit changes 
-        vol.commit()
-        
-        proc = getattr(self, "proc", None)
-        if proc is not None:
-            try:
-                proc.terminate()
-                proc.wait()
-            except (ProcessLookupError, OSError):
-                pass
-        print("App CleanUp!")
 
 @app.cls(
     max_containers=1,
