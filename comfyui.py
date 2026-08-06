@@ -809,8 +809,14 @@ async def proxy_prompt(request: Request):
         new_resp = await forward_httpx(url, request, True, new_body=body)
     except Exception as e:
         print(f"[{request.method}:{request.url.path}?{request.query_params}] Throw: {e!r}")
-        new_resp = JSONResponse(content={"detail": str(e)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+        if isinstance(e, httpx.ConnectError):
+            detail = "Could not connect to GPU instance."
+        elif isinstance(e, httpx.TimeoutException):
+            detail = "GPU instance timed out."
+        else:
+            detail = "Internal error while forwarding request to GPU instance."
+        new_resp = JSONResponse(content={"detail": detail}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
     # NOTE: If the input got preempted/interrupted midway, pending_prompt might not get decreased!
     pending_prompt = await shared_dict.get.aio("pending_prompt", 0)
     if pending_prompt > 0:
@@ -1441,9 +1447,15 @@ async def proxy(request: Request, path: str):
         # Forward request
         new_resp = await forward_httpx(url, request, False)
     except Exception as e:
-        print(f"[{request.method}:{request.url.path}] Throw: {e!r}")
-        new_resp = JSONResponse(content={"detail": str(e)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+        print(f"[{request.method}:{request.url.path}?{request.query_params}] Throw: {e!r}")
+        if isinstance(e, httpx.ConnectError):
+            detail = "Could not connect to GPU instance."
+        elif isinstance(e, httpx.TimeoutException):
+            detail = "GPU instance timed out."
+        else:
+            detail = "Internal error while forwarding request to GPU instance."
+        new_resp = JSONResponse(content={"detail": detail}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
     return new_resp
     
 
