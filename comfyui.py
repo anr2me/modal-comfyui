@@ -333,8 +333,11 @@ else:
     )
 
 image = image.add_local_python_source("plugins", copy=True)
-from plugins import comfy_plugins
-
+try:
+    from plugins import comfy_plugins
+except ImportError:
+    comfy_plugins = []
+    
 try:
     from plugins import comfy_plugins_ext
 except ImportError:
