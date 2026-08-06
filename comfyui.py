@@ -60,7 +60,6 @@ vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True, version=2)
 # construct images and install deps/custom nodes
 image = (
     modal.Image.debian_slim(python_version="3.12")
-    .add_local_python_source("models", "plugins", copy=True)
     .run_commands("apt-get update")
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "curl", "wget", "axel", "ffmpeg") #rav1e
     .uv_pip_install(["pip", "uv"], extra_options="--upgrade")
@@ -333,6 +332,7 @@ else:
         f"Warning: {workflow_file_path} not found. API endpoint might not work without a workflow."
     )
 
+image = image.add_local_python_source("plugins", copy=True)
 from plugins import comfy_plugins
 
 try:
@@ -434,7 +434,9 @@ image = (
 # download models
 image = image.env(
     {"HF_HUB_ENABLE_HF_TRANSFER": "1", "HF_XET_HIGH_PERFORMANCE": "1"}
-).run_function(download_all, volumes={"/cache": vol}, secrets=get_secrets())
+)
+.add_local_python_source("models", copy=True)
+.run_function(download_all, volumes={"/cache": vol}, secrets=get_secrets())
 
 # Disable ultralytics' Anonymized Google Analytics
 image = image.run_commands(["yolo settings sync=False", "uv pip show torch"])
