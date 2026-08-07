@@ -89,6 +89,7 @@ Other Environment Variables you can use are:
 ```bash
 COMFY_VER="nightly"
 COMFYGPU_ARGS="--use-flash-attention --preview-method auto --front-end-version Comfy-Org/ComfyUI_frontend@1.45.21"
+COMFYMIX_ARGS="--preview-method auto --front-end-version Comfy-Org/ComfyUI_frontend@1.45.21"
 JOBS_CUTOFFTIME=172800
 MODAL_MAXTIME=3600
 MODAL_IDLETIME=38
