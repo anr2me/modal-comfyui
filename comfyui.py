@@ -536,10 +536,8 @@ jobs_dict = modal.Dict.from_name(app.name+"_jobs", create_if_missing=True)
 #shared_dict.clear()
 num_prompts = 0
 
-
 uiport = 8188
-gpuport = uiport + 1
-cpuport = uiport + 2
+
 
 from enum import IntEnum, auto
 
@@ -1482,10 +1480,10 @@ class ComfyGPU:
             update_vars_from_env()
             print(f"Additional ComfyUI Arguments: {COMFYGPU_ARGS}")
             self.proc = subprocess.Popen(
-                f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYGPU_ARGS} --listen 0.0.0.0 --port {gpuport} --enable-cors-header 'http://127.0.0.1:{gpuport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+                f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYGPU_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{gpuport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
             )
             # Block here — snapshot is taken only after this returns
-            wait_for_port(gpuport, timeout=MAXSTARTTIME)
+            wait_for_port(uiport, timeout=MAXSTARTTIME)
         except Exception as e:
             print(f"ComfyGPU Throw: {e!r}")
 
@@ -1497,15 +1495,15 @@ class ComfyGPU:
     
         # On restore, sockets may need to be rebound
         #self.proc = subprocess.Popen(
-        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {gpuport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         #)
-        wait_for_port(gpuport, timeout=30)
+        wait_for_port(uiport, timeout=30)
         print("App Restored!")
     
     @modal.asgi_app()
     def ui(self):
-        BACKEND_HTTP = f"http://127.0.0.1:{gpuport}"
-        BACKEND_WS = f"ws://127.0.0.1:{gpuport}"
+        BACKEND_HTTP = f"http://127.0.0.1:{uiport}"
+        BACKEND_WS = f"ws://127.0.0.1:{uiport}"
         STRIP_HEADERS = {
             "modal-function-call-id", # modal header that could cause images not to shows up (ie. rendering issue) on client side.
         }
