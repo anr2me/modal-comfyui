@@ -17,6 +17,7 @@ WAITTIME = int(os.getenv("MODAL_WAITTIME", "20")) # wait time to finished progre
 MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300")) # ComfyUI & it's custom nodes initialization/startup timeout
 COMFY_VER = os.getenv("COMFY_VER", "latest") # ComfyUI version to install (default to latest stable)
 COMFYGPU_ARGS = os.getenv("COMFYGPU_ARGS", "") # additional ComfyUI arguments on GPU instance
+COMFYMIX_ARGS = os.getenv("COMFYMIX_ARGS", "") # additional ComfyUI arguments for ComfyMix instance
 JOBS_CUTOFFTIME = int(os.getenv("JOBS_CUTOFFTIME", "86400")) # completed jobs history cutoff (ie. only shows jobs from the last 24 hours)
 
 def update_vars_from_env():
@@ -29,6 +30,7 @@ def update_vars_from_env():
     global MAXSTARTTIME
     global COMFY_VER
     global COMFYGPU_ARGS
+    global COMFYMIX_ARGS
     global JOBS_CUTOFFTIME
     # Reassigned using Secrets Env vars on container
     GPU_MODEL = os.getenv("MODAL_GPU", "L4")
@@ -40,6 +42,7 @@ def update_vars_from_env():
     MAXSTARTTIME = int(os.getenv("MODAL_MAXSTARTTIME", "300"))
     COMFY_VER = os.getenv("COMFY_VER", "latest")
     COMFYGPU_ARGS = os.getenv("COMFYGPU_ARGS", "")
+    COMFYMIX_ARGS = os.getenv("COMFYMIX_ARGS", "")
     JOBS_CUTOFFTIME = int(os.getenv("JOBS_CUTOFFTIME", "86400"))
 
 root_dir = Path(__file__).parent
@@ -521,6 +524,7 @@ app = modal.App(
                 "MODAL_MAXSTARTTIME": str(MAXSTARTTIME),
                 "COMFY_VER": str(COMFY_VER),
                 "COMFYGPU_ARGS": str(COMFYGPU_ARGS),
+                "COMFYMIX_ARGS": str(COMFYMIX_ARGS),
                 "JOBS_CUTOFFTIME": str(JOBS_CUTOFFTIME),
             }
         ),
@@ -1683,11 +1687,12 @@ class ComfyMix:
     @modal.enter(snap=True)
     def start_checkpoint(self):
         update_vars_from_env()
+        print(f"Additional ComfyUI Arguments: {COMFYMIX_ARGS}")
         global num_prompts
         num_prompts = 0
         try:
             self.proc = subprocess.Popen(
-                f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+                f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYMIX_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
             )
             # Block here — snapshot is taken only after this returns
             wait_for_port(uiport, timeout=MAXSTARTTIME)
