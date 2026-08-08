@@ -291,7 +291,7 @@ class ComfyUI:
         }
         WS_HANDSHAKE_HEADERS = {
             "host", "connection", "upgrade", "origin",
-            "sec-websocket-key", "sec-websocket-version", 
+            "sec-websocket-key", "sec-websocket-version", "sec-websocket-protocol",
             "sec-websocket-extensions", "sec-websocket-accept",
         }
 
@@ -363,16 +363,24 @@ class ComfyUI:
 
         @app.websocket("/{path:path}")
         async def proxy_ws(websocket: WebSocket, path: str):
-            await websocket.accept()
             headers = filtered_ws(websocket.headers)
+            raw_protocols = websocket.headers.get("sec-websocket-protocol")
+            subprotocols = [p.strip() for p in raw_protocols.split(",")] if raw_protocols else None
+  
             qs = websocket.url.query
             backend_url = f"{BACKEND_WS}/{path}" + (f"?{qs}" if qs else "")
 
             try:
-                backend_ws = await ws_connect(backend_url, additional_headers=headers).__aenter__()
+                backend_ws = await ws_connect(
+                    backend_url,
+                    additional_headers=headers,
+                    subprotocols=subprotocols,
+                ).__aenter__()
             except Exception:
                 await websocket.close(code=1011)  # internal error
                 return
+
+            await websocket.accept(subprotocol=backend_ws.subprotocol)
 
             try:
                 async def client_to_backend():
