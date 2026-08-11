@@ -98,6 +98,71 @@ MODAL_MAXSTARTTIME=300
 ```
 You can access ComfyUI from the provided persistent URL when successfully deployed.
 
+## Modal Commands
+
+Reference for the Modal CLI commands you'll use most with this project. The app is registered as `modal-comfyui` and its Modal Volume is `hf-hub-cache`.
+
+### Apps
+
+```bash
+modal app list                           # list all your apps and their state
+modal app history modal-comfyui          # show deployment history (each `modal deploy` is a version)
+modal app rollback modal-comfyui <N>     # roll back to version N — creates a new deployment entry
+modal app stop modal-comfyui -y          # permanently stop the app and its containers
+modal app logs modal-comfyui             # tail live logs from all containers
+```
+
+Rollback only touches the app definition + image. It does **not** revert files on the Modal Volume (models, workflows saved via the UI, generated outputs).
+
+### Volumes (models, workflows, outputs)
+
+Everything persistent lives on the `hf-hub-cache` volume:
+- `ComfyUI/output/` — generated images and videos
+- `ComfyUI/user/` — workflows and settings you save in the browser UI
+- `hf-hub/`, `civitai/`, etc. — downloaded model weights (symlinked into ComfyUI at container start)
+
+```bash
+modal volume list                                          # show all volumes
+modal volume ls hf-hub-cache                               # list top-level contents
+modal volume ls hf-hub-cache ComfyUI/output                # browse generated outputs
+modal volume get hf-hub-cache ComfyUI/output ./outputs     # download all outputs to your laptop
+modal volume get hf-hub-cache ComfyUI/output/vid.mp4 .     # download a single file
+modal volume put hf-hub-cache ./input.png ComfyUI/input/   # upload an input image
+modal volume rm -r hf-hub-cache ComfyUI/output             # delete a directory on the volume
+modal volume delete hf-hub-cache -y                        # wipe the entire volume (forces full re-download on next deploy)
+```
+
+### Deploying and rebuilding
+
+```bash
+modal serve comfyui.py                                     # dev mode — hot-reload while running, dies on Ctrl-C
+modal deploy comfyui.py                                    # production — persistent URL, versioned
+MODAL_FORCE_BUILD=1 modal deploy comfyui.py                # force a full image rebuild, ignoring layer cache
+python comfyui.py                                          # deploy and clear the in-memory `shared_dict` (use after a hung app)
+```
+
+### Account and environment
+
+```bash
+modal setup                                                # log in / configure credentials (first-time only)
+modal profile current                                      # show which workspace/environment you're using
+modal profile list                                         # list configured profiles
+```
+
+The Modal dashboard at [modal.com/apps](https://modal.com/apps) mirrors most of these commands with a GUI and also shows real-time GPU/CPU usage, cost, and logs.
+
+## Running MiniMax-H3 (I2V / T2V / R2V)
+
+`models.example.py` includes the five files needed for the three MiniMax-H3 video workflows from [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3).
+
+1. **Use a Blackwell GPU.** The workflows load the NVFP4 text encoder (`qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors`), which only runs on Blackwell — deploy with `MODAL_GPU=RTX-PRO-6000` (or `B200`).
+2. **Copy `models.example.py` to `models.py`** and deploy:
+   ```bash
+   MODAL_GPU=RTX-PRO-6000 modal deploy comfyui.py
+   ```
+3. **Open the ComfyUI URL, then load a template**: Workflow menu → Browse Templates → search "MiniMax H3" → pick I2V, T2V, or R2V.
+4. If nodes render red (missing `MiniMaxH3ImageToVideo` / `MiniMaxH3ReferenceToVideo`), the stable ComfyUI is behind. Redeploy with `COMFY_VER=nightly MODAL_GPU=RTX-PRO-6000 modal deploy comfyui.py`, or use ComfyUI Manager's "Install Missing Custom Nodes" from within the UI.
+
 ## Features
 
 - **Auto-scaling**: Scales down to zero when not in use to save costs (modal's serverless can also auto-scales vertically, where CPU cores and RAM size can grow automatically as needed, so you don't need to overprovision them).

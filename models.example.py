@@ -88,6 +88,35 @@ models = [
         "filename": "split_files/vae/wan_2.1_vae.safetensors",
         "model_dir": "vae",
     },
+
+    # MiniMax-H3 video workflows (I2V, T2V, R2V).
+    # NVFP4 variants below require a Blackwell GPU (RTX-PRO-6000 / B200).
+    # See https://huggingface.co/Comfy-Org/MiniMax-H3
+    {
+        "repo_id": "Comfy-Org/MiniMax-H3",
+        "filename": "diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+        "model_dir": "diffusion_models",
+    },
+    {
+        "repo_id": "Comfy-Org/MiniMax-H3",
+        "filename": "diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+        "model_dir": "diffusion_models",
+    },
+    {
+        "repo_id": "Comfy-Org/MiniMax-H3",
+        "filename": "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "model_dir": "text_encoders",
+    },
+    {
+        "repo_id": "Comfy-Org/MiniMax-H3",
+        "filename": "vae/minimax_h3_video_vae_fp16.safetensors",
+        "model_dir": "vae",
+    },
+    {
+        "repo_id": "Comfy-Org/MiniMax-H3",
+        "filename": "vae/minimax_h3_audio_vae_fp32.safetensors",
+        "model_dir": "vae",
+    },
 ]
 
 models_ext = [
