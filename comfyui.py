@@ -1685,6 +1685,7 @@ class ComfyMix:
     @modal.enter(snap=True)
     def start_checkpoint(self):
         update_vars_from_env()
+        await fix_gpu_active_count()
         print(f"Additional ComfyUI Arguments: {COMFYMIX_ARGS}")
         global num_prompts
         num_prompts = 0
