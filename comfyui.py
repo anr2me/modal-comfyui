@@ -1702,9 +1702,10 @@ class ComfyMix:
             print(f"ComfyMix Throw: {e!r}")
 
     @modal.enter(snap=False)
-    def start_restore(self):
+    async def start_restore(self):
         update_vars_from_env()
         print("App Restored!")
+        await fix_gpu_active_count()
         global num_prompts
         num_prompts = 0
         # On restore, sockets may need to be rebound
