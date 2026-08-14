@@ -87,7 +87,7 @@ You can find the GPU types available on modal.com at https://modal.com/docs/guid
 
 Other Environment Variables you can use are:
 ```bash
-COMFY_VER="nightly"
+COMFY_VER="latest"
 COMFYGPU_ARGS="--use-flash-attention --preview-method auto --front-end-version Comfy-Org/ComfyUI_frontend@1.45.21"
 COMFYMIX_ARGS="--preview-method auto --front-end-version Comfy-Org/ComfyUI_frontend@1.45.21"
 JOBS_CUTOFFTIME=172800
