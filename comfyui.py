@@ -126,7 +126,7 @@ image = (
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"))
     .run_commands(f"comfy --skip-prompt install --nvidia --version {COMFY_VER}")
     .run_commands("git lfs install")
-    .uv_pip_install("aiohttp==3.14.1,>3.14.3") # aiohttp 3.13.2/3.14.3 used by ComfyUI have websocket issue
+    .uv_pip_install("aiohttp>=3.14.1,!=3.14.2,!=3.14.3") # aiohttp 3.13.2/3.14.3 used by ComfyUI have websocket issue
 )
 
 def _hf_secrets() -> list[modal.Secret]:
