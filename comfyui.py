@@ -20,7 +20,7 @@ root_dir = Path(__file__).parent
 COMFY_MODELS_ROOT = Path("/root/comfy/ComfyUI/models")
 
 GPU_TYPE = os.getenv("MODAL_GPU", "L4")
-COMFY_VER = os.getenv("COMFY_VER", "latest")
+COMFY_VER = os.getenv("COMFY_VER")
 
 def resolve_model_dir(model_dir: str) -> Path:
     """Resolve model_dir: absolute paths are used as-is, relative paths are
@@ -119,12 +119,13 @@ def download_all():
 vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True)
 
 # construct images and install deps/custom nodes
+VERSION = f"--version {COMFY_VER}" if COMFY_VER else ""
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .add_local_python_source("models", "plugins", copy=True)
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "axel")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt"))
-    .run_commands(f"comfy --skip-prompt install --nvidia --version {COMFY_VER}")
+    .run_commands(f"comfy --skip-prompt install --nvidia {VERSION}")
     .run_commands("git lfs install")
 )
 
