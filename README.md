@@ -109,9 +109,9 @@ You can access ComfyUI from the provided persistent URL when successfully deploy
   - PyTorch+CUDA 13.0
   - FlashAttention 2.8.3, 3, and 4
   - SageAttention 2.2 and 3
-  - SpargeAttn 0.1
+  - SpargeAttention 0.1
+  - nunchaku 1.2.1
   - llama-cpp-python
-  - nunchaku
 
 ## Contributing
 
