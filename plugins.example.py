@@ -9,6 +9,7 @@ comfy_plugins = [
     "comfyui-impact-pack",
     "comfyui-impact-subpack",
     "ComfyUI-Crystools",
+    "ComfyUI-GGUF",
 ]
 
 comfy_plugins_ext = [
@@ -31,7 +32,10 @@ comfy_plugins_ext = [
     {
         "url": "https://github.com/komikndr/raylight.git", 
         "requirements": ["requirements.txt"],
-        "ext_deps": ["yunchang", "msgpack"],
+        "ext_deps": ["yunchang", "msgpack", 
+            "jsonschema", "jsonschema-specifications", 
+            "referencing", "rpds-py"
+        ],
     },
     {
         "url": "https://github.com/Lightricks/ComfyUI-LTXVideo.git", 
