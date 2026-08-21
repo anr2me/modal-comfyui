@@ -107,8 +107,9 @@ You can access ComfyUI from the provided persistent URL when successfully deploy
 - **Mixed CPU and GPU instance**: Works on your workflows using CPU-only instance for cheaper rates, but runs workflows on GPU instance seamlessly. Also have persistent completed jobs across sessions with their output assets accessible from Media Assets panel.
 - **Pre-installed Wheels**:
   - PyTorch+CUDA 13.0
-  - FlashAttention 2.x, 3, and 4
-  - SageAttention 2.x and 3
+  - FlashAttention 2.8.3, 3, and 4
+  - SageAttention 2.2 and 3
+  - SpargeAttn 0.1
   - llama-cpp-python
   - nunchaku
 
