@@ -43,24 +43,19 @@ models = [
     },
     
     {
-        "repo_id": "Comfy-Org/ERNIE-Image",
-        "filename": "diffusion_models/ernie-image-turbo.safetensors",
-        "model_dir": "diffusion_models",
+        "repo_id": "Comfy-Org/HiDream-O1-Image",
+        "filename": "checkpoints/hidream_o1_image_bf16.safetensors",
+        "model_dir": "checkpoints",
     },
     {
-        "repo_id": "Comfy-Org/ERNIE-Image",
-        "filename": "text_encoders/ministral-3-3b.safetensors",
+        "repo_id": "Comfy-Org/gemma-4",
+        "filename": "text_encoders/gemma4_e4b_it_int8_convrot.safetensors",
         "model_dir": "text_encoders",
     },
     {
-        "repo_id": "Comfy-Org/ERNIE-Image",
-        "filename": "text_encoders/ernie-image-prompt-enhancer.safetensors",
-        "model_dir": "text_encoders",
-    },
-    {
-        "repo_id": "Comfy-Org/ERNIE-Image",
-        "filename": "vae/flux2-vae.safetensors",
-        "model_dir": "vae",
+        "repo_id": "Kijai/hidream-O1-image_comfy",
+        "filename": "loras/hidream_o1_image_dev_2604_lora_avg_rankg_224_bf16.safetensors",
+        "model_dir": "loras",
     },
 
     {
