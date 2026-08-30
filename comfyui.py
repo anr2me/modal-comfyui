@@ -868,8 +868,8 @@ async def proxy_object(request: Request, path: str):
  
     return new_resp
 
-@web_app.get("/system_stats")
-@web_app.get("/api/system_stats")
+#@web_app.get("/system_stats")
+#@web_app.get("/api/system_stats")
 @web_app.post("/free")
 @web_app.post("/interrupt")
 @web_app.post("/api/interrupt")
