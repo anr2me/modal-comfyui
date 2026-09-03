@@ -110,6 +110,7 @@ You can access ComfyUI from the provided persistent URL when successfully deploy
   - FlashAttention 2.8.3, 3, and 4
   - SageAttention 2.2 and 3
   - SpargeAttention 0.1
+  - Block Sparse Attention 0.0.2
   - nunchaku 1.2.1
   - llama-cpp-python
 
