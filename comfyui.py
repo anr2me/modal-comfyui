@@ -4,6 +4,7 @@ import os
 import shlex
 import subprocess
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import modal
 
@@ -160,12 +161,17 @@ def download_external_model(url: str, filename: str, model_dir: str):
     cached_path = Path(cache_dir) / filename
     if not cached_path.exists():
         print(f"Downloading {filename} from {url}...")
-        # Use CivitAI token when available
-        uri = url
-        if url.startswith("https://civitai.com/") or url.startswith("https://civitai.red/"):
+        # Pass the CivitAI token as a query param rather than an Authorization
+        # header: axel re-sends -H headers to the redirect target (an R2
+        # presigned URL), which rejects them with 400.
+        download_url = url
+        if url.startswith(("https://civitai.com/", "https://civitai.red/")):
             token = os.environ.get("CIVITAI_TOKEN", "")
             if token:
-                uri = f"{url}{'&' if '?' in url else '?'}token={token}"
+                parts = urlsplit(url)
+                query = dict(parse_qsl(parts.query))
+                query.setdefault("token", token)
+                download_url = urlunsplit(parts._replace(query=urlencode(query)))
             
         try:
             #result = subprocess.run(
@@ -179,14 +185,14 @@ def download_external_model(url: str, filename: str, model_dir: str):
             #        "-s", "16",
             #        "-o", filename,
             #        "-d", cache_dir,
-            #        uri,
+            #        download_url,
             #    ],
             #result = subprocess.run(
             #    [
             #        "curl", "-L", "-f", "-C", "-", 
             #        "--retry", "5", "--retry-delay", "3",
             #        "-o", os.path.join(cache_dir, filename),
-            #        uri,
+            #        download_url,
             #    ],
             #result = subprocess.run(
             #    [
@@ -196,14 +202,14 @@ def download_external_model(url: str, filename: str, model_dir: str):
             #        "--waitretry=3",
             #        "--timeout=30",
             #        "-O", os.path.join(cache_dir, filename),
-            #        uri,
+            #        download_url,
             #    ],
             result = subprocess.run(
                 [
                     "axel",
                     "-n", "16",
                     "-o", cached_path,
-                    uri,
+                    download_url,
                 ],
                 check=True,
                 stdout=subprocess.DEVNULL, 
