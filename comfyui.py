@@ -1748,6 +1748,64 @@ class ComfyMix:
                 pass
         print("App CleanUp!")
 
+
+@app.cls(
+    max_containers=1,
+    #cpu=2.0, memory=4096,
+    volumes={"/cache": vol},
+    scaledown_window=60, # IDLETIME # idle 1 minutes to shutdown
+    enable_memory_snapshot=True,
+    experimental_options={"enable_gpu_snapshot": True},
+    startup_timeout=MAXSTARTTIME, # container's startup timeout
+    timeout=MAXTIME, # execution timeout, this will also be websocket timeout
+)
+@modal.concurrent(max_inputs=20)
+class ComfyCPU:
+    @modal.enter(snap=True)
+    async def start_checkpoint(self):
+        update_vars_from_env()
+        print(f"Additional ComfyUI Arguments: {COMFYMIX_ARGS}")
+        try:
+            self.proc = subprocess.Popen(
+                f"python {COMFYUI_ROOT}/main.py -h ", shell=True
+            )
+            self.proc = subprocess.Popen(
+                f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYMIX_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+            )
+            # Block here — snapshot is taken only after this returns
+            wait_for_port(uiport, timeout=MAXSTARTTIME)
+        except Exception as e:
+            print(f"ComfyCPU Throw: {e!r}")
+
+    @modal.enter(snap=False)
+    async def start_restore(self):
+        update_vars_from_env()
+        print("App Restored!")
+        # On restore, sockets may need to be rebound
+        #self.proc = subprocess.Popen(
+        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        #)
+        wait_for_port(uiport, timeout=30)
+    
+    @modal.web_server(port=uiport, startup_timeout=MAXSTARTTIME)
+    def ui(self):
+        print("App Ready!")
+    
+    @modal.exit()
+    def cleanup(self):
+        # Force the volume to commit changes 
+        vol.commit()
+        
+        proc = getattr(self, "proc", None)
+        if proc is not None:
+            try:
+                proc.terminate()
+                proc.wait()
+            except (ProcessLookupError, OSError):
+                pass
+        print("App CleanUp!")
+
+
 # This will get executed by: python comfyui.py
 if __name__ == "__main__":
     with modal.enable_output():
