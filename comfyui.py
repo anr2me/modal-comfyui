@@ -1509,8 +1509,11 @@ class ComfyGPU:
         #)
         wait_for_port(uiport, timeout=MAXSTARTTIME)
         print("App Restored!")
-    
-    @modal.asgi_app()
+
+    @modal.web_server(port=uiport, startup_timeout=MAXSTARTTIME)
+    def ui(self):
+        print("App Ready!")
+    '''@modal.asgi_app()
     def ui(self):
         BACKEND_HTTP = f"http://127.0.0.1:{uiport}"
         BACKEND_WS = f"ws://127.0.0.1:{uiport}"
@@ -1653,6 +1656,7 @@ class ComfyGPU:
             
         print("App Ready!")
         return app
+    '''
 
     @modal.method()
     def vol_commit(self):
