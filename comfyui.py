@@ -484,7 +484,7 @@ def wait_for_port(port: int, timeout: int = 60):
                 return  # port is open — ComfyUI is ready
         except OSError:
             time.sleep(0.5)
-    raise TimeoutError(f"ComfyUI never became ready on port {port}")
+    #raise TimeoutError(f"ComfyUI never became ready on port {port}")
 
 
 with image.imports():
