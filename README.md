@@ -2,7 +2,10 @@
 
 Run ComfyUI on Modal.com with auto-scaling, GPU snapshots, and easy model management.
 
-Good for testing wan2.2 or other video generation models.
+Good for testing Wan2.2/LTX-2.5/MiniMax-H3 or other image/video/audio generation models.
+
+<i><b>Note:</b> If you want to work (creating/editing) on your workflows locally while seamlessly runs the workflow on Cloud GPU, you can install ComfyUI-Proxy custom node on your local ComfyUI https://github.com/anr2me/modal-comfyui  
+(ComfyGPU's URL for Remote GPU URL, and ComfyCPU's URL for Remote CPU URL).</i>
 
 ## Prerequisites
 
