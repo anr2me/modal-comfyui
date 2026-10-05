@@ -489,6 +489,7 @@ def wait_for_port(port: int, timeout: int = 60):
 
 
 with image.imports():
+    import psutil
     import asyncio
     import httpx
     import websockets
@@ -1507,7 +1508,14 @@ class ComfyGPU:
         #self.proc = subprocess.Popen(
         #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         #)
-        wait_for_port(uiport, timeout=MAXSTARTTIME)
+        wait_for_port(uiport, timeout=30)
+        proc = getattr(self, "proc", None)
+        if proc is not None:
+            if proc.poll() is None:
+                self.proc_name = psutil.Process(proc.pid).name()
+                print(f"ComfyUI process ({self.proc_name}) is still running.")
+            else:
+                print("ComfyUI process has finished with exit code:", proc.returncode)
         print("App Restored!")
 
     @modal.web_server(port=uiport, startup_timeout=MAXSTARTTIME)
