@@ -1502,7 +1502,7 @@ class ComfyGPU:
         if proc is not None:
             if self.proc.poll() is None:
                 self.proc_name = psutil.Process(self.proc.pid).name()
-                print(f"ComfyUI process ({self.proc_name}) is still running.")
+                print(f"ComfyUI process (PID={self.proc.pid}:{self.proc_name}) is still running.")
             else:
                 print(f"ComfyUI process (PID={self.proc.pid}) has finished with exit code: {self.proc.returncode}")
 
@@ -1521,7 +1521,7 @@ class ComfyGPU:
         if proc is not None:
             if self.proc.poll() is None:
                 self.proc_name = psutil.Process(self.proc.pid).name()
-                print(f"ComfyUI process ({self.proc_name}) is still running.")
+                print(f"ComfyUI process (PID={self.proc.pid}:{self.proc_name}) is still running.")
             else:
                 print(f"ComfyUI process (PID={self.proc.pid}) has finished with exit code: {self.proc.returncode}")
         print("App Restored!")
