@@ -1507,7 +1507,7 @@ class ComfyGPU:
         #self.proc = subprocess.Popen(
         #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         #)
-        wait_for_port(uiport, timeout=30)
+        wait_for_port(uiport, timeout=MAXSTARTTIME)
         print("App Restored!")
     
     @modal.asgi_app()
@@ -1574,7 +1574,8 @@ class ComfyGPU:
             
             try:
                 backend_resp = await client.send(req, stream=True)
-            except httpx.ConnectError:
+            except httpx.ConnectError as e:
+                print(f"proxy_http Throw: {e!r} \nRequest: {request.method} {url}")
                 return JSONResponse({"error": "backend unavailable"}, status_code=502)
             except httpx.TimeoutException:
                 return JSONResponse({"error": "backend timeout"}, status_code=504)
