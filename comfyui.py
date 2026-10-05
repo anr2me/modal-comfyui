@@ -1513,12 +1513,11 @@ class ComfyGPU:
             
         self.proc = find_comfy_process()
         if self.proc is not None:
-            if self.proc.poll() is None:
-                self.proc_name = psutil.Process(self.proc.pid).name()
-                print(f"ComfyUI process (PID={self.proc.pid}:{self.proc_name}) is still running.")
-            else:
-                print(f"ComfyUI process (PID={self.proc.pid}) has finished with exit code: {self.proc.returncode}")
-
+            self.proc_name = psutil.Process(self.proc.pid).name()
+            print(f"ComfyUI process (PID={self.proc.pid}:{self.proc_name}) is still running (status={self.proc.status()}).")
+        else:
+            print(f"ComfyUI process not found.")
+    
     @modal.enter(snap=False)
     def start_restore(self):
         update_vars_from_env()
@@ -1532,11 +1531,10 @@ class ComfyGPU:
         wait_for_port(uiport, timeout=30)
         proc = getattr(self, "proc", None)
         if proc is not None:
-            if self.proc.poll() is None:
-                self.proc_name = psutil.Process(self.proc.pid).name()
-                print(f"ComfyUI process (PID={self.proc.pid}:{self.proc_name}) is still running.")
-            else:
-                print(f"ComfyUI process (PID={self.proc.pid}) has finished with exit code: {self.proc.returncode}")
+            self.proc_name = psutil.Process(self.proc.pid).name()
+            print(f"ComfyUI process (PID={self.proc.pid}:{self.proc_name}) is still running (status={self.proc.status()}).")
+        else:
+            print(f"ComfyUI process not found.")
         print("App Restored!")
 
     @modal.web_server(port=uiport, startup_timeout=MAXSTARTTIME)
