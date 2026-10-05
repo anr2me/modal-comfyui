@@ -1472,6 +1472,19 @@ async def proxy(request: Request, path: str):
     return new_resp
     
 
+def find_comfy_process():
+    for p in psutil.process_iter(["pid", "name", "cmdline", "status"]):
+        try:
+            cmdline = p.info["cmdline"] or []
+            cmd = " ".join(cmdline)
+
+            if "ComfyUI" in cmd and "--listen" in cmd:
+                return p
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+
+    return None
+    
 @app.cls(
     max_containers=1,
     gpu=GPU_MODEL,
@@ -1490,7 +1503,7 @@ class ComfyGPU:
         try:
             update_vars_from_env()
             print(f"Additional ComfyUI Arguments: {COMFYGPU_ARGS}")
-            self.proc = subprocess.Popen(
+            self._ = subprocess.Popen(
                 f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYGPU_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
             )
             # Block here — snapshot is taken only after this returns
@@ -1498,8 +1511,8 @@ class ComfyGPU:
         except Exception as e:
             print(f"ComfyGPU Throw: {e!r}")
             
-        proc = getattr(self, "proc", None)
-        if proc is not None:
+        self.proc = find_comfy_process()
+        if self.proc is not None:
             if self.proc.poll() is None:
                 self.proc_name = psutil.Process(self.proc.pid).name()
                 print(f"ComfyUI process (PID={self.proc.pid}:{self.proc_name}) is still running.")
