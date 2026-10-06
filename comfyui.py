@@ -1543,6 +1543,9 @@ class ComfyGPU:
                 if self.proc2 is not None:
                     self.proc2_name = psutil.Process(self.proc2.pid).name()
                     print(f"ComfyUI process (PID={self.proc2.pid}:{self.proc2_name}) is still running (status={self.proc2.status()}).")
+                    # Overwrite the old process info
+                    self.proc = self.proc2
+                    self.proc_name = self.proc2_name
                 else:
                     print(f"ComfyUI process no longer found.")
         else:
