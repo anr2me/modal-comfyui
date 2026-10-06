@@ -1555,7 +1555,7 @@ class ComfyGPU:
         print("App Restored!")
 
     # Note: Sometimes ComfyUI process no longer exist after restored from Snapshot (even though it still existed during restoration), thus web_server got timedout or connectionRefused error, wasting MAXSTARTTIME of GPU cost
-    @modal.web_server(port=uiport, startup_timeout=MAXSTARTTIME)
+    #@modal.web_server(port=uiport, startup_timeout=MAXSTARTTIME)
     #def ui(self):
     #    print("App Ready!")
     @modal.asgi_app()
