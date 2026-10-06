@@ -1531,8 +1531,20 @@ class ComfyGPU:
         wait_for_port(uiport, timeout=30)
         proc = getattr(self, "proc", None)
         if proc is not None:
-            self.proc_name = psutil.Process(self.proc.pid).name()
-            print(f"ComfyUI process (PID={self.proc.pid}:{self.proc_name}) is still running (status={self.proc.status()}).")
+            try:
+                # Sometimes saved PID doesn't exist after restored from snapshot (as if the restoration was faked).
+                # If PID doesn't exist, Psutil will raise "process PID not found" exception.
+                self.proc_name = psutil.Process(self.proc.pid).name()
+                print(f"ComfyUI process (PID={self.proc.pid}:{self.proc_name}) is still running (status={self.proc.status()}).")
+            except Exception as e:
+                print(f"ComfyGPU Throw: {e!r}")
+                # Try finding ComfyUI process again
+                self.proc2 = find_comfy_process()
+                if self.proc2 is not None:
+                    self.proc2_name = psutil.Process(self.proc2.pid).name()
+                    print(f"ComfyUI process (PID={self.proc2.pid}:{self.proc2_name}) is still running (status={self.proc2.status()}).")
+                else:
+                    print(f"ComfyUI process no longer found.")
         else:
             print(f"ComfyUI process not found.")
         print("App Restored!")
