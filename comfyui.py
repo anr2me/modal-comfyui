@@ -1509,7 +1509,7 @@ class ComfyGPU:
             # Block here — snapshot is taken only after this returns
             wait_for_port(uiport, timeout=MAXSTARTTIME)
         except Exception as e:
-            print(f"ComfyGPU Throw: {e!r}")
+            print(f"ComfyGPU Checkpoint Throw: {e!r}")
             
         self.proc = find_comfy_process()
         if self.proc is not None:
@@ -1537,7 +1537,7 @@ class ComfyGPU:
                 self.proc_name = psutil.Process(self.proc.pid).name()
                 print(f"ComfyUI process (PID={self.proc.pid}:{self.proc_name}) is still running (status={self.proc.status()}).")
             except Exception as e:
-                print(f"ComfyGPU Throw: {e!r}")
+                print(f"ComfyGPU Restore Throw: {e!r}")
                 # Try finding ComfyUI process again
                 self.proc2 = find_comfy_process()
                 if self.proc2 is not None:
@@ -1548,6 +1548,8 @@ class ComfyGPU:
                     self.proc_name = self.proc2_name
                 else:
                     print(f"ComfyUI process no longer found.")
+                    # TODO: Either we raise Exception or run ComfyUI here
+                    raise RuntimeError("ComfyUI no longer running! Restoration might be failed?")
         else:
             print(f"ComfyUI process not found.")
         print("App Restored!")
@@ -1720,10 +1722,11 @@ class ComfyGPU:
         proc = getattr(self, "proc", None)
         if proc is not None:
             try:
+                # Sometimes saved PID doesn't exist anymore, thus terminate/kill failed with psutil.NoSuchProcess exception
                 proc.terminate()
                 proc.wait()
-            except (ProcessLookupError, OSError):
-                pass
+            except Exception as e: # (ProcessLookupError, OSError)
+                print(f"ComfyGPU Exit Throw: {e!r}")
         print("App CleanUp!")
 
 
