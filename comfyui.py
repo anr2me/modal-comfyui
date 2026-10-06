@@ -1555,11 +1555,58 @@ class ComfyGPU:
         print("App Restored!")
 
     # Note: Sometimes ComfyUI process no longer exist after restored from Snapshot (even though it still existed during restoration), thus web_server got timedout or connectionRefused error, wasting MAXSTARTTIME of GPU cost
-    #@modal.web_server(port=uiport, startup_timeout=MAXSTARTTIME)
-    #def ui(self):
-    #    print("App Ready!")
-    @modal.asgi_app()
+    @modal.web_server(port=uiport, startup_timeout=MAXSTARTTIME)
     def ui(self):
+        proc = getattr(self, "proc", None)
+        if proc is not None:
+            try:
+                # Sometimes saved PID doesn't exist after restored from snapshot (as if the restoration was faked).
+                # If PID doesn't exist, Psutil will raise "process PID not found" exception.
+                self.proc_name = psutil.Process(self.proc.pid).name()
+                print(f"ComfyUI process (PID={self.proc.pid}:{self.proc_name}) is still running (status={self.proc.status()}).")
+            except Exception as e:
+                print(f"ComfyGPU Server Throw: {e!r}")
+                # Try finding ComfyUI process again
+                self.proc2 = find_comfy_process()
+                if self.proc2 is not None:
+                    self.proc2_name = psutil.Process(self.proc2.pid).name()
+                    print(f"ComfyUI process (PID={self.proc2.pid}:{self.proc2_name}) is still running (status={self.proc2.status()}).")
+                    # Overwrite the old process info
+                    self.proc = self.proc2
+                    self.proc_name = self.proc2_name
+                else:
+                    print(f"ComfyUI process no longer found.")
+                    # TODO: Either we raise Exception (which could loop the cold-boot) or run ComfyUI again
+                    raise RuntimeError("ComfyUI no longer running! Restoration might be failed?")
+        else:
+            print(f"ComfyUI process not found.") 
+        print("App Ready!")
+    '''@modal.asgi_app()
+    def ui(self):
+        proc = getattr(self, "proc", None)
+        if proc is not None:
+            try:
+                # Sometimes saved PID doesn't exist after restored from snapshot (as if the restoration was faked).
+                # If PID doesn't exist, Psutil will raise "process PID not found" exception.
+                self.proc_name = psutil.Process(self.proc.pid).name()
+                print(f"ComfyUI process (PID={self.proc.pid}:{self.proc_name}) is still running (status={self.proc.status()}).")
+            except Exception as e:
+                print(f"ComfyGPU Server Throw: {e!r}")
+                # Try finding ComfyUI process again
+                self.proc2 = find_comfy_process()
+                if self.proc2 is not None:
+                    self.proc2_name = psutil.Process(self.proc2.pid).name()
+                    print(f"ComfyUI process (PID={self.proc2.pid}:{self.proc2_name}) is still running (status={self.proc2.status()}).")
+                    # Overwrite the old process info
+                    self.proc = self.proc2
+                    self.proc_name = self.proc2_name
+                else:
+                    print(f"ComfyUI process no longer found.")
+                    # TODO: Either we raise Exception (which could loop the cold-boot) or run ComfyUI again
+                    raise RuntimeError("ComfyUI no longer running! Restoration might be failed?")
+        else:
+            print(f"ComfyUI process not found.")
+            
         BACKEND_HTTP = f"http://127.0.0.1:{uiport}"
         BACKEND_WS = f"ws://127.0.0.1:{uiport}"
         STRIP_HEADERS = {
@@ -1700,7 +1747,7 @@ class ComfyGPU:
                     await websocket.close()
             
         print("App Ready!")
-        return app
+        return app'''
 
     @modal.method()
     def vol_commit(self):
