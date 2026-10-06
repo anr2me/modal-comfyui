@@ -1548,16 +1548,17 @@ class ComfyGPU:
                     self.proc_name = self.proc2_name
                 else:
                     print(f"ComfyUI process no longer found.")
-                    # TODO: Either we raise Exception or run ComfyUI here
+                    # TODO: Either we raise Exception (which could loop the cold-boot) or run ComfyUI again
                     raise RuntimeError("ComfyUI no longer running! Restoration might be failed?")
         else:
             print(f"ComfyUI process not found.")
         print("App Restored!")
 
+    # Note: Sometimes ComfyUI process no longer exist after restored from Snapshot (even though it still existed during restoration), thus web_server got timedout or connectionRefused error, wasting MAXSTARTTIME of GPU cost
     @modal.web_server(port=uiport, startup_timeout=MAXSTARTTIME)
-    def ui(self):
-        print("App Ready!")
-    '''@modal.asgi_app()
+    #def ui(self):
+    #    print("App Ready!")
+    @modal.asgi_app()
     def ui(self):
         BACKEND_HTTP = f"http://127.0.0.1:{uiport}"
         BACKEND_WS = f"ws://127.0.0.1:{uiport}"
@@ -1700,7 +1701,6 @@ class ComfyGPU:
             
         print("App Ready!")
         return app
-    '''
 
     @modal.method()
     def vol_commit(self):
@@ -1722,7 +1722,7 @@ class ComfyGPU:
         proc = getattr(self, "proc", None)
         if proc is not None:
             try:
-                # Sometimes saved PID doesn't exist anymore, thus terminate/kill failed with psutil.NoSuchProcess exception
+                # Sometimes saved PID doesn't exist anymore, thus terminate/kill failed with psutil.NoSuchProcess exception (web_server probably got timedout too because of this)
                 proc.terminate()
                 proc.wait()
             except Exception as e: # (ProcessLookupError, OSError)
