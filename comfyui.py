@@ -866,7 +866,7 @@ async def proxy_object(request: Request, path: str):
         url = await get_remote_url("ComfyGPU")
 
     # wait until internal websocket is connected and ready
-    await wait_websocket_ready()
+    #await wait_websocket_ready()
     
     # Forward request
     new_resp = await forward_httpx(url, request, True, show_logs=True)
@@ -948,7 +948,7 @@ async def proxy_jobs(request: Request, path: str):
         url = await get_remote_url("ComfyGPU")
 
     # wait until internal websocket is connected and ready
-    await wait_websocket_ready()
+    #await wait_websocket_ready()
     
     # Forward request
     new_resp = await forward_httpx(url, request, True)
@@ -1030,7 +1030,7 @@ async def proxy_view(request: Request):
         url = await get_remote_url("ComfyGPU")
 
     # wait until internal websocket is connected and ready
-    await wait_websocket_ready()
+    #await wait_websocket_ready()
     
     # Forward request
     new_resp = await forward_httpx(url, request, False) #stream=True 
