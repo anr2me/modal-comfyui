@@ -1594,8 +1594,11 @@ class ComfyGPU:
             try:
                 # Sometimes saved PID doesn't exist after restored from snapshot (as if the restoration was faked).
                 # If PID doesn't exist, Psutil will raise "process PID not found" exception.
-                self.proc_name = psutil.Process(self.proc.pid).name()
-                print(f"ComfyUI process (PID={self.proc.pid}:{self.proc_name}) is still running (status={self.proc.status()}).")
+                proc_name = psutil.Process(self.proc.pid).name()
+                print(f"ComfyUI process (PID={self.proc.pid}:{proc_name}) is still running (status={self.proc.status()}).")
+                if proc_name != self.proc_name:
+                    print(f"But the process name is different ({proc_name} vs {self.proc_name})! Restoration might be failed?")
+                    raise RuntimeError("Mismatched process name! Restoration might be failed?")
             except Exception as e:
                 print(f"ComfyGPU Server Throw: {e!r}")
                 # Try finding ComfyUI process again
