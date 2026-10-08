@@ -1524,11 +1524,6 @@ class ComfyGPU:
         active_count = shared_dict.get("active", 0)
         shared_dict["active"] = active_count + 1
     
-        # On restore, sockets may need to be rebound
-        #self.proc = subprocess.Popen(
-        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
-        #)
-        wait_for_port(uiport, timeout=30)
         proc = getattr(self, "proc", None)
         if proc is not None:
             try:
@@ -1555,6 +1550,11 @@ class ComfyGPU:
                     raise RuntimeError("ComfyUI no longer running! Restoration might be failed?")
         else:
             print(f"ComfyUI process not found.")
+        # On restore, sockets may need to be rebound
+        #self.proc = subprocess.Popen(
+        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        #)
+        wait_for_port(uiport, timeout=30)
         print("App Restored!")
 
     # Note: Sometimes ComfyUI process no longer exist after restored from Snapshot (even though it still existed during restoration), thus web_server got timedout or connectionRefused error, wasting MAXSTARTTIME of GPU cost
