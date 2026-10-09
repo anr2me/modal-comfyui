@@ -442,6 +442,7 @@ image = (
     #.uv_pip_install("tokenizers~=0.19.1", extra_options="--only-binary=tokenizers --no-deps", pre=True) # needed for transformers<4.43
     #.uv_pip_install("transformers~=4.42.4") # extra_options="--no-deps --no-build-isolation" # Fix KeyError: 'default' issue on bytedance Lance
     #.uv_pip_install("peft~=0.10.0") # compatible peft version for transformers 4.40–4.42
+    .uv_pip_install("aiohttp>=3.14.1,!=3.14.2,!=3.14.3") # Making sure we don't use a buggy aiohttp that could cause websocket to disconnect
     .uv_pip_install(["torch~=2.10.0", "torchvision~=0.25.0", "torchaudio~=2.10.0"], extra_options="--extra-index-url https://download.pytorch.org/whl/cu130") # Fix torch version after changed by FA4 / ultralytics
 )
 
