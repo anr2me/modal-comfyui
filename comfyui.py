@@ -1508,7 +1508,7 @@ class ComfyGPU:
         try:
             update_vars_from_env()
             print(f"Additional ComfyUI Arguments: {COMFYGPU_ARGS}")
-            run_comfyui()
+            self.run_comfyui()
             # Block here — snapshot is taken only after this returns
             wait_for_port(uiport, timeout=MAXSTARTTIME)
         except Exception as e:
@@ -1551,10 +1551,10 @@ class ComfyGPU:
                     print(f"ComfyUI process no longer found.")
                     # TODO: Either we raise Exception (which could loop the cold-boot) or run ComfyUI again
                     #raise RuntimeError("ComfyUI no longer running! Restoration might be failed?")
-                    run_comfyui()
+                    self.run_comfyui()
         else:
             print(f"ComfyUI process not found.")
-            run_comfyui()
+            self.run_comfyui()
         # wait until ComfyUI ready to accept connection
         wait_for_port(uiport, timeout=MAXSTARTTIME)
         print("App Restored!")
