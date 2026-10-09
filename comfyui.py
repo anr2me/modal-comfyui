@@ -1498,14 +1498,17 @@ def find_comfy_process():
 )
 @modal.concurrent(max_inputs=20)
 class ComfyGPU:
+    def run_comfyui(self):
+        self._ = subprocess.Popen(
+            f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYGPU_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        )
+        
     @modal.enter(snap=True)
     def start_checkpoint(self):
         try:
             update_vars_from_env()
             print(f"Additional ComfyUI Arguments: {COMFYGPU_ARGS}")
-            self._ = subprocess.Popen(
-                f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYGPU_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
-            )
+            run_comfyui()
             # Block here — snapshot is taken only after this returns
             wait_for_port(uiport, timeout=MAXSTARTTIME)
         except Exception as e:
@@ -1547,14 +1550,13 @@ class ComfyGPU:
                 else:
                     print(f"ComfyUI process no longer found.")
                     # TODO: Either we raise Exception (which could loop the cold-boot) or run ComfyUI again
-                    raise RuntimeError("ComfyUI no longer running! Restoration might be failed?")
+                    #raise RuntimeError("ComfyUI no longer running! Restoration might be failed?")
+                    run_comfyui()
         else:
             print(f"ComfyUI process not found.")
-        # On restore, sockets may need to be rebound
-        #self.proc = subprocess.Popen(
-        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
-        #)
-        wait_for_port(uiport, timeout=30)
+            run_comfyui()
+        # wait until ComfyUI ready to accept connection
+        wait_for_port(uiport, timeout=MAXSTARTTIME)
         print("App Restored!")
 
     # Note: Sometimes ComfyUI process no longer exist after restored from Snapshot (even though it still existed during restoration), thus web_server got timedout or connectionRefused error, wasting MAXSTARTTIME of GPU cost
