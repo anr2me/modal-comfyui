@@ -53,7 +53,7 @@ Copy `plugins.example.py` to `plugins.py` and edit it to add custom node IDs or 
 ### In case of Insufficient Custom Node
 
 Open ComfyUI manager on comfyui and click "Used in Workflow" to see which custom nodes are used in the workflow.  
-_*Note: We are using Legacy ComfyUI Manager._
+_**Note:** You can enable Legacy ComfyUI Manager by using `--enable-manager-legacy-ui` argument._
 
 - Add these custom nodes to `comfy_plugins` in `plugins.py`(be careful of node id). You can find the node id at https://registry.comfy.org/
 - You can also install custom nodes repository using `git` url. Add the url, branch, and their dependencies to `comfy_plugins_ext` in `plugins.py` (be careful of dependency conflicts).
@@ -92,7 +92,7 @@ Other Environment Variables you can use are:
 ```bash
 COMFY_VER="latest" # or "nightly --commit <hash>" or "nightly --pr kijai:minimax_fun"
 COMFYGPU_ARGS="--use-flash-attention --preview-method auto --front-end-version Comfy-Org/ComfyUI_frontend@1.45.21"
-COMFYMIX_ARGS="--preview-method auto --front-end-version Comfy-Org/ComfyUI_frontend@1.45.21"
+COMFYMIX_ARGS="--preview-method auto --front-end-version Comfy-Org/ComfyUI_frontend@1.45.21 --enable-manager-legacy-ui"
 JOBS_CUTOFFTIME=172800
 MODAL_MAXTIME=3600
 MODAL_IDLETIME=38
