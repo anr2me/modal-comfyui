@@ -1500,7 +1500,7 @@ def find_comfy_process():
 class ComfyGPU:
     def run_comfyui(self):
         self._ = subprocess.Popen(
-            f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYGPU_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+            f"comfy manager enable-gui && comfy launch --background -- {COMFYGPU_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
         )
         
     @modal.enter(snap=True)
@@ -1812,7 +1812,7 @@ class ComfyMix:
                 f"python {COMFYUI_ROOT}/main.py -h ", shell=True
             )
             self.proc = subprocess.Popen(
-                f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYMIX_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+                f"comfy manager enable-gui && comfy launch --background -- {COMFYMIX_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
             )
             # Block here — snapshot is taken only after this returns
             wait_for_port(uiport, timeout=MAXSTARTTIME)
@@ -1880,7 +1880,7 @@ class ComfyCPU:
                 f"python {COMFYUI_ROOT}/main.py -h ", shell=True
             )
             self.proc = subprocess.Popen(
-                f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYMIX_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+                f"comfy manager enable-gui && comfy launch --background -- {COMFYMIX_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
             )
             # Block here — snapshot is taken only after this returns
             wait_for_port(uiport, timeout=MAXSTARTTIME)
