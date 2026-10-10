@@ -484,10 +484,12 @@ def wait_for_port(port: int, timeout: int = 60):
                 return  # port is open — ComfyUI is ready
         except OSError:
             time.sleep(0.5)
-    raise TimeoutError(f"ComfyUI never became ready on port {port}")
+    print(f"WARNING: ComfyUI never became ready on port {port}")
+    #raise TimeoutError(f"ComfyUI never became ready on port {port}")
 
 
 with image.imports():
+    import psutil
     import asyncio
     import httpx
     import websockets
@@ -1470,6 +1472,19 @@ async def proxy(request: Request, path: str):
     return new_resp
     
 
+def find_comfy_process():
+    for p in psutil.process_iter(["pid", "name", "cmdline", "status"]):
+        try:
+            cmdline = p.info["cmdline"] or []
+            cmd = " ".join(cmdline)
+
+            if "ComfyUI" in cmd and "--listen" in cmd:
+                return p
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+
+    return None
+    
 @app.cls(
     max_containers=1,
     gpu=GPU_MODEL,
@@ -1483,34 +1498,126 @@ async def proxy(request: Request, path: str):
 )
 @modal.concurrent(max_inputs=20)
 class ComfyGPU:
+    def run_comfyui(self):
+        self._ = subprocess.Popen(
+            f"comfy manager enable-gui && comfy launch --background -- {COMFYGPU_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
+        )
+        
     @modal.enter(snap=True)
     def start_checkpoint(self):
         try:
             update_vars_from_env()
             print(f"Additional ComfyUI Arguments: {COMFYGPU_ARGS}")
-            self.proc = subprocess.Popen(
-                f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYGPU_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
-            )
+            self.run_comfyui()
             # Block here — snapshot is taken only after this returns
             wait_for_port(uiport, timeout=MAXSTARTTIME)
         except Exception as e:
-            print(f"ComfyGPU Throw: {e!r}")
-
+            print(f"ComfyGPU Checkpoint Throw: {e!r}")
+            
+        self.proc = find_comfy_process()
+        if self.proc is not None:
+            self.proc_name = psutil.Process(self.proc.pid).name()
+            print(f"ComfyUI process (PID={self.proc.pid}:{self.proc_name}) is still running (status={self.proc.status()}).")
+        else:
+            print(f"ComfyUI process not found.")
+    
     @modal.enter(snap=False)
     def start_restore(self):
         update_vars_from_env()
         active_count = shared_dict.get("active", 0)
         shared_dict["active"] = active_count + 1
     
-        # On restore, sockets may need to be rebound
-        #self.proc = subprocess.Popen(
-        #    f"comfy manager enable-legacy-gui && comfy launch --background -- --listen 0.0.0.0 --port {uiport} --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml 
-        #)
-        wait_for_port(uiport, timeout=30)
+        proc = getattr(self, "proc", None)
+        if proc is not None:
+            try:
+                # Sometimes saved PID doesn't exist after restored from snapshot (as if the restoration was faked).
+                # If PID doesn't exist, Psutil will raise "process PID not found" exception.
+                proc_name = psutil.Process(self.proc.pid).name()
+                print(f"ComfyUI process (PID={self.proc.pid}:{proc_name}) is still running (status={self.proc.status()}).")
+                if proc_name != self.proc_name:
+                    print(f"But the process name is different ({proc_name} vs {self.proc_name})! Restoration might be failed?")
+                    raise RuntimeError("Mismatched process name! Restoration might be failed?")
+            except Exception as e:
+                print(f"ComfyGPU Restore Throw: {e!r}")
+                # Try finding ComfyUI process again
+                self.proc2 = find_comfy_process()
+                if self.proc2 is not None:
+                    self.proc2_name = psutil.Process(self.proc2.pid).name()
+                    print(f"ComfyUI process (PID={self.proc2.pid}:{self.proc2_name}) is still running (status={self.proc2.status()}).")
+                    # Overwrite the old process info
+                    self.proc = self.proc2
+                    self.proc_name = self.proc2_name
+                else:
+                    print(f"ComfyUI process no longer found.")
+                    # TODO: Either we raise Exception (which could loop the cold-boot) or run ComfyUI again
+                    #raise RuntimeError("ComfyUI no longer running! Restoration might be failed?")
+                    self.run_comfyui()
+        else:
+            print(f"ComfyUI process not found.")
+            self.run_comfyui()
+        # wait until ComfyUI ready to accept connection
+        wait_for_port(uiport, timeout=MAXSTARTTIME)
         print("App Restored!")
-    
-    @modal.asgi_app()
+
+    # Note: Sometimes ComfyUI process no longer exist after restored from Snapshot (even though it still existed during restoration), thus web_server got timedout or connectionRefused error, wasting MAXSTARTTIME of GPU cost
+    @modal.web_server(port=uiport, startup_timeout=MAXSTARTTIME)
     def ui(self):
+        proc = getattr(self, "proc", None)
+        if proc is not None:
+            try:
+                # Sometimes saved PID doesn't exist after restored from snapshot (as if the restoration was faked).
+                # If PID doesn't exist, Psutil will raise "process PID not found" exception.
+                proc_name = psutil.Process(self.proc.pid).name()
+                print(f"ComfyUI process (PID={self.proc.pid}:{proc_name}) is still running (status={self.proc.status()}).")
+                if proc_name != self.proc_name:
+                    print(f"But the process name is different ({proc_name} vs {self.proc_name})! Restoration might be failed?")
+                    raise RuntimeError("Mismatched process name! Restoration might be failed?")
+            except Exception as e:
+                print(f"ComfyGPU Server Throw: {e!r}")
+                # Try finding ComfyUI process again
+                self.proc2 = find_comfy_process()
+                if self.proc2 is not None:
+                    self.proc2_name = psutil.Process(self.proc2.pid).name()
+                    print(f"ComfyUI process (PID={self.proc2.pid}:{self.proc2_name}) is still running (status={self.proc2.status()}).")
+                    # Overwrite the old process info
+                    self.proc = self.proc2
+                    self.proc_name = self.proc2_name
+                else:
+                    print(f"ComfyUI process no longer found.")
+                    # TODO: Either we raise Exception (which could loop the cold-boot) or run ComfyUI again
+                    raise RuntimeError("ComfyUI no longer running! Restoration might be failed?")
+        else:
+            print(f"ComfyUI process not found.") 
+        print("App Ready!")
+    '''@modal.asgi_app()
+    def ui(self):
+        proc = getattr(self, "proc", None)
+        if proc is not None:
+            try:
+                # Sometimes saved PID doesn't exist after restored from snapshot (as if the restoration was faked).
+                # If PID doesn't exist, Psutil will raise "process PID not found" exception.
+                proc_name = psutil.Process(self.proc.pid).name()
+                print(f"ComfyUI process (PID={self.proc.pid}:{proc_name}) is still running (status={self.proc.status()}).")
+                if proc_name != self.proc_name:
+                    print(f"But the process name is different ({proc_name} vs {self.proc_name})! Restoration might be failed?")
+                    raise RuntimeError("Mismatched process name! Restoration might be failed?")
+            except Exception as e:
+                print(f"ComfyGPU Server Throw: {e!r}")
+                # Try finding ComfyUI process again
+                self.proc2 = find_comfy_process()
+                if self.proc2 is not None:
+                    self.proc2_name = psutil.Process(self.proc2.pid).name()
+                    print(f"ComfyUI process (PID={self.proc2.pid}:{self.proc2_name}) is still running (status={self.proc2.status()}).")
+                    # Overwrite the old process info
+                    self.proc = self.proc2
+                    self.proc_name = self.proc2_name
+                else:
+                    print(f"ComfyUI process no longer found.")
+                    # TODO: Either we raise Exception (which could loop the cold-boot) or run ComfyUI again
+                    raise RuntimeError("ComfyUI no longer running! Restoration might be failed?")
+        else:
+            print(f"ComfyUI process not found.")
+            
         BACKEND_HTTP = f"http://127.0.0.1:{uiport}"
         BACKEND_WS = f"ws://127.0.0.1:{uiport}"
         STRIP_HEADERS = {
@@ -1573,7 +1680,8 @@ class ComfyGPU:
             
             try:
                 backend_resp = await client.send(req, stream=True)
-            except httpx.ConnectError:
+            except httpx.ConnectError as e:
+                print(f"proxy_http Throw: {e!r} \nRequest: {request.method} {url}")
                 return JSONResponse({"error": "backend unavailable"}, status_code=502)
             except httpx.TimeoutException:
                 return JSONResponse({"error": "backend timeout"}, status_code=504)
@@ -1650,7 +1758,7 @@ class ComfyGPU:
                     await websocket.close()
             
         print("App Ready!")
-        return app
+        return app'''
 
     @modal.method()
     def vol_commit(self):
@@ -1672,10 +1780,11 @@ class ComfyGPU:
         proc = getattr(self, "proc", None)
         if proc is not None:
             try:
+                # Sometimes saved PID doesn't exist anymore, thus terminate/kill failed with psutil.NoSuchProcess exception (web_server probably got timedout too because of this)
                 proc.terminate()
                 proc.wait()
-            except (ProcessLookupError, OSError):
-                pass
+            except Exception as e: # (ProcessLookupError, OSError)
+                print(f"ComfyGPU Exit Throw: {e!r}")
         print("App CleanUp!")
 
 
@@ -1703,7 +1812,7 @@ class ComfyMix:
                 f"python {COMFYUI_ROOT}/main.py -h ", shell=True
             )
             self.proc = subprocess.Popen(
-                f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYMIX_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+                f"comfy manager enable-gui && comfy launch --background -- {COMFYMIX_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
             )
             # Block here — snapshot is taken only after this returns
             wait_for_port(uiport, timeout=MAXSTARTTIME)
@@ -1771,7 +1880,7 @@ class ComfyCPU:
                 f"python {COMFYUI_ROOT}/main.py -h ", shell=True
             )
             self.proc = subprocess.Popen(
-                f"comfy manager enable-legacy-gui && comfy launch --background -- {COMFYMIX_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
+                f"comfy manager enable-gui && comfy launch --background -- {COMFYMIX_ARGS} --listen 0.0.0.0 --port {uiport} --enable-cors-header 'http://127.0.0.1:{uiport}' --user-directory {user_dir} --output-directory {output_dir} --input-directory {input_dir} --temp-directory {temp_dir} --cpu ", shell=True # --base-directory {base_dir} --extra-model-paths-config {COMFYUI_ROOT}/extra_model_paths.yaml
             )
             # Block here — snapshot is taken only after this returns
             wait_for_port(uiport, timeout=MAXSTARTTIME)
