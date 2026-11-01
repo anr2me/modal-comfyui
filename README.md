@@ -101,7 +101,18 @@ python comfyui.py
 ```
 Or change the GPU with:
 ```bash
-MODAL_GPU=RTX-PRO-6000 modal deploy comfyui.py
+export MODAL_GPU=RTX-PRO-6000
+modal deploy comfyui.py
+```
+On Windows CMD, it should be:
+```cmd
+set MODAL_GPU=RTX-PRO-6000
+...
+```
+Or PowerShell:
+```powershell
+$env:MODAL_GPU="RTX-PRO-6000"
+...
 ```
 You can find the GPU types available on modal.com at https://modal.com/docs/guide/gpu
 
