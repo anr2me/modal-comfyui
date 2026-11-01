@@ -79,7 +79,7 @@ image = (
     .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
     #.run_commands("git config --global core.fileMode false")
     #.run_commands("git config --global pull.rebase") 
-    .run_commands(f"comfy --skip-prompt install --restore --nvidia --cuda-version 13.0 {VERSION}", volumes={"/cache": vol}) # --workspace /cache/ComfyUI
+    .run_commands(f"comfy --skip-prompt install --restore --fast-deps --nvidia --cuda-version 13.0 {VERSION}", volumes={"/cache": vol}) # --workspace /cache/ComfyUI
     #  || cd /cache/ComfyUI && comfy --here install --restore && cd - 
     #.run_commands(f"comfy --skip-prompt --workspace /cache/ComfyUI set-default {base_dir}", volumes={"/cache": vol})
     #.run_commands(f"comfy --skip-prompt set-default {COMFYUI_ROOT} --launch-extras='--network-mode personal_cloud --security-level normal'") # Allow installing custom nodes from Manager
@@ -342,7 +342,7 @@ workflow_file_path = Path(__file__).parent / "workflow_api.json"
 if workflow_file_path.exists():
     image = image.add_local_file(
         workflow_file_path, "/root/workflow_api.json", copy=True
-    ).run_commands("comfy node install-deps --workflow=/root/workflow_api.json", volumes={"/cache": vol})
+    ).run_commands("comfy node install-deps --uv-compile --workflow=/root/workflow_api.json", volumes={"/cache": vol})
 else:
     print(
         f"Warning: {workflow_file_path} not found. API endpoint might not work without a workflow."
@@ -360,7 +360,7 @@ except ImportError:
     comfy_plugins_ext = []
 
 if comfy_plugins:
-    image = image.run_commands("comfy node install " + " ".join(comfy_plugins), volumes={"/cache": vol}) #, gpu=GPU_MODEL
+    image = image.run_commands("comfy node install --fast-deps " + " ".join(comfy_plugins), volumes={"/cache": vol}) #, gpu=GPU_MODEL
 
 def install_ext_plugin(image: modal.Image, plugin: dict) -> modal.Image:
     """Install one external custom node from git into ComfyUI's custom_nodes.
