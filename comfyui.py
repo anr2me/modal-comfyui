@@ -364,7 +364,12 @@ except ImportError:
     comfy_plugins_ext = []
 
 if comfy_plugins:
-    image = image.run_commands("comfy node install --fast-deps " + " ".join(comfy_plugins), volumes={"/cache": vol}) #, gpu=GPU_MODEL
+    image = (
+        image.run_commands("comfy node install --fast-deps " + " ".join(comfy_plugins), volumes={"/cache": vol}) #, gpu=GPU_MODEL
+        # torch might have been updated to a different version after installing custom nodes, let's use v2.10 again
+        .uv_pip_install(["torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec~=0.10.0"], extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
+        .uv_pip_install("cupy-cuda13x", extra_options="--upgrade")
+    )
 
 def install_ext_plugin(image: modal.Image, plugin: dict) -> modal.Image:
     """Install one external custom node from git into ComfyUI's custom_nodes.
