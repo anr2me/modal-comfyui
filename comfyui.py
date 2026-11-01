@@ -71,7 +71,7 @@ image = (
     .run_commands("apt-get update")
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "curl", "wget", "axel", "ffmpeg") #rav1e
     .uv_pip_install(["pip", "uv"], extra_options="--upgrade")
-    .uv_pip_install(["aiohttp>=3.14.1,!=3.14.2,!=3.14.3,!=3.14.4", "fastapi", "websockets", "httpx", "brotli", "zstandard", "starlette", "starlette-compress", "comfy-cli", "comfyui-manager>=4.1b1", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
+    .uv_pip_install(["aiohttp>=3.14.1,!=3.14.2,!=3.14.3,!=3.14.4", "fastapi", "websockets", "httpx", "brotli", "zstandard", "starlette", "starlette-compress", "comfy-cli", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
     # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
     .uv_pip_install(["torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec~=0.10.0"], extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
@@ -83,6 +83,7 @@ image = (
     #  || cd /cache/ComfyUI && comfy --here install --restore && cd - 
     #.run_commands(f"comfy --skip-prompt --workspace /cache/ComfyUI set-default {base_dir}", volumes={"/cache": vol})
     #.run_commands(f"comfy --skip-prompt set-default {COMFYUI_ROOT} --launch-extras='--network-mode personal_cloud --security-level normal'") # Allow installing custom nodes from Manager
+    .uv_pip_install("comfyui-manager>=4.1b8", extra_options="--upgrade")
     .run_commands("git lfs install") # --skip-smudge
 )
 
