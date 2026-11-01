@@ -73,10 +73,6 @@ image = (
     .uv_pip_install(["pip", "uv"], extra_options="--upgrade")
     .uv_pip_install(["aiohttp>=3.14.1,!=3.14.2,!=3.14.3,!=3.14.4", "fastapi", "websockets", "httpx", "brotli", "zstandard", "starlette", "starlette-compress", "comfy-cli", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
-    # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
-    .uv_pip_install(["torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec~=0.10.0"], extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
-    .uv_pip_install("cupy-cuda13x", extra_options="--upgrade")
-    .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
     #.run_commands("git config --global core.fileMode false")
     #.run_commands("git config --global pull.rebase") 
     .run_commands(f"comfy --skip-prompt install --restore --fast-deps --nvidia --cuda-version 13.0 {VERSION}", volumes={"/cache": vol}) # --workspace /cache/ComfyUI
@@ -84,7 +80,11 @@ image = (
     #.run_commands(f"comfy --skip-prompt --workspace /cache/ComfyUI set-default {base_dir}", volumes={"/cache": vol})
     #.run_commands(f"comfy --skip-prompt set-default {COMFYUI_ROOT} --launch-extras='--network-mode personal_cloud --security-level normal'") # Allow installing custom nodes from Manager
     .uv_pip_install("comfyui-manager>=4.1b8", extra_options="--upgrade")
+    .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
     .run_commands("comfy --skip-prompt node update-cache", volumes={"/cache": vol})
+    # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
+    .uv_pip_install(["torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec~=0.10.0"], extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
+    .uv_pip_install("cupy-cuda13x", extra_options="--upgrade")
     .run_commands("git lfs install") # --skip-smudge
 )
 
@@ -157,6 +157,7 @@ def hf_download(
         target_path.unlink()
 
     # Create symlink
+    # TODO: May be we should create the symlink at /cache/ComfyUI/models so we can add/remove models without changing the image.
     target_path.symlink_to(model)
     print(f"Downloaded {repo_id}/{filename} to {target_path}")
 
@@ -239,6 +240,7 @@ def download_external_model(url: str, filename: str, model_dir: str):
         target_path.unlink()
 
     # Create symlink
+    # TODO: May be we should create the symlink at /cache/ComfyUI/models so we can add/remove models without changing the image.
     target_path.symlink_to(cached_path)
     print(f"Linked {filename} to {target_path}")
 
