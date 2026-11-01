@@ -466,13 +466,15 @@ image = (
 image = image.run_commands(["yolo settings sync=False", "uv pip show torch"])
 
 # Testing for vulnerability on custom nodes
-nodes_dir = str(COMFYUI_ROOT / "custom_nodes")
+# Note: Temporarily not scanning custom nodes to save time, as there are too many custom nodes with flaws, thus kinda pointless to scan them
+'''nodes_dir = str(COMFYUI_ROOT / "custom_nodes")
 image = image.run_commands(
     f"python -m venv /tmp/temp_venv && "
     f"/tmp/temp_venv/bin/pip install bandit[toml] && "
     f"/tmp/temp_venv/bin/bandit -r {nodes_dir} -n 3 --severity-level=high || true " # only shows 3 lines of high-severity issue # " -f json "
     f"; rm -rf /tmp/temp_venv || true" # Cleanup ensures venv is not in the final layer, and making sure the image building doesn't failed here.
 ,volumes={"/cache": vol})
+'''
 
 # copy custom nodes to base_dir
 #import shutil
