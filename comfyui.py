@@ -84,6 +84,7 @@ image = (
     #.run_commands(f"comfy --skip-prompt --workspace /cache/ComfyUI set-default {base_dir}", volumes={"/cache": vol})
     #.run_commands(f"comfy --skip-prompt set-default {COMFYUI_ROOT} --launch-extras='--network-mode personal_cloud --security-level normal'") # Allow installing custom nodes from Manager
     .uv_pip_install("comfyui-manager>=4.1b8", extra_options="--upgrade")
+    .run_commands("comfy --skip-prompt node update-cache", volumes={"/cache": vol})
     .run_commands("git lfs install") # --skip-smudge
 )
 
