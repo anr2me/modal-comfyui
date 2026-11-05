@@ -143,7 +143,7 @@ You will need to create a Modal's Proxy Token (from Settings) when using `MODAL_
   - FlashAttention 2.8.3, 3, and 4
   - SageAttention 2.2 and 3
   - SpargeAttention 0.1
-  - nunchaku 1.2.1
+  - nunchaku 1.3.0.dev20260306
   - llama-cpp-python
 
 ## Contributing

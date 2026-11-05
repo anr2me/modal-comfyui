@@ -438,7 +438,8 @@ def install_wheels():
     url = f"https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.9.0/flash_attn-2.8.3+cu130torch{ver}-cp{sys.version_info.major}{sys.version_info.minor}-cp{sys.version_info.major}{sys.version_info.minor}-linux_x86_64.whl"
     subprocess.check_call([sys.executable, "-m", "uv", "pip", "install", "--no-deps", url])
     # nunchaku
-    url = f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{ver}-cp{sys.version_info.major}{sys.version_info.minor}-cp{sys.version_info.major}{sys.version_info.minor}-linux_x86_64.whl"
+    #url = f"https://github.com/nunchaku-tech/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch{ver}-cp{sys.version_info.major}{sys.version_info.minor}-cp{sys.version_info.major}{sys.version_info.minor}-linux_x86_64.whl"
+    url = f"https://github.com/nunchux-ai/nunchaku/releases/download/v1.3.0dev20260306/nunchaku-1.3.0.dev20260306+cu13.0torch{ver}-cp{sys.version_info.major}{sys.version_info.minor}-cp{sys.version_info.major}{sys.version_info.minor}-linux_x86_64.whl"
     subprocess.check_call([sys.executable, "-m", "uv", "pip", "install", "--no-deps", url])
 
 
