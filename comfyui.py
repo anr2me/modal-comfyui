@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import shlex
 import subprocess
@@ -81,7 +82,6 @@ image = (
     #.run_commands(f"comfy --skip-prompt set-default {COMFYUI_ROOT} --launch-extras='--network-mode personal_cloud --security-level normal'") # Allow installing custom nodes from Manager
     .uv_pip_install("comfyui-manager>=4.1b8", extra_options="--upgrade")
     .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
-    .run_commands("comfy --skip-prompt node update-cache", volumes={"/cache": vol})
     # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
     .uv_pip_install(["torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec~=0.10.0"], extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
     .uv_pip_install("cupy-cuda13x", extra_options="--upgrade")
@@ -341,17 +341,7 @@ if extra_file_path.exists():
 else:
     print(f"Extra Model Paths file ({extra_file_path}) Not Found!")
 
-# setup custom nodes
-workflow_file_path = Path(__file__).parent / "workflow_api.json"
-if workflow_file_path.exists():
-    image = image.add_local_file(
-        workflow_file_path, "/root/workflow_api.json", copy=True
-    ).run_commands("comfy node install-deps --uv-compile --workflow=/root/workflow_api.json", volumes={"/cache": vol})
-else:
-    print(
-        f"Warning: {workflow_file_path} not found. API endpoint might not work without a workflow."
-    )
-
+# import plugins list
 image = image.add_local_python_source("plugins", copy=True)
 try:
     from plugins import comfy_plugins
@@ -363,13 +353,53 @@ try:
 except ImportError:
     comfy_plugins_ext = []
 
-if comfy_plugins:
+# update custom nodes list from registry to make sure newly published nodes to be available
+image = image.run_commands("comfy --skip-prompt node update-cache", volumes={"/cache": vol})
+
+
+def find_cnr_ids(data) -> set[str]:
+    """Collect the Comfy Registry IDs (``cnr_id``) recorded on every node of a
+    UI-format workflow, including nodes nested in subgraphs, which
+    ``comfy node install-deps`` does not scan."""
+    if isinstance(data, dict):
+        ids = {data["cnr_id"]} if isinstance(data.get("cnr_id"), str) else set()
+        children = data.values()
+    elif isinstance(data, list):
+        ids, children = set(), data
+    else:
+        return set()
+    for child in children:
+        ids |= find_cnr_ids(child)
+    return ids
+
+
+# setup custom nodes
+node_ids = set(comfy_plugins)
+workflow_file_path = Path(__file__).parent / "workflow_api.json"
+if workflow_file_path.exists():
+    image = image.add_local_file(
+        workflow_file_path, "/root/workflow_api.json", copy=True
+    ).run_commands("comfy node install-deps --uv-compile --workflow=/root/workflow_api.json", volumes={"/cache": vol})
+    workflow = json.loads(workflow_file_path.read_text(encoding="utf-8"))
+    # comfy-core is ComfyUI itself, not an installable node pack
+    node_ids |= find_cnr_ids(workflow) - {"comfy-core"}
+else:
+    print(
+        f"Warning: {workflow_file_path} not found. API endpoint might not work without a workflow."
+    )
+
+if node_ids:
+    # Packs already installed by install-deps are skipped by comfy-cli.
     image = (
-        image.run_commands("comfy node install --fast-deps " + " ".join(comfy_plugins), volumes={"/cache": vol}) #, gpu=GPU_MODEL
+        image.run_commands(
+            "comfy node install --fast-deps " + " ".join(shlex.quote(i) for i in sorted(node_ids))
+            , volumes={"/cache": vol} #, gpu=GPU_MODEL
+        )
         # torch might have been updated to a different version after installing custom nodes, let's use v2.10 again
         .uv_pip_install(["torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec~=0.10.0"], extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
         .uv_pip_install("cupy-cuda13x", extra_options="--upgrade")
     )
+
 
 def install_ext_plugin(image: modal.Image, plugin: dict) -> modal.Image:
     """Install one external custom node from git into ComfyUI's custom_nodes.
@@ -429,6 +459,7 @@ if comfy_plugins_ext:
 #    "/root/comfy/ComfyUI/custom_nodes/reverse_proxy_fix",
 #    copy=True,
 #)
+
 
 # install missing/additional dependencies or override broken one with a compatible version
 def install_wheels():
