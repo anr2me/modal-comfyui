@@ -82,7 +82,6 @@ image = (
     #.run_commands(f"comfy --skip-prompt set-default {COMFYUI_ROOT} --launch-extras='--network-mode personal_cloud --security-level normal'") # Allow installing custom nodes from Manager
     .uv_pip_install("comfyui-manager>=4.1b8", extra_options="--upgrade")
     .run_commands("comfy --skip-prompt --no-enable-telemetry tracking disable")
-    .run_commands("comfy --skip-prompt node update-cache", volumes={"/cache": vol})
     # Since nunchaku doesn't have pre-built wheels for pytorch stable v2.11, let's use v2.10
     .uv_pip_install(["torch~=2.10.0", "torchao~=0.16.0", "torchvision~=0.25.0", "torchaudio~=2.10.0", "torchcodec~=0.10.0"], extra_options="--upgrade", index_url="https://download.pytorch.org/whl/cu130") # xformers
     .uv_pip_install("cupy-cuda13x", extra_options="--upgrade")
@@ -342,6 +341,7 @@ if extra_file_path.exists():
 else:
     print(f"Extra Model Paths file ({extra_file_path}) Not Found!")
 
+# import plugins list
 image = image.add_local_python_source("plugins", copy=True)
 try:
     from plugins import comfy_plugins
@@ -352,6 +352,9 @@ try:
     from plugins import comfy_plugins_ext
 except ImportError:
     comfy_plugins_ext = []
+
+# update custom nodes list from registry to make sure newly published nodes to be available
+image = image.run_commands("comfy --skip-prompt node update-cache", volumes={"/cache": vol})
 
 
 def find_cnr_ids(data) -> set[str]:
