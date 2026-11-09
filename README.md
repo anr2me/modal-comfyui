@@ -138,7 +138,7 @@ You will need to create a Modal's Proxy Token (from Settings) when using `MODAL_
 - **GPU Snapshots**: Fast startup times using Modal's GPU snapshots (cold-start can be under 3 seconds).
 - **Model Caching**: Uses Modal Volumes to cache models across runs (modal's persistent volume is free for the first 1 TiB).
 - **Custom Node Management**: Integrated with `comfy-cli` for easy plugin installation.
-- **Mixed CPU and GPU instance**: Create/Edit your workflows using CPU-only instance for cheaper rates, but runs workflows on GPU instance seamlessly. Also have persistent completed jobs across sessions with their output assets accessible from Media Assets panel.
+- **Mixed CPU and GPU instance**: Create/Edit your workflows using CPU-only instance for cheaper rates, but runs workflows on GPU instance seamlessly. Also have persistent completed jobs across sessions with their output assets accessible from Media Assets panel.  *<b>Note:</b> ComfyMix relies on websocket connection, thus it shouldn't be used as an endpoint for third-party frontend/client.*
 - **Pre-installed Wheels**:
   - PyTorch+CUDA 13.0
   - FlashAttention 2.8.3, 3, and 4
