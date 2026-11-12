@@ -71,6 +71,9 @@ image = (
     modal.Image.debian_slim(python_version="3.12")
     .run_commands("apt-get update")
     .apt_install("git", "git-lfs", "libgl1-mesa-dev", "libglib2.0-0", "aria2", "curl", "wget", "axel", "ffmpeg") #rav1e
+    .env(
+        {"TORCH_CUDA_ARCH_LIST": "8.0 8.6 8.9 9.0 10.0 10.3 12.0 12.1+PTX"}
+    )
     .uv_pip_install(["pip", "uv"], extra_options="--upgrade")
     .uv_pip_install(["aiohttp>=3.14.1,!=3.14.2,!=3.14.3,!=3.14.4", "fastapi", "websockets", "httpx", "brotli", "zstandard", "starlette", "starlette-compress", "comfy-cli", "setuptools~=81.0", "gradio>=4", "kernels~=0.12.0"], extra_options="--upgrade")
     .pip_install_from_requirements(str(root_dir / "requirements_comfy.txt")) # uv=True
